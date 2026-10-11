@@ -47,6 +47,13 @@ export interface AlertSettings {
   /** Camera key -> unix seconds until which that camera is muted. */
   snoozed: Record<string, number>;
   health: { enabled: boolean; storagePct: number };
+  /** Home/Away: while at home, only cameras in alertWhenHome notify. */
+  presence: {
+    enabled: boolean;
+    atHome: boolean;
+    alertWhenHome: string[];
+    home?: { latitude: number; longitude: number; radius: number };
+  };
   /** Instant Alerts bridge, if configured. */
   bridge?: { url: string; pairedAt: number };
 }
@@ -165,6 +172,7 @@ export const useApp = create<AppState>()(
         quietFor: [],
         snoozed: {},
         health: { enabled: true, storagePct: 90 },
+        presence: { enabled: false, atHome: false, alertWhenHome: [] },
       },
       savedClips: [],
       healthAlerted: {},

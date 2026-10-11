@@ -50,9 +50,12 @@ type device struct {
 	// Recognized names (Frigate sub-labels) that never alert; unrecognized objects always do.
 	QuietFor []string `json:"quietFor"`
 	// Camera name -> unix seconds until which alerts from it are muted.
-	Snoozed   map[string]int64 `json:"snoozed"`
-	Health    healthPrefs      `json:"health"`
-	UpdatedAt int64            `json:"updatedAt"`
+	Snoozed map[string]int64 `json:"snoozed"`
+	Health  healthPrefs      `json:"health"`
+	// Home/Away (from the phone's geofence): while home, only these cameras alert.
+	AtHome        bool     `json:"atHome"`
+	AlertWhenHome []string `json:"alertWhenHome"`
+	UpdatedAt     int64    `json:"updatedAt"`
 }
 
 type healthPrefs struct {
@@ -257,6 +260,9 @@ func shouldNotify(d device, r review, now time.Time) bool {
 		return false
 	}
 	if d.Snoozed[r.Camera] > now.Unix() {
+		return false
+	}
+	if d.AtHome && !contains(d.AlertWhenHome, r.Camera) {
 		return false
 	}
 	if onlyKnown(r.Data.SubLabels, d.QuietFor) {

@@ -23,6 +23,12 @@ export function onlyKnown(item: ReviewItem, quietFor: string[]): boolean {
   return names.length > 0 && names.every((n) => quietFor.includes(n));
 }
 
+/** Home mode: at home, only cameras explicitly kept on (e.g. the doorbell) alert. */
+export function mutedAtHome(settings: AlertSettings, cameraKey: string): boolean {
+  const p = settings.presence;
+  return !!p?.enabled && p.atHome && !p.alertWhenHome.includes(cameraKey);
+}
+
 export function isSnoozed(settings: AlertSettings, cameraKey: string, nowSec: number): boolean {
   return (settings.snoozed?.[cameraKey] ?? 0) > nowSec;
 }
@@ -55,7 +61,7 @@ export function selectNotifications(
   const out: ReviewItem[] = [];
   for (const item of [...items].sort((a, b) => a.startTime - b.startTime)) {
     const key = `${item.systemId}:${item.cameraId}`;
-    if (isSnoozed(settings, key, now)) continue;
+    if (isSnoozed(settings, key, now) || mutedAtHome(settings, key)) continue;
     if (!matchesRule(item, ruleFor(settings, key))) continue;
     if (onlyKnown(item, settings.quietFor ?? [])) continue;
     const last = lastByCamera[key] ?? 0;

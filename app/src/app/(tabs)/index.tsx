@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View, type ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +10,7 @@ import { Button, T } from '@/components/ui/primitives';
 import { useApp } from '@/state/store';
 import { useAllCameras, type CameraEntry } from '@/systems/registry';
 import { space } from '@/theme/tokens';
+import { syncWidgets } from '@/widgets/sync';
 import { usePalette } from '@/theme/use-palette';
 
 const TABLET_MIN_WIDTH = 700;
@@ -19,6 +20,10 @@ export default function LiveScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { entries, isLoading, refetch, isRefetching } = useAllCameras();
+  // Keep Home Screen widget snapshots fresh while the app is open (throttled).
+  useEffect(() => {
+    void syncWidgets(entries);
+  }, [entries]);
   const { phoneColumns, density } = useApp((s) => s.appearance);
   const gridViews = useApp((s) => s.gridViews);
   const activeId = useApp((s) => s.activeGridViewId);

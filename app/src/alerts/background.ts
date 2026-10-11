@@ -11,6 +11,8 @@ import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
 import type { ReviewItem } from '@/systems/types';
 import { titleFor } from '@/util/format';
+import { recordLastAlert, syncWidgets } from '@/widgets/sync';
+import type { CameraEntry } from '@/systems/registry';
 
 /**
  * Built-in alerts (no server). iOS decides when this runs — typically every 15 min to a
@@ -152,12 +154,28 @@ export async function checkForAlerts(): Promise<number> {
       const name = names.get(item.cameraId) ?? item.cameraId;
       const video = item.endTime && adapter.previewClip ? adapter.previewClip(item).uri : undefined;
       await post(item, adapter.snapshot(item.cameraId, { height: 480 }).uri, name, video);
+      await recordLastAlert(item, titleFor(item), name);
       posted++;
     }
     useApp.getState().setLastNotified(system.id, Math.max(...fresh.map((i) => i.startTime)));
   }
   posted += await checkHealth();
+  await refreshWidgetsInBackground();
   return posted;
+}
+
+/** Background checks are the only time widgets get new snapshots while the app is closed. */
+async function refreshWidgetsInBackground() {
+  const entries: CameraEntry[] = [];
+  for (const system of useApp.getState().systems) {
+    const link = await connectSystem(system);
+    if (link.mode !== 'lan' && link.mode !== 'tunnel') continue;
+    const adapter = getAdapter(system, link);
+    if (!adapter) continue;
+    const cams = await adapter.listCameras().catch(() => []);
+    entries.push(...cams.filter((c) => c.enabled).map((camera) => ({ camera, adapter })));
+  }
+  await syncWidgets(entries, { force: true }).catch(() => {});
 }
 
 /**

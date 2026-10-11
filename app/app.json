@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sightline",
     "slug": "sightline",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "sightline",
@@ -127,7 +127,15 @@
           "microphonePermission": false
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Sightline uses your location only to notice when you arrive or leave home, so it can quiet alerts while you're there. It never leaves your phone.",
+          "locationWhenInUsePermission": "Set your home location so Sightline can quiet alerts while you're home.",
+          "isIosBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -227,3 +227,17 @@ func TestHealthAlertsOnceUntilResolved(t *testing.T) {
 		t.Fatalf("down alert = %+v", p.sent)
 	}
 }
+
+func TestHomeMode(t *testing.T) {
+	d := device{ID: "d", PushToken: "ExponentPushToken[x]", DefaultRule: rule{Enabled: true},
+		AtHome: true, AlertWhenHome: []string{"doorbell"}}
+	e, p := newTestEngine(t, d)
+	for _, cam := range []string{"backyard", "doorbell"} {
+		r := review{ID: "r-" + cam, Camera: cam, Severity: "alert", Data: reviewData{Objects: []string{"person"}}}
+		b, _ := json.Marshal(reviewMessage{Type: "new", Before: r, After: r})
+		e.handle(b)
+	}
+	if len(p.sent) != 1 || p.sent[0].Data["cameraId"] != "doorbell" {
+		t.Fatalf("home mode sent = %+v", p.sent)
+	}
+}

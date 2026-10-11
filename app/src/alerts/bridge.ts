@@ -123,6 +123,10 @@ export async function syncBridge(): Promise<void> {
         .map(([k, until]) => [k.slice(prefix.length), until]),
     ),
     health: st.alerts.health,
+    atHome: st.alerts.presence.enabled && st.alerts.presence.atHome,
+    alertWhenHome: st.alerts.presence.alertWhenHome
+      .filter((k) => k.startsWith(prefix))
+      .map((k) => k.slice(prefix.length)),
   });
 }
 

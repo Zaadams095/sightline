@@ -48,6 +48,11 @@ export default function SettingsScreen() {
           detail={alerts.mode === 'instant' ? 'Instant Alerts' : 'Built-in (background checks)'}
           onPress={() => router.push('/settings/alerts')}
         />
+        <Row
+          label="Home & Away"
+          detail={alerts.presence.enabled ? (alerts.presence.atHome ? 'Home: only selected cameras alert' : 'Away: all cameras alert') : 'Quiet alerts automatically when you’re home'}
+          onPress={() => router.push('/settings/home-away')}
+        />
         <Row label="Instant Alerts setup" onPress={() => router.push('/settings/bridge')} last />
       </Section>
 

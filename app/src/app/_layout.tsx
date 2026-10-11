@@ -10,6 +10,7 @@ import { WebView } from 'react-native-webview';
 import { watchBridgeSync } from '@/alerts/bridge';
 import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
 import { startLifecycle } from '@/net/connection';
+import { resumeHomeAway } from '@/presence/geofence';
 import { AppLockGate } from '@/security/app-lock';
 import { useApp } from '@/state/store';
 import { useIsDark, usePalette } from '@/theme/use-palette';
@@ -34,6 +35,7 @@ export default function RootLayout() {
     if (!hydrated) return;
     void SplashScreen.hideAsync();
     void registerBackgroundAlerts();
+    void resumeHomeAway();
     // Give the navigator a moment to mount before routing to a tapped notification's clip.
     const launchTimer = setTimeout(() => void handleLaunchNotification(), 300);
     const stopBridge = watchBridgeSync();
@@ -73,6 +75,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings/bridge" options={{ title: 'Instant Alerts' }} />
             <Stack.Screen name="settings/masks" options={{ title: 'Alert masks' }} />
             <Stack.Screen name="settings/diagnostics" options={{ title: 'Diagnostics' }} />
+            <Stack.Screen name="settings/home-away" options={{ title: 'Home & Away' }} />
             <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />
           </Stack>
           <AppLockGate />
