@@ -20,9 +20,13 @@ import {
   type Aead,
   type DeriveKey,
 } from '../src/backup/bundle.ts';
+import type { CheckIn } from '../src/alerts/checkins.ts';
+import type { Feedback } from '../src/alerts/learning.ts';
 import { migrateMasks } from '../src/alerts/zones.ts';
 import {
   applySections,
+  applySmart,
+  localNewerSections,
   chunkText,
   countCameras,
   decodeSection,
@@ -112,8 +116,44 @@ function state(over: Partial<BackupSource> = {}): BackupSource {
         localUri: 'file:///var/mobile/Documents/library/c1.mp4',
       },
     ],
+    smart: smartState(),
     ...over,
   };
+}
+
+function fb(id: string, at: number, verdict: Feedback['verdict'] = 'not-important', camera = 'nvr:0'): Feedback {
+  return { id, at, verdict, camera, objects: ['car'], zones: [], subLabels: [], severity: 'detection', hour: 'day', light: 'day', duration: 'short' } as Feedback;
+}
+
+function checkin(id: string, over: Partial<CheckIn> = {}): CheckIn {
+  return {
+    id,
+    enabled: true,
+    who: 'Mom',
+    systemId: 'hub1',
+    cameras: ['kitchen'],
+    zones: {},
+    peopleOnly: false,
+    byTime: '10:00',
+    quietLimitHours: null,
+    dayStart: '07:00',
+    dayEnd: '22:00',
+    summaryTime: null,
+    phone: '+1 555 0100',
+    timezone: 'America/Chicago',
+    duringQuietHours: true,
+    ...over,
+  };
+}
+
+/** The smart-alerts store, including per-device check-in progress that must never travel. */
+function smartState(): BackupSource['smart'] {
+  return {
+    learning: { feedback: [fb('e1', 100), fb('e2', 200), fb('e3', 300)], confirmed: ['nvr:0|person|any'] },
+    conditions: false,
+    checkins: [checkin('ci1'), { ...checkin('ci2', { who: 'Dad' }), phone: '' }],
+    checkinStates: { ci1: { watchingSince: 1, momentsToday: 4, okAt: 77, summarySent: '2026-10-10' } },
+  } as BackupSource['smart'];
 }
 
 const allText = (v: unknown) => JSON.stringify(v);
@@ -196,8 +236,11 @@ test('summary counts systems and the cameras it knows about', () => {
   const s = extractSections(state());
   // nvr:0, nvr:1, nvr:2, nvr:3, hub1:front, hub1:back, hub1:door, cam:shed/gate/yard/odd
   assert.equal(countCameras(s), 11);
-  assert.equal(summaryText(s), '3 systems, 11 cameras');
+  assert.equal(summaryText(s), '3 systems, 11 cameras, 2 check-ins');
   assert.equal(summaryText({ systems: [{ id: 'x' }] }), '1 system');
+  assert.equal(summaryText({ systems: [{ id: 'x' }], smart: { checkins: [checkin('a')] } }), '1 system, 1 check-in');
+  // Older backups (no smart section) read as before.
+  assert.equal(summaryText({ ...s, smart: undefined }), '3 systems, 11 cameras');
 });
 
 // --- change detection & conflicts ----------------------------------------
@@ -499,4 +542,118 @@ test('restore leaves camera links clean (passwords come back from the keychain)'
   const patch = applySections(extractSections(state()), state({ systems: [] }), migrateMasks);
   const text = JSON.stringify(patch);
   for (const pw of LINK_PASSWORDS) assert.ok(!text.includes(pw));
+});
+
+// --- smart alerts (learned feedback, rain/wind setting, check-ins) ---------
+
+test('smart section: feedback, setting and check-in definitions, never check-in progress', () => {
+  const s = extractSections(state());
+  const smart = s.smart as BackupSource['smart'];
+  assert.deepEqual(Object.keys(smart).sort(), ['checkins', 'conditions', 'learning']);
+  assert.equal(smart.learning.feedback.length, 3);
+  assert.deepEqual(smart.learning.confirmed, ['nvr:0|person|any']);
+  assert.equal(smart.conditions, false);
+  assert.deepEqual(smart.checkins.map((c) => c.id), ['ci1', 'ci2']);
+  // The "Call Mom" number is user-entered contact info and does travel.
+  assert.equal(smart.checkins[0].phone, '+1 555 0100');
+  const text = allText(s.smart);
+  assert.ok(!text.includes('checkinStates'));
+  assert.ok(!text.includes('momentsToday'));
+  assert.ok(!text.includes('okAt'));
+  // Round-trips through chunked key-value storage with a valid hash.
+  const kv = new Map(encodeSection('smart', { updatedAt: 1, device: 'A', hash: hashSection(s.smart) }, s.smart, 300));
+  assert.deepEqual(decodeSection('smart', (k) => kv.get(k))?.data, s.smart);
+});
+
+test('restoring smart alerts onto a new phone', () => {
+  const empty = { learning: { feedback: [], confirmed: [] }, conditions: true, checkins: [] };
+  const patch = applySections(extractSections(state()), state({ smart: empty }), migrateMasks);
+  assert.equal(patch.smart?.learning.feedback.length, 3);
+  assert.equal(patch.smart?.conditions, false);
+  assert.deepEqual(patch.smart?.checkins.map((c) => c.id), ['ci1', 'ci2']);
+  // Progress is not part of the patch: this phone's own (none) stays.
+  assert.ok(!('checkinStates' in (patch.smart ?? {})));
+  // Old backups without the section leave smart alerts alone.
+  const { smart: _omit, ...old } = extractSections(state());
+  assert.equal(applySections(old, state(), migrateMasks).smart, undefined);
+});
+
+test('restoring smart alerts never loses what this phone has', () => {
+  const backup = extractSections(state()).smart;
+  const local = {
+    // Newer opinion on e2, one only given here, a confirmed rule only here.
+    learning: { feedback: [fb('e2', 250, 'important'), fb('e9', 900)], confirmed: ['hub1:door|person|night'] },
+    conditions: true,
+    checkins: [checkin('ci1', { who: 'Mother' }), checkin('local', { who: 'Grandpa' })],
+  };
+  const m = applySmart(backup, local)!;
+  const byId = Object.fromEntries(m.learning.feedback.map((f) => [f.id, f]));
+  assert.deepEqual(Object.keys(byId).sort(), ['e1', 'e2', 'e3', 'e9']);
+  assert.equal(byId.e2.verdict, 'important'); // most recent opinion wins
+  assert.deepEqual(m.learning.feedback.map((f) => f.at), [100, 250, 300, 900]); // oldest first, as stored
+  assert.deepEqual(m.learning.confirmed.sort(), ['hub1:door|person|night', 'nvr:0|person|any']);
+  // Same check-in: the backup's version; one made only here is kept.
+  assert.equal(m.checkins.find((c) => c.id === 'ci1')?.who, 'Mom');
+  assert.ok(m.checkins.some((c) => c.id === 'local'));
+  assert.equal(m.conditions, false);
+  // Malformed pieces are skipped, not trusted.
+  const bad = applySmart({ learning: { feedback: [{ id: 1 }, null], confirmed: 'x' }, checkins: [{ who: 'x' }], conditions: 'yes' }, local)!;
+  assert.equal(bad.learning.feedback.length, 2);
+  assert.equal(bad.checkins.length, 2);
+  assert.equal(bad.conditions, true);
+  assert.equal(applySmart('nope', local), null);
+});
+
+test('cloud restore keeps this phone’s smart alerts when they are newer (last writer wins)', () => {
+  const stamps = { smart: { updatedAt: 1000, device: 'OLD', hash: 'cloud' } };
+  // A new phone (no history) takes the backup.
+  assert.deepEqual(localNewerSections({ smart: 'mine' }, {}, stamps), []);
+  // Same copy: nothing to keep.
+  assert.deepEqual(localNewerSections({ smart: 'cloud' }, { smart: { hash: 'cloud', updatedAt: 1000 } }, stamps), []);
+  // Changed here since the last upload (not backed up yet): this phone's edit is newer.
+  assert.deepEqual(localNewerSections({ smart: 'mine2' }, { smart: { hash: 'mine', updatedAt: 500 } }, stamps), ['smart']);
+  // Uploaded after the backup's copy was made.
+  assert.deepEqual(localNewerSections({ smart: 'mine' }, { smart: { hash: 'mine', updatedAt: 2000 } }, stamps), ['smart']);
+  // Older upload, unchanged since: the backup is newer.
+  assert.deepEqual(localNewerSections({ smart: 'mine' }, { smart: { hash: 'mine', updatedAt: 500 } }, stamps), []);
+});
+
+test('smart alerts change detection uploads only that section', () => {
+  const h = hashes(state());
+  const first = planUpload(h, {}, {}, 1000, 'A');
+  assert.ok('smart' in first.write);
+  const st = state();
+  const h2 = hashes({ ...st, smart: { ...st.smart, conditions: true } });
+  assert.deepEqual(Object.keys(planUpload(h2, first.meta, { ...first.write }, 2000, 'A').write), ['smart']);
+  // Check-in progress changing on this phone never causes an upload.
+  const h3 = hashes({ ...st, smart: { ...st.smart, checkinStates: { ci1: { watchingSince: 9, momentsToday: 99 } } } as BackupSource['smart'] });
+  assert.deepEqual(Object.keys(planUpload(h3, first.meta, { ...first.write }, 3000, 'A').write), []);
+});
+
+test('oversized backups trim clips first, then the oldest feedback; check-ins always stay', () => {
+  const st = state();
+  const feedback = Array.from({ length: 300 }, (_, i) => ({ ...fb(`e${i}`, i), zones: ['z'.repeat(300)] }));
+  const big = state({ smart: { ...st.smart, learning: { ...st.smart.learning, feedback } } });
+  const s = extractSections(big);
+  // Clips alone are enough: feedback is untouched.
+  const clips = Array.from({ length: 2000 }, (_, i) => ({ ...st.savedClips[0], id: `c${i}`, savedAt: i, title: 'x'.repeat(200) }));
+  const a = fitToBudget({ ...s, clips: extractSections(state({ savedClips: clips })).clips }, 400_000);
+  assert.ok(a.fits && a.trimmedClips > 0);
+  assert.equal(a.trimmedFeedback, 0);
+  // Still too big without any clips: the oldest feedback goes.
+  const b = fitToBudget(s, 60_000);
+  assert.ok(b.fits);
+  assert.ok(b.trimmedFeedback > 0);
+  const kept = (b.sections.smart as BackupSource['smart']).learning.feedback;
+  assert.equal(kept.length, 300 - b.trimmedFeedback);
+  assert.ok(kept.every((f) => f.at >= 300 - kept.length));
+  assert.deepEqual(kept.map((f) => f.at), [...kept.map((f) => f.at)].sort((x, y) => x - y));
+  assert.equal((b.sections.smart as BackupSource['smart']).checkins.length, 2);
+  assert.deepEqual((b.sections.smart as BackupSource['smart']).learning.confirmed, ['nvr:0|person|any']);
+});
+
+test('transfer bundle carries smart alerts', () => {
+  const b = parseBundle(JSON.stringify(bundle()));
+  assert.deepEqual((b.sections.smart as BackupSource['smart']).checkins.map((c) => c.who), ['Mom', 'Dad']);
+  assert.ok(!JSON.stringify(b).includes('momentsToday'));
 });
