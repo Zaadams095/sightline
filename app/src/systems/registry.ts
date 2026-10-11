@@ -2,8 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 
 import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
+import { AgentDvrAdapter } from '@/systems/agent-dvr';
+import { BlueIrisAdapter } from '@/systems/blue-iris';
 import { FrigateAdapter } from '@/systems/frigate';
 import { RtspAdapter } from '@/systems/rtsp';
+import { ScryptedAdapter } from '@/systems/scrypted';
+import { ShinobiAdapter } from '@/systems/shinobi';
+import { ZoneMinderAdapter } from '@/systems/zoneminder';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 
 const adapters = new Map<string, CameraSystemAdapter>();
@@ -14,6 +19,16 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
       return new FrigateAdapter(s, baseUrl);
     case 'rtsp':
       return new RtspAdapter(s);
+    case 'blue-iris':
+      return new BlueIrisAdapter(s, baseUrl);
+    case 'agent-dvr':
+      return new AgentDvrAdapter(s, baseUrl);
+    case 'shinobi':
+      return new ShinobiAdapter(s, baseUrl);
+    case 'zoneminder':
+      return new ZoneMinderAdapter(s, baseUrl);
+    case 'scrypted':
+      return new ScryptedAdapter(s, baseUrl);
     default:
       throw new Error(`${s.kind} is not supported yet`);
   }
