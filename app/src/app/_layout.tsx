@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { WebView } from 'react-native-webview';
 
 import { watchBridgeSync } from '@/alerts/bridge';
+import { startCloudBackup } from '@/backup/icloud';
 import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
 import { startDoorbellWatch } from '@/alerts/doorbell';
 import { installCrashHandlers } from '@/diagnostics/log';
@@ -16,6 +17,7 @@ import { startLifecycle } from '@/net/connection';
 import { resumeHomeAway } from '@/presence/geofence';
 import { AppLockGate } from '@/security/app-lock';
 import { useApp } from '@/state/store';
+import { watchStreamCredentials } from '@/systems/stream-credentials';
 import { useIsDark, usePalette } from '@/theme/use-palette';
 import { startWatchSync } from '@/watch/sync';
 
@@ -47,6 +49,9 @@ export default function RootLayout() {
     // Give the navigator a moment to mount before routing to a tapped notification's clip.
     const launchTimer = setTimeout(() => void handleLaunchNotification(), 300);
     const stopBridge = watchBridgeSync();
+    // Stream-link passwords move to the keychain; settings back up to iCloud when they change.
+    const stopStreamCreds = watchStreamCredentials();
+    const stopBackup = startCloudBackup();
     // After a foreground or network change, re-resolve live streams onto the new route.
     const stopLifecycle = startLifecycle(
       () => useApp.getState().systems,
@@ -58,6 +63,8 @@ export default function RootLayout() {
     return () => {
       clearTimeout(launchTimer);
       stopBridge();
+      stopStreamCreds();
+      stopBackup();
       stopLifecycle();
       stopDoorbell();
       stopLive();
@@ -99,6 +106,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings/home-away" options={{ title: 'Home & Away' }} />
             <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />
             <Stack.Screen name="settings/sharing" options={{ title: 'Sharing' }} />
+            <Stack.Screen name="settings/backup" options={{ title: 'Backup & new phone' }} />
             {/* Deep links sightline://invite?… and sightline://hub?… redirect to the join screen. */}
             <Stack.Screen name="invite" options={{ headerShown: false }} />
             <Stack.Screen name="hub" options={{ headerShown: false }} />

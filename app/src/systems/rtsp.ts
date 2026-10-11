@@ -7,6 +7,7 @@ import type {
   SystemConfig,
   TalkTarget,
 } from '@/systems/types';
+import { streamUrlFor } from '@/systems/stream-credentials';
 import { WgTunnel } from '@modules/wg-tunnel';
 
 /**
@@ -51,12 +52,13 @@ export class RtspAdapter implements CameraSystemAdapter {
   async liveStream(cameraId: string): Promise<LiveSource> {
     const cam = this.config.manualCameras?.find((c) => c.id === cameraId);
     if (!cam) throw new Error('Camera not found');
-    return { kind: 'rtsp', url: cam.rtspUrl };
+    // Stored links have no password; the keychain copy puts it back (systems/stream-credentials.ts).
+    return { kind: 'rtsp', url: await streamUrlFor(this.config.id, cam) };
   }
 
   async talkTarget(cameraId: string): Promise<TalkTarget | null> {
     const cam = this.config.manualCameras?.find((c) => c.id === cameraId);
-    return cam && /^rtsps?:\/\//i.test(cam.rtspUrl) ? { kind: 'rtsp', url: cam.rtspUrl } : null;
+    return cam && /^rtsps?:\/\//i.test(cam.rtspUrl) ? { kind: 'rtsp', url: await streamUrlFor(this.config.id, cam) } : null;
   }
 
   dispose() {}

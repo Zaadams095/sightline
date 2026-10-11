@@ -134,9 +134,10 @@ const tokens = new Map<string, string>();
 
 export async function hubToken(systemId: string): Promise<string> {
   let t = tokens.get(systemId);
-  if (t == null) {
+  if (!t) {
     t = (await secrets.get(systemId, SECRET.token)) ?? '';
-    tokens.set(systemId, t);
+    // Don't cache "none": on a restored phone the token can arrive from iCloud Keychain later.
+    if (t) tokens.set(systemId, t);
   }
   return t;
 }

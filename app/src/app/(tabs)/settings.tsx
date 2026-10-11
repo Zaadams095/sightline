@@ -115,6 +115,10 @@ export default function SettingsScreen() {
         <Row label="Share crash data with the developer" detail="An iOS setting; here’s where to find it" onPress={() => router.push('/settings/crash-data')} last />
       </Section>
 
+      <Section title="Backup">
+        <Row label="Backup & new phone" detail="iCloud backup, or move everything to another phone" onPress={() => router.push('/settings/backup')} last />
+      </Section>
+
       <Section title="Help">
         <Row label="Report a problem" detail="See exactly what’s sent before you send it" onPress={() => router.push('/settings/report')} last />
       </Section>
