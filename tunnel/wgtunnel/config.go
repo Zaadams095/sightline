@@ -84,7 +84,12 @@ func parseWgQuick(text string) (*wgConfig, error) {
 				if err != nil {
 					return nil, fmt.Errorf("MTU: %w", err)
 				}
-				cfg.mtu = n
+				// Only ever lower it: configs made for routers often say 1420, which cellular
+				// networks can silently drop once packets get big (video stalls while small
+				// requests still work). 1280 fits every path.
+				if n >= 576 && n < cfg.mtu {
+					cfg.mtu = n
+				}
 			}
 		case "peer":
 			switch k {

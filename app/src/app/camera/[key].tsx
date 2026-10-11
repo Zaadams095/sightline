@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { LiveState } from '@/components/live/live-player';
-import { LiveView, useLive } from '@/components/live/live-view';
+import { defaultLiveQuality, LiveView, useLive } from '@/components/live/live-view';
 import { useLinks } from '@/net/connection';
 import { nextTimeOfDay } from '@/alerts/rules';
 import { zoneSupportFor } from '@/alerts/zones';
@@ -37,6 +37,11 @@ export default function CameraScreen() {
   const systemExists = useApp((s) => s.systems.some((x) => x.id === systemId));
   const linkMode = useLinks((s) => s.links[systemId]?.mode);
   const linkError = useLinks((s) => s.links[systemId]?.error);
+  // Full quality at home; away (VPN, cellular) the lighter stream starts far faster. The HD
+  // button overrides, and full quality that hasn't started in 8 s steps down by itself.
+  const [quality, setQuality] = useState<'main' | 'sub' | null>(null);
+  const [steppedDown, setSteppedDown] = useState(false);
+  const effectiveQuality = quality ?? defaultLiveQuality(linkMode);
   const radius = useApp((s) => s.appearance.radius);
   const snoozedUntil = useApp((s) => s.alerts.snoozed[key] ?? 0);
   const snooze = useApp((s) => s.snooze);
@@ -61,7 +66,15 @@ export default function CameraScreen() {
   });
   const camera = cameras.data?.find((c) => c.id === cameraId);
 
-  const live = useLive(adapter, cameraId);
+  const live = useLive(adapter, cameraId, effectiveQuality);
+  useEffect(() => {
+    if (effectiveQuality !== 'main' || quality === 'main' || liveState === 'playing') return;
+    const t = setTimeout(() => {
+      setQuality('sub');
+      setSteppedDown(true);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [effectiveQuality, quality, liveState]);
   const talkRoute = useTalkRoute(adapter, systemId, cameraId);
 
   const recent = useQuery({
@@ -143,6 +156,13 @@ export default function CameraScreen() {
             <ActivityIndicator color="#fff" accessibilityLabel="Loading live video" />
           </View>
         )}
+        {steppedDown && liveState === 'playing' && (
+          <View style={styles.qualityNote} pointerEvents="none">
+            <T v="caption" color="#fff">
+              Showing faster video. Tap HD for full quality.
+            </T>
+          </View>
+        )}
         {(liveFailed || !adapter.capabilities.live) && (
           <View style={[StyleSheet.absoluteFill, styles.center, styles.scrim]}>
             <T color="#fff" style={{ textAlign: 'center', paddingHorizontal: space.xl }}>
@@ -169,6 +189,20 @@ export default function CameraScreen() {
         <T v="heading" color="#fff" numberOfLines={1} style={{ flex: 1, textAlign: 'center' }}>
           {camera?.name ?? cameraId}
         </T>
+        <Pressable
+          onPress={() => {
+            setSteppedDown(false);
+            setLiveState(undefined);
+            setQuality(effectiveQuality === 'main' ? 'sub' : 'main');
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={effectiveQuality === 'main' ? 'High quality on. Switch to faster video' : 'Switch to high quality'}
+          style={[styles.round, effectiveQuality === 'main' && styles.hdOn]}>
+          <T v="label" color="#fff" style={{ fontSize: 12 }}>
+            HD
+          </T>
+        </Pressable>
         <RoundButton icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} label={muted ? 'Turn sound on' : 'Turn sound off'} onPress={() => setMuted((m) => !m)} />
       </View>
 
@@ -333,6 +367,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  hdOn: { backgroundColor: 'rgba(124,92,255,0.85)' },
+  qualityNote: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   actions: { flexDirection: 'row', gap: 10, paddingHorizontal: space.lg },
   action: {

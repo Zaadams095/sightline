@@ -29,6 +29,9 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
 
   var CODECS = ['avc1.640029','avc1.64002A','avc1.640033','hvc1.1.6.L153.B0','mp4a.40.2','mp4a.40.5','flac','opus'];
   var ws, ms, sb, queue = [], retry = 0, lastProgress = Date.now(), closed = false;
+  // Until the first video arrives the camera may still be starting or waiting for a keyframe
+  // (several seconds, longer over VPN or cellular); restarting then only starts the wait over.
+  var gotData = false, FIRST_DATA_MS = 20000, STALL_MS = 8000;
   // Single-flight reconnects: the watchdog, onclose and onerror can all fire for one failure.
   var reconnectTimer = null, generation = 0;
 
@@ -39,7 +42,7 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
   function connect(){
     var gen = ++generation;
     post('state','connecting');
-    queue = []; sb = null;
+    queue = []; sb = null; gotData = false;
     lastProgress = Date.now();
     var src = ms = new MS();
     if (window.ManagedMediaSource && MS === window.ManagedMediaSource) {
@@ -54,7 +57,7 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
       var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + ${JSON.stringify(wsPath)};
       var sock = ws = new WebSocket(url);
       sock.binaryType = 'arraybuffer';
-      sock.onopen = function(){ mark('wsOpen'); retry = 0; sock.send(JSON.stringify({type:'mse', value: supported()})); };
+      sock.onopen = function(){ mark('wsOpen'); sock.send(JSON.stringify({type:'mse', value: supported()})); };
       sock.onmessage = function(ev){
         if (sock !== ws) return;
         if (typeof ev.data === 'string') {
@@ -69,6 +72,7 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
           }
           return;
         }
+        if (!gotData) { gotData = true; retry = 0; lastProgress = Date.now(); }
         mark('firstData');
         queue.push(ev.data);
         pump();
@@ -132,7 +136,7 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
     post('state','playing');
   });
   setInterval(function(){
-    if (!closed && !reconnectTimer && Date.now() - lastProgress > 6000) { lastProgress = Date.now(); reconnect(); }
+    if (!closed && !reconnectTimer && Date.now() - lastProgress > (gotData ? STALL_MS : FIRST_DATA_MS)) { lastProgress = Date.now(); reconnect(); }
   }, 2000);
 
   window.__setMuted = function(m){ video.muted = m; if (!m) video.play().catch(function(){}); };

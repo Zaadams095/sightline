@@ -7,6 +7,7 @@ import { WebView } from 'react-native-webview';
 
 import { LivePlayer, type LiveState } from '@/components/live/live-player';
 import { noteProblem } from '@/diagnostics/log';
+import { useLinks, type LinkMode } from '@/net/connection';
 import { resolveLive, type ResolvedLive } from '@/systems/live';
 import type { CameraSystemAdapter } from '@/systems/types';
 import { setPlayerMuted } from '@/util/player';
@@ -32,10 +33,17 @@ export function useLive(adapter: CameraSystemAdapter | null, cameraId: string, q
   });
 }
 
+/** Full quality on the home network; the lighter stream away (VPN, cellular) starts much faster. */
+export function defaultLiveQuality(mode: LinkMode | undefined): 'main' | 'sub' {
+  return mode === 'lan' ? 'main' : 'sub';
+}
+
 export function prefetchLiveOptions(adapter: CameraSystemAdapter, cameraId: string) {
+  // Same choice the camera screen makes, so the prefetched stream is the one it opens.
+  const quality = defaultLiveQuality(useLinks.getState().links[adapter.config.id]?.mode);
   return {
-    queryKey: ['live', adapter.config.id, cameraId, 'main'],
-    queryFn: () => resolveFor(adapter, cameraId, 'main'),
+    queryKey: ['live', adapter.config.id, cameraId, quality],
+    queryFn: () => resolveFor(adapter, cameraId, quality),
     staleTime: Infinity,
   };
 }
