@@ -30,7 +30,7 @@ export const useLinks = create<LinkState>((set) => ({
 }));
 
 const TUNNEL_SCOPE = 'tunnel';
-const LAN_PROBE_MS = 700;
+const LAN_PROBE_MS = 1500;
 /** Keep the tunnel alive briefly after backgrounding so quick app switches are instant. */
 const BACKGROUND_GRACE_MS = 20_000;
 
@@ -118,15 +118,26 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
     }
     const baseUrl = `http://127.0.0.1:${port}`;
 
-    if (await WgTunnel.probe(hostPort(target), false, LAN_PROBE_MS)) {
+    // Retry once: the first local connection can fail while iOS shows the Local Network prompt.
+    let direct = await WgTunnel.probe(hostPort(target), false, LAN_PROBE_MS);
+    if (!direct) {
+      await new Promise((r) => setTimeout(r, 1000));
+      direct = await WgTunnel.probe(hostPort(target), false, LAN_PROBE_MS);
+    }
+    if (direct) {
       WgTunnel.setRouteViaTunnel(port, false);
       const link: SystemLink = { baseUrl, port, mode: 'lan' };
       store.set(s.id, link);
       return link;
     }
 
-    if (!s.endpoint.useTunnel) {
-      const link: SystemLink = { baseUrl, port, mode: 'offline', error: 'Not on your home network' };
+    if (!s.endpoint.useTunnel || !(await hasTunnelConfig())) {
+      const link: SystemLink = {
+        baseUrl,
+        port,
+        mode: 'offline',
+        error: `Couldn't reach ${hostPort(target)} from this network. If you're on home Wi-Fi, check the address and that Local Network access is on (iOS Settings → Sightline).`,
+      };
       store.set(s.id, link);
       return link;
     }

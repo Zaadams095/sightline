@@ -18,9 +18,19 @@
           "_http._tcp",
           "_rtsp._tcp",
           "_http._tcp",
+          "_rtsp._tcp",
+          "_http._tcp",
+          "_rtsp._tcp",
+          "_http._tcp",
           "_rtsp._tcp"
         ],
         "UIBackgroundModes": [
+          "fetch",
+          "processing",
+          "remote-notification",
+          "fetch",
+          "processing",
+          "remote-notification",
           "fetch",
           "processing",
           "remote-notification",
@@ -37,10 +47,15 @@
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.zachadams.sightline",
+          "group.com.zachadams.sightline",
+          "group.com.zachadams.sightline",
           "group.com.zachadams.sightline"
         ]
       },
-      "appleTeamId": "D36CEMNM8Q"
+      "appleTeamId": "D36CEMNM8Q",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "package": "com.zachadams.sightline",
@@ -52,6 +67,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
       ]
@@ -139,6 +156,9 @@
         "projectId": "04a27cc2-1b54-4d42-a1e4-41869a5deea1"
       }
     },
-    "owner": "zaadams095"
+    "owner": "zaadams095",
+    "updates": {
+      "url": "https://u.expo.dev/04a27cc2-1b54-4d42-a1e4-41869a5deea1"
+    }
   }
 }

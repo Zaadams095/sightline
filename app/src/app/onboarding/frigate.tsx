@@ -26,10 +26,13 @@ export default function FrigateSetup() {
   const [useTunnel, setUseTunnel] = useState(true);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Set when Frigate couldn't be reached (e.g. setting up away from home): allow saving anyway.
+  const [unreachable, setUnreachable] = useState<SystemConfig | null>(null);
 
   const test = async () => {
     setBusy(true);
     setResult(null);
+    setUnreachable(null);
     const id = `frigate-${Date.now().toString(36)}`;
     const system: SystemConfig = {
       id,
@@ -42,11 +45,11 @@ export default function FrigateSetup() {
       await secrets.set(id, SECRET.password, pass);
       const link = await connectSystem(system);
       if (link.mode === 'offline') {
-        throw new Error(
-          useTunnel
-            ? `${link.error ?? 'Could not reach Frigate'}. If you're away from home, set up the VPN on the next step and test again from Settings.`
-            : (link.error ?? 'Could not reach Frigate'),
-        );
+        disconnectSystem(id);
+        dropAdapter(id);
+        setUnreachable(system);
+        setResult({ ok: false, msg: link.error ?? 'Could not reach Frigate' });
+        return;
       }
       if (link.port != null && user && WgTunnel) {
         const err = await WgTunnel.login(link.port);
@@ -97,6 +100,17 @@ export default function FrigateSetup() {
       </Card>
 
       {result && <T color={result.ok ? p.success : p.danger}>{result.msg}</T>}
+
+      {unreachable && (
+        <Button
+          title="Save anyway and set up VPN"
+          kind="secondary"
+          onPress={() => {
+            upsert(unreachable);
+            router.push('/onboarding/vpn');
+          }}
+        />
+      )}
 
       {result?.ok ? (
         <Button title="Continue" onPress={() => router.push('/onboarding/vpn')} />
