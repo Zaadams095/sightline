@@ -225,16 +225,25 @@ export const CATALOG: SystemDescriptor[] = [
     label: 'Camera (ONVIF)',
     blurb: 'Most IP cameras: just the address and password',
     category: 'camera',
-    available: false,
+    available: true,
     defaultPorts: [
       { port: 80, https: false },
       { port: 8000, https: false },
+      { port: 2020, https: false },
+      { port: 8899, https: false },
     ],
-    addressHint: 'The camera’s address from your router’s device list or the camera’s app.',
-    fields: [ADDRESS('192.168.1.70', 'The camera address.'), USER(), PASS],
-    fingerprints: [
-      { port: 80, https: false, path: '/onvif/device_service', match: (r) => [400, 405, 415, 500].includes(r.status) || has(r.body, 'soap') },
+    addressHint: 'The camera’s address from your router’s device list or the camera’s app. Sign in with the same login you use in the camera’s app or web page.',
+    fields: [
+      ADDRESS('192.168.1.70', 'Just the address is usually enough. If it doesn’t connect, add the camera’s ONVIF port, e.g. 192.168.1.70:8000.'),
+      { ...USER(), hint: 'Often “admin”. Some cameras need a separate camera account, made in their app.' },
+      { ...PASS, hint: 'The camera’s password (not your Wi-Fi password).' },
     ],
+    fingerprints: [80, 8000, 2020, 8899].map((port) => ({
+      port,
+      https: false,
+      path: '/onvif/device_service',
+      match: (r: ProbeResult) => [400, 405, 415, 500].includes(r.status) || has(r.body, 'soap') || has(r.body, 'onvif'),
+    })),
   },
   {
     kind: 'rtsp',

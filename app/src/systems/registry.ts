@@ -4,6 +4,7 @@ import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { FrigateAdapter } from '@/systems/frigate';
 import { usesGateway } from '@/systems/catalog';
+import { OnvifAdapter } from '@/systems/onvif';
 import { RtspAdapter } from '@/systems/rtsp';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 
@@ -15,6 +16,8 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
       return new FrigateAdapter(s, baseUrl);
     case 'rtsp':
       return new RtspAdapter(s);
+    case 'onvif':
+      return new OnvifAdapter(s, baseUrl);
     default:
       throw new Error(`${s.kind} is not supported yet`);
   }
