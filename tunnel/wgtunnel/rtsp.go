@@ -116,7 +116,7 @@ func (s *rtspSource) forward(target string) {
 			}
 			defer up.Close()
 			done := make(chan struct{}, 2)
-			go func() { io.Copy(up, c); done <- struct{}{} }()
+			go func() { copyWithPlaybackRange(up, c); done <- struct{}{} }()
 			go func() { io.Copy(c, up); done <- struct{}{} }()
 			<-done
 		}()
