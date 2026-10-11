@@ -15,6 +15,7 @@ import { resumeHomeAway } from '@/presence/geofence';
 import { AppLockGate } from '@/security/app-lock';
 import { useApp } from '@/state/store';
 import { useIsDark, usePalette } from '@/theme/use-palette';
+import { startWatchSync } from '@/watch/sync';
 
 SplashScreen.preventAutoHideAsync();
 setupNotificationHandling();
@@ -46,11 +47,13 @@ export default function RootLayout() {
       () => void queryClient.invalidateQueries({ queryKey: ['live'] }),
     );
     const stopDoorbell = startDoorbellWatch();
+    const stopWatch = startWatchSync();
     return () => {
       clearTimeout(launchTimer);
       stopBridge();
       stopLifecycle();
       stopDoorbell();
+      stopWatch();
     };
   }, [hydrated]);
 

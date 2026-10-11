@@ -49,21 +49,33 @@ jobs:
           npx tsc --noEmit
           npx expo lint
 
+      - name: Make sure the watchOS platform is installed (embedded Apple Watch app)
+        run: |
+          xcodebuild -showsdks | grep -E "watch|iphone" || true
+          bash scripts/ensure-watchos-sdk.sh
+
       - name: Generate iOS project
         run: npx expo prebuild --platform ios --no-install --clean
 
       - name: Install pods
         run: cd ios && pod install
 
-      - name: Compile app + notification extension (simulator, unsigned)
+      # No -sdk flag: it would force every target onto the iPhone SDK. With only a destination,
+      # Xcode builds the iPhone targets for the iOS simulator and the embedded watch app for
+      # the watchOS simulator, the same way an archive builds them for devices.
+      - name: Compile app + extensions + watch app (simulator, unsigned)
         run: |
           set -o pipefail
           WS=$(ls -d ios/*.xcworkspace | head -1)
           SCHEME=$(basename "$WS" .xcworkspace)
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee ../xcodebuild.log | grep -E "error:|warning: .*Swift|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" ../xcodebuild.log
+          # The watch app must really be embedded (Embed Watch Content).
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -maxdepth 5 -type d -path '*/Release-iphonesimulator/*.app' | head -1)
+          echo "Built $APP"
+          ls "$APP/Watch" || { echo "::error::The Apple Watch app wasn't embedded"; exit 1; }
 
       - name: Upload build log
         if: always()
