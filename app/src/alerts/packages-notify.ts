@@ -1,6 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
 
+import { androidImage, channelOf, showNow } from '@/alerts/channels';
 import { clearPackage, reminderPlan, updatePackages, type OpenPackage } from '@/alerts/packages';
 import { allowsSpecial } from '@/alerts/rules';
 import { tr } from '@/i18n';
@@ -106,16 +107,18 @@ export async function syncPackageReminder() {
       categoryIdentifier: PACKAGE_CATEGORY,
       data: { kind: 'package-reminder', systemId: first.systemId, cameraId: first.cameraId, cameraKeys: plan.cameraKeys.join('|') },
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(plan.at * 1000) },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(plan.at * 1000), ...channelOf('packages') },
   }).catch(() => {});
 }
 
 async function postPackage(p: OpenPackage, title: string, body: string, { pickedUp }: { pickedUp: boolean }) {
   const attachments: Notifications.NotificationContentAttachmentIos[] = [];
+  let picture: string | undefined;
   if (!pickedUp && p.thumbnailUrl) {
     try {
       const file = await File.downloadFileAsync(p.thumbnailUrl, new File(Paths.cache, `package-${p.reviewId}.webp`), { idempotent: true });
       attachments.push({ identifier: `package-${p.reviewId}`, url: file.uri, type: 'public.webp', typeHint: 'public.webp' } as never);
+      picture = file.uri;
     } catch {
       // Text-only is fine.
     }
@@ -135,8 +138,9 @@ async function postPackage(p: OpenPackage, title: string, body: string, { picked
         // Delivery: the drop-off. Pickup: shortly before the person who likely took it left.
         start: String(Math.floor(pickedUp && p.personAfter ? p.personAfter - 60 : p.since - 5)),
         reviewId: p.reviewId,
+        ...androidImage(picture),
       },
     },
-    trigger: null,
+    trigger: showNow('packages'),
   });
 }

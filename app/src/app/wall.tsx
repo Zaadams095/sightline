@@ -1,7 +1,6 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
@@ -9,6 +8,7 @@ import { setRingHandler, type RingParams } from '@/alerts/doorbell';
 import { isDoorbell, selectNotifications } from '@/alerts/rules';
 import { CameraTile } from '@/components/camera-tile';
 import { LiveView, useLive } from '@/components/live/live-view';
+import { SymbolView } from '@/components/ui/symbol';
 import { fmtTime, tr } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
@@ -18,6 +18,7 @@ import { useWall } from '@/state/wall';
 import { getAdapter, useAllCameras, type CameraEntry } from '@/systems/registry';
 import { OVERLAY_MAX_SCALE } from '@/theme/tokens';
 import { titleFor } from '@/util/format';
+import { useAndroidBack } from '@/util/use-android-back';
 import {
   activeTakeover,
   addTakeover,
@@ -146,6 +147,8 @@ export default function WallDisplay() {
     return () => clearTimeout(t);
   }, [controls]);
   const exit = () => (lockEnabled ? setUnlocking(true) : router.back());
+  // Android Back goes through the same lock as the exit button.
+  useAndroidBack(exit);
 
   const shift = pixelShift(now);
   const at = new Date(now);
@@ -237,7 +240,7 @@ export default function WallDisplay() {
         </View>
       )}
 
-      <Modal visible={unlocking} animationType="fade" presentationStyle="overFullScreen" transparent>
+      <Modal visible={unlocking} animationType="fade" presentationStyle="overFullScreen" transparent onRequestClose={() => setUnlocking(false)}>
         <LockScreen
           onUnlock={() => {
             setUnlocking(false);

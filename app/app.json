@@ -65,7 +65,7 @@
     "android": {
       "package": "com.zachadams.sightline",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0D12",
+        "backgroundColor": "#080A14",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -113,7 +113,10 @@
         {
           "backgroundColor": "#080A14",
           "image": "./assets/images/splash-logo.png",
-          "imageWidth": 300
+          "imageWidth": 300,
+          "android": {
+            "imageWidth": 288
+          }
         }
       ],
       "expo-video",
@@ -130,9 +133,12 @@
       [
         "expo-notifications",
         {
-          "color": "#7C5CFF"
+          "color": "#7C5CFF",
+          "icon": "./assets/images/notification-icon.png",
+          "defaultChannel": "alerts"
         }
       ],
+      "./plugins/with-android-network-security",
       [
         "expo-build-properties",
         {

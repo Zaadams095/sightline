@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SamplePill } from '@/components/demo-banner';
 import type { LiveState } from '@/components/live/live-player';
 import { defaultLiveQuality, LiveView, useLive } from '@/components/live/live-view';
+import { SymbolView } from '@/components/ui/symbol';
 import { useLinks } from '@/net/connection';
 import { nextTimeOfDay } from '@/alerts/rules';
 import { zoneSupportFor } from '@/alerts/zones';
@@ -16,6 +16,7 @@ import { PtzPad } from '@/components/ptz-pad';
 import { DeterControls } from '@/components/talk/deter-controls';
 import { TalkButton } from '@/components/talk/talk-button';
 import { useTalkRoute } from '@/talk/talk';
+import { showActionSheet } from '@/components/ui/action-sheet';
 import { T } from '@/components/ui/primitives';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
@@ -53,7 +54,7 @@ export default function CameraScreen() {
   const isSnoozed = snoozedUntil > nowSec();
   const toggleSnooze = () => {
     if (isSnoozed) return snooze(key, null);
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       {
         title: t.viewing.camera.muteTitle,
         options: [t.viewing.camera.muteFor1h, t.viewing.camera.muteUntil7, t.viewing.camera.muteFor24h, t.common.cancel],

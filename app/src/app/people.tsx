@@ -1,9 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActionSheetIOS, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/familiar/avatar';
+import { showActionSheet, showPrompt } from '@/components/ui/action-sheet';
 import { Button, Card, Chip, Row, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { clusterUnknowns, type FamiliarKind } from '@/familiar/match';
 import {
@@ -106,11 +107,11 @@ export default function PeopleScreen() {
   const askName = (samples: FamiliarSample[], kind: FamiliarKind) => {
     const existing = (kind === 'face' ? people : vehicles).map((i) => i.name);
     const prompt = () =>
-      Alert.prompt(kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle, kind === 'face' ? t.viewing.people.nameExampleFace : t.viewing.people.nameExampleVehicle, (text) => {
+      showPrompt(kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle, kind === 'face' ? t.viewing.people.nameExampleFace : t.viewing.people.nameExampleVehicle, (text) => {
         if (text?.trim()) nameSamples(samples, text);
       });
     if (!existing.length) return prompt();
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       { title: kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle, options: [...existing, t.viewing.people.someoneNew, t.common.cancel], cancelButtonIndex: existing.length + 1 },
       (i) => {
         if (i < existing.length) nameSamples(samples, existing[i]);
@@ -129,7 +130,7 @@ export default function PeopleScreen() {
       t.viewing.people.notFaceOrVehicle,
       t.common.cancel,
     ];
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       { title: kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle, options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: options.length - 2 },
       (i) => {
         if (i < existing.length) nameSamples(samples, existing[i]);

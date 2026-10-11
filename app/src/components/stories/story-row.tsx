@@ -1,8 +1,8 @@
 import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { formatSpan, storyTitle, type Story } from '@/stories/group';
 import { openStory } from '@/stories/open';

@@ -1,12 +1,12 @@
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChoiceRow, FindOnNetwork, GuideProgress, StepList } from '@/components/guide/parts';
 import { Button, Card, Disclosure, Field, Screen, T, ToggleRow } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import {

@@ -1,12 +1,12 @@
 import { useIsFocused } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
 import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { SamplePill } from '@/components/demo-banner';
 import { LiveView, prefetchLiveOptions, useLive } from '@/components/live/live-view';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';

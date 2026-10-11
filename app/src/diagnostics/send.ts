@@ -4,7 +4,7 @@ import * as Device from 'expo-device';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Updates from 'expo-updates';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { SUPPORT_EMAIL } from '@/config';
 import { connectSystem, useLinks } from '@/net/connection';
@@ -87,7 +87,7 @@ export async function gatherReport(opts: ReportOptions = {}): Promise<ReportInpu
     generatedAt: Date.now(),
     app: {
       version: Constants.expoConfig?.version ?? '?',
-      build: Constants.expoConfig?.ios?.buildNumber,
+      build: Platform.OS === 'android' ? String(Constants.expoConfig?.android?.versionCode ?? '') : Constants.expoConfig?.ios?.buildNumber,
       update: Updates.updateId ?? undefined,
       channel: Updates.channel ?? undefined,
     },

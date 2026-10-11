@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/familiar/avatar';
+import { showPrompt } from '@/components/ui/action-sheet';
 import { Row, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { addPlate, forgetIdentity, nameSamples, renameIdentity, samplesFromPhoto } from '@/familiar/recognize';
 import { useFamiliar, type FamiliarSample } from '@/familiar/store';
@@ -49,7 +50,7 @@ export default function PersonScreen() {
   };
 
   const rename = () =>
-    Alert.prompt(
+    showPrompt(
       t.viewing.person.rename,
       undefined,
       (text) => {
@@ -60,7 +61,6 @@ export default function PersonScreen() {
         const swap = (l: string[]) => l.map((n) => (n === name ? clean : n));
         setAlerts({ quietFor: swap(alerts.quietFor), alwaysFor: swap(alerts.alwaysFor ?? []) });
       },
-      'plain-text',
       name,
     );
 
@@ -113,7 +113,7 @@ export default function PersonScreen() {
           ))}
           <Row
             label={t.viewing.person.addPlate}
-            onPress={() => Alert.prompt(t.viewing.person.plate, t.viewing.person.plateHint, (text) => text && addPlate(identity.id, text))}
+            onPress={() => showPrompt(t.viewing.person.plate, t.viewing.person.plateHint, (text) => text && addPlate(identity.id, text))}
             last
           />
         </Section>

@@ -3,7 +3,6 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,12 +10,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setDoorbellScreenOpen } from '@/alerts/doorbell';
 import { LiveView, useLive } from '@/components/live/live-view';
 import { TalkButton } from '@/components/talk/talk-button';
+import { SymbolView } from '@/components/ui/symbol';
 import { useTalkRoute } from '@/talk/talk';
 import { T } from '@/components/ui/primitives';
 import { useT } from '@/i18n/use-t';
 import { useAdapter } from '@/systems/registry';
 import { usePalette } from '@/theme/use-palette';
 import { formatClock, nowSec } from '@/util/format';
+import { useAndroidBack } from '@/util/use-android-back';
 
 const GREEN = '#30D158';
 const RED = '#FF453A';
@@ -71,6 +72,8 @@ export default function DoorbellScreen() {
   }, [pulse]);
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  // Opened from a notification there may be nothing behind it: Back goes home, not out of the app.
+  useAndroidBack(close);
   const answer = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.replace({ pathname: '/camera/[key]', params: { key, unmuted: '1' } });

@@ -2,8 +2,11 @@ import * as BackgroundTask from 'expo-background-task';
 import { File, Paths } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import Storage from 'expo-sqlite/kv-store';
 import * as TaskManager from 'expo-task-manager';
+import { Platform } from 'react-native';
 
+import { androidImage, setupChannels, showNow } from '@/alerts/channels';
 import { ACTION_WATCH, DOORBELL_CATEGORY, openDoorbell, registerDoorbellCategory, ringParamsFrom } from '@/alerts/doorbell';
 import { endEvent, showEvent, showRing } from '@/alerts/live-activity';
 import { zonesAllow } from '@/alerts/zones';
@@ -46,8 +49,18 @@ export const ALERT_CATEGORY = 'camera-alert';
 const ACTION_SNOOZE_HOUR = 'snooze-1h';
 const ACTION_SNOOZE_MORNING = 'snooze-morning';
 const handledResponses = new Set<string>();
+/**
+ * Android: action buttons pressed while the app is closed run this task (headless), since
+ * no listener is up then. Buttons that open the app (Watch, Call) aren't handled here: the
+ * app's response listener gets them once it's open.
+ */
+export const NOTIFICATION_ACTION_TASK = 'sightline-notification-action';
+const OPENS_APP = new Set<string>([Notifications.DEFAULT_ACTION_IDENTIFIER, ACTION_WATCH, 'checkin-watch', 'checkin-call']);
+const HANDLED_ACTIONS_KEY = 'android.handledNotificationActions';
 
 export function setupNotificationHandling() {
+  void setupChannels();
+  if (Platform.OS === 'android') void Notifications.registerTaskAsync(NOTIFICATION_ACTION_TASK).catch(() => {});
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -85,6 +98,12 @@ export async function handleResponse(resp: Notifications.NotificationResponse) {
   const id = `${resp.notification.request.identifier}:${resp.actionIdentifier}`;
   if (handledResponses.has(id)) return;
   handledResponses.add(id);
+  if (Platform.OS === 'android' && !OPENS_APP.has(resp.actionIdentifier)) {
+    // Android leaves the notification up after a button press, and the same press can reach
+    // both the background task and, later, the app: act once, then take it down.
+    void Notifications.dismissNotificationAsync(resp.notification.request.identifier).catch(() => {});
+    if (!(await claimAndroidAction(id))) return;
+  }
   // Background actions (snooze) can launch the app without the UI: write into the saved
   // settings, not the empty defaults that would then overwrite them.
   if (!useApp.persist.hasHydrated()) await useApp.persist.rehydrate();
@@ -134,6 +153,23 @@ export async function handleResponse(resp: Notifications.NotificationResponse) {
   }
 }
 
+/** False when this button press was already handled (kept across app launches; Android only). */
+async function claimAndroidAction(id: string): Promise<boolean> {
+  try {
+    const done = JSON.parse((await Storage.getItem(HANDLED_ACTIONS_KEY)) ?? '[]') as string[];
+    if (done.includes(id)) return false;
+    await Storage.setItem(HANDLED_ACTIONS_KEY, JSON.stringify([...done.slice(-49), id]));
+  } catch {
+    // Storage trouble: better to act twice (snooze, "she's fine") than not at all.
+  }
+  return true;
+}
+
+TaskManager.defineTask<Notifications.NotificationTaskPayload>(NOTIFICATION_ACTION_TASK, async ({ data }) => {
+  if (!data || !('actionIdentifier' in data) || OPENS_APP.has(data.actionIdentifier)) return;
+  await handleResponse(data).catch(() => {});
+});
+
 /** Handles the notification that launched the app (cold start), once navigation is ready. */
 export async function handleLaunchNotification() {
   const resp = await Notifications.getLastNotificationResponseAsync().catch(() => null);
@@ -172,6 +208,8 @@ async function register() {
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  // Android 13+ only asks once a notification channel exists.
+  await setupChannels();
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   const res = await Notifications.requestPermissionsAsync({
@@ -354,7 +392,7 @@ export async function checkHealth(): Promise<number> {
   for (const issue of toPost) {
     active[issue.key] = healthAlerted[issue.key] ?? Math.floor(Date.now() / 1000);
     if (healthAlerted[issue.key]) continue;
-    await Notifications.scheduleNotificationAsync({ content: { title: issue.title, body: issue.body }, trigger: null });
+    await Notifications.scheduleNotificationAsync({ content: { title: issue.title, body: issue.body }, trigger: showNow('health') });
     posted++;
   }
   useApp.getState().setHealthAlerted(active);
@@ -363,8 +401,10 @@ export async function checkHealth(): Promise<number> {
 
 async function post(item: ReviewItem, fallbackImage: string, camera: string, videoUrl?: string) {
   const attachments: Notifications.NotificationContentAttachmentIos[] = [];
-  // A finished event gets its preview clip, which plays when the notification is expanded.
-  if (videoUrl) {
+  let picture: string | undefined;
+  // A finished event gets its preview clip, which plays when the notification is expanded
+  // (iOS only: Android notifications show a picture, not a video).
+  if (videoUrl && Platform.OS === 'ios') {
     try {
       const clip = await File.downloadFileAsync(videoUrl, new File(Paths.cache, `alert-${item.id}.mp4`), { idempotent: true });
       attachments.push({ identifier: `${item.id}-clip`, url: clip.uri, type: 'public.mpeg-4', typeHint: 'public.mpeg-4' } as never);
@@ -379,6 +419,7 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
         idempotent: true,
       });
       attachments.push({ identifier: item.id, url: file.uri, type: 'public.webp', typeHint: 'public.webp' } as never);
+      picture = file.uri;
     } catch {
       // Text-only notification is fine.
     }
@@ -395,13 +436,14 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
         start: String(Math.floor(item.startTime - 5)),
         reviewId: item.id,
         ...(ring ? { kind: 'doorbell' } : featureData(item, camera)),
+        ...androidImage(picture),
       },
       attachments,
       // Rings break through Focus (Time Sensitive entitlement) and open the call screen.
       categoryIdentifier: ring ? DOORBELL_CATEGORY : ALERT_CATEGORY,
       ...(ring ? { interruptionLevel: 'timeSensitive' as const } : {}),
     },
-    trigger: null,
+    trigger: showNow(ring ? 'doorbell' : 'alerts'),
   });
 }
 
@@ -414,9 +456,11 @@ async function postStory(story: Story<ReviewItem>, adapter: CameraSystemAdapter,
   const last = items[items.length - 1];
   const imageUrl = items.find((i) => i.thumbnailUrl)?.thumbnailUrl ?? adapter.snapshot(first.cameraId, { height: 480 }).uri;
   const attachments: Notifications.NotificationContentAttachmentIos[] = [];
+  let picture: string | undefined;
   try {
     const file = await File.downloadFileAsync(imageUrl, new File(Paths.cache, `story-${first.id}.webp`), { idempotent: true });
     attachments.push({ identifier: `story-${first.id}`, url: file.uri, type: 'public.webp', typeHint: 'public.webp' } as never);
+    picture = file.uri;
   } catch {
     // Text-only notification is fine.
   }
@@ -433,11 +477,12 @@ async function postStory(story: Story<ReviewItem>, adapter: CameraSystemAdapter,
         end: String(Math.ceil(story.end)),
         reviewId: first.id,
         ids: items.map((i) => i.id).join(','),
+        ...androidImage(picture),
       },
       attachments,
       categoryIdentifier: ALERT_CATEGORY,
     },
-    trigger: null,
+    trigger: showNow('alerts'),
   });
   await recordLastAlert(last, title, names.get(`${last.systemId}:${last.cameraId}`) ?? last.cameraId);
 }

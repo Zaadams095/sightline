@@ -86,6 +86,8 @@ const onboarding: typeof en = {
     unknownBrand: (address) => `${address} · Marque inconnue. Touchez pour essayer avec son mot de passe.`,
     lookAgain: 'Chercher à nouveau',
     chooseBrand: 'Choisir plutôt ma marque',
+    localNetworkDenied: 'Sightline ne peut pas encore joindre les appareils de votre Wi-Fi. Dans Paramètres, ouvrez Autorisations › Appareils à proximité et choisissez Autoriser.',
+    openSettings: 'Ouvrir les Paramètres',
   },
   discovery: {
     checking: (n) => p(n, { one: `Vérification de ${n} appareil…`, other: `Vérification de ${n} appareils…` }),

@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip, T } from '@/components/ui/primitives';
+import { SymbolView, type SFSymbol } from '@/components/ui/symbol';
 import type { Strings } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import type { CameraSystemAdapter, PtzAction } from '@/systems/types';

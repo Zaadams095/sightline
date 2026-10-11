@@ -1,10 +1,10 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { packageHandled, packageSeen } from '@/alerts/packages-notify';
 import { Card, Chip, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import type { Strings } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';

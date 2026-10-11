@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { tr } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import type { CameraSystemAdapter, DeterAction } from '@/systems/types';

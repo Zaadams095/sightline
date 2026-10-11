@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
+import { ensureLocalNetworkAccess } from '@/net/local-network';
 import { useT } from '@/i18n/use-t';
 import { describe } from '@/systems/catalog';
 import { discover, type Found } from '@/systems/discovery';
@@ -21,11 +22,18 @@ export default function Discover() {
   const [status, setStatus] = useState(s.starting);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState(0);
+  // Android 17+: the person turned off access to devices on the Wi-Fi.
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    discover((msg) => !cancelled && setStatus(msg))
-      .then((r) => !cancelled && setFound(r))
+    ensureLocalNetworkAccess()
+      .then((ok) => {
+        if (cancelled) return null;
+        setBlocked(!ok);
+        return ok ? discover((msg) => !cancelled && setStatus(msg)) : null;
+      })
+      .then((r) => !cancelled && r && setFound(r))
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       cancelled = true;
@@ -44,7 +52,14 @@ export default function Discover() {
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
       <T v="title">{s.title}</T>
-      {!found && !error && (
+      {blocked && (
+        <View style={{ gap: space.md }}>
+          <T>{s.localNetworkDenied}</T>
+          <Button title={s.openSettings} onPress={() => void Linking.openSettings()} />
+          <Button title={s.lookAgain} kind="secondary" onPress={() => setRun((n) => n + 1)} />
+        </View>
+      )}
+      {!blocked && !found && !error && (
         <View style={styles.center}>
           <ActivityIndicator size="large" />
           <T muted>{status}</T>

@@ -1,7 +1,9 @@
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
+import { setupChannels } from '@/alerts/channels';
 import { legacyMasks } from '@/alerts/zones';
 import type { CheckInState } from '@/alerts/checkins';
 import { hubLearningFor } from '@/alerts/smart';
@@ -57,6 +59,8 @@ export function composeSnippet(secret: string): string {
 async function pushToken(): Promise<string> {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
   if (!projectId) throw new Error(tr().alerts.bridge.noPush);
+  // Android: pushes name a channel, which must exist before the first one arrives.
+  await setupChannels();
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
   return data;
 }
@@ -121,6 +125,9 @@ async function deviceBody(system: SystemConfig, token: string) {
     // The app's language ('en' | 'es' | 'fr' | 'de' | 'pt-BR'): the Hub writes this phone's
     // notifications in it.
     lang: getLocale(),
+    // 'ios' | 'android': Android phones get data-only pushes the app's own push service shows
+    // (bridge/push.go forDevice, app/modules/android-notify).
+    platform: Platform.OS === 'android' ? 'android' : 'ios',
     defaultRule: st.alerts.defaultRule,
     rules,
     cameraNames,

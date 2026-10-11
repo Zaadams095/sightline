@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActionSheetIOS, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
+import { showActionSheet } from '@/components/ui/action-sheet';
 import { T } from '@/components/ui/primitives';
 import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
@@ -44,7 +45,7 @@ export function SavedPanel() {
       L.deleteBookmark,
       t.common.cancel,
     ].filter(Boolean) as string[];
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       { title: c.title, options: opts, destructiveButtonIndex: opts.indexOf(L.deleteBookmark), cancelButtonIndex: opts.length - 1 },
       async (i) => {
         const choice = opts[i];

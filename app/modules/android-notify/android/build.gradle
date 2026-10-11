@@ -1,0 +1,46 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.sightlinenotify'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.sightlinenotify"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+// expo-notifications is either built from source (a Gradle project) or, by default in SDK 57,
+// used as its prebuilt AAR from node_modules/expo-notifications/local-maven-repo.
+def expoNotifications() {
+  if (findProject(':expo-notifications') != null) {
+    return project(':expo-notifications')
+  }
+  def pkg = new File(rootDir, '../node_modules/expo-notifications/package.json')
+  def version = new groovy.json.JsonSlurper().parse(pkg).version
+  return "host.exp.exponent:expo.modules.notifications:${version}"
+}
+
+// The local wg-tunnel module (app/modules/wg-tunnel), for SharedStore: found by its folder so
+// it doesn't matter what name autolinking gave the Gradle project.
+def wgTunnel() {
+  def dir = file('../../wg-tunnel/android').canonicalPath
+  def found = rootProject.subprojects.find { it.projectDir.canonicalPath == dir }
+  if (found == null) {
+    throw new GradleException("android-notify: the wg-tunnel module (${dir}) isn't linked")
+  }
+  return found.path
+}
+
+dependencies {
+  implementation expoNotifications()
+  implementation project(wgTunnel())
+  // Same versions expo-notifications 57 builds with.
+  implementation 'com.google.firebase:firebase-messaging:25.0.1'
+  implementation 'androidx.core:core:1.17.0'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+}

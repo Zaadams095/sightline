@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { Button, Chip, Row, Screen, Section, T, TimeStepper } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { ExportCancelled, probeMethod, pruneExports, runExport, shareExport, type ExportProgress, type ExportResult } from '@/export/run';
 import {
   customWindow,

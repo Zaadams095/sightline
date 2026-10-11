@@ -1,11 +1,11 @@
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import { useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Chip, Disclosure, Field, Screen, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { connectSystem, hasTunnelConfig, useLinks } from '@/net/connection';
 import { describeStartup, useLiveStats } from '@/state/live-stats';
@@ -216,7 +216,7 @@ export default function Diagnostics() {
     setRunning(false);
   };
 
-  const build = `Sightline v${Constants.expoConfig?.version} (${Constants.expoConfig?.ios?.buildNumber ?? ''})`;
+  const build = `Sightline v${Constants.expoConfig?.version} (${(Platform.OS === 'android' ? Constants.expoConfig?.android?.versionCode : Constants.expoConfig?.ios?.buildNumber) ?? ''})`;
   const report = [
     build,
     `Checking: ${name}${kind ? ` (${describe(kind)?.label})` : ''}`,
