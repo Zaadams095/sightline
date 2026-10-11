@@ -39,6 +39,15 @@ export async function resolveLive(source: LiveSource, system: SystemConfig): Pro
   return { kind: 'mse', wsUrl: `ws://127.0.0.1:${port}/api/ws` };
 }
 
+/** Stops the restreamer for one RTSP URL (e.g. a playback stream that's no longer shown). */
+export function releaseLiveUrl(url: string) {
+  const port = rtspPorts.get(url);
+  if (port != null) {
+    WgTunnel?.removeRTSPSource(port);
+    rtspPorts.delete(url);
+  }
+}
+
 /** Drops restreamers whose URL starts with a prefix (e.g. after a system's credentials change). */
 export function releaseLive(urlPrefix: string) {
   for (const [url, port] of rtspPorts) {

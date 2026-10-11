@@ -6,7 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { LiveView } from '@/components/live/live-view';
 import { T } from '@/components/ui/primitives';
-import { resolveLive } from '@/systems/live';
+import { releaseLiveUrl, resolveLive } from '@/systems/live';
 import type { CameraSystemAdapter } from '@/systems/types';
 import { seekPlayer, setPlayerRate } from '@/util/player';
 
@@ -37,11 +37,20 @@ export function StreamPlayback({ adapter, cameraId, start, paused, rate, onWall,
       const s = pb.source;
       // Whole recorded files may begin before `start`; remember when, to seek and keep time.
       if (s.kind === 'file') return { kind: 'file' as const, uri: s.uri, fileStart: s.startTime ?? start };
-      return { kind: 'live' as const, live: await resolveLive(s, adapter.config) };
+      return { kind: 'live' as const, live: await resolveLive(s, adapter.config), rtspUrl: s.kind === 'rtsp' ? s.url : undefined };
     },
     staleTime: Infinity,
+    // The restreamer is released on unmount, so never reuse a cached source afterwards.
+    gcTime: 0,
     retry: 1,
   });
+
+  // Each playback start is its own RTSP URL; free its restreamer when we move on.
+  const rtspUrl = source.data?.kind === 'live' ? source.data.rtspUrl : undefined;
+  useEffect(() => {
+    if (!rtspUrl) return;
+    return () => releaseLiveUrl(rtspUrl);
+  }, [rtspUrl]);
 
   if (source.isError) {
     return (
