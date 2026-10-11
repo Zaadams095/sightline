@@ -4,6 +4,7 @@ import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { AgentDvrAdapter } from '@/systems/agent-dvr';
 import { BlueIrisAdapter } from '@/systems/blue-iris';
+import { DahuaAdapter } from '@/systems/dahua';
 import { FrigateAdapter } from '@/systems/frigate';
 import { usesGateway } from '@/systems/catalog';
 import { OnvifAdapter } from '@/systems/onvif';
@@ -13,6 +14,7 @@ import { RtspAdapter } from '@/systems/rtsp';
 import { ScryptedAdapter } from '@/systems/scrypted';
 import { ShinobiAdapter } from '@/systems/shinobi';
 import { ZoneMinderAdapter } from '@/systems/zoneminder';
+import { UnifiProtectAdapter } from '@/systems/unifi-protect';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 
 const adapters = new Map<string, CameraSystemAdapter>();
@@ -21,6 +23,10 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
   switch (s.kind) {
     case 'frigate':
       return new FrigateAdapter(s, baseUrl);
+    case 'dahua':
+      return new DahuaAdapter(s, baseUrl);
+    case 'unifi-protect':
+      return new UnifiProtectAdapter(s, baseUrl);
     case 'rtsp':
       return new RtspAdapter(s);
     case 'onvif':

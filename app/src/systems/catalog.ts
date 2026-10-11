@@ -152,28 +152,40 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'dahua',
     label: 'Dahua / Amcrest / Lorex',
-    blurb: 'Dahua-based recorders and cameras',
+    blurb: 'Dahua, Amcrest and Lorex recorders and cameras',
     category: 'recorder',
-    available: false,
+    available: true,
     defaultPorts: [
       { port: 80, https: false },
       { port: 443, https: true },
     ],
-    addressHint: 'In the recorder menu: Network → TCP/IP, or in the Amcrest/Lorex app device info.',
-    fields: [ADDRESS('192.168.1.108', 'The recorder (or camera) address.'), USER(), PASS],
+    addressHint:
+      'On the recorder’s screen: Main Menu → Network shows the IP address. In the Amcrest or Lorex app, open the device’s settings → Device info.',
+    fields: [
+      ADDRESS('192.168.1.108', 'The recorder’s address (or a single camera’s).'),
+      { ...USER(), hint: 'The same sign-in you use on the recorder’s screen or in its app.' },
+      PASS,
+    ],
+    // Dahua firmware answers with a Digest challenge whose realm is "Login to <serial>".
     fingerprints: [
       { port: 80, https: false, path: '/cgi-bin/magicBox.cgi?action=getDeviceType', match: (r) => has(r.auth, 'login to') || has(r.body, 'type=') },
+      { port: 443, https: true, path: '/cgi-bin/magicBox.cgi?action=getDeviceType', match: (r) => has(r.auth, 'login to') || has(r.body, 'type=') },
     ],
   },
   {
     kind: 'unifi-protect',
     label: 'UniFi Protect',
-    blurb: 'Ubiquiti Cloud Key, UNVR, Dream Machine',
+    blurb: 'Ubiquiti Cloud Key, UNVR, Dream Machine, Cloud Gateway',
     category: 'recorder',
-    available: false,
+    available: true,
     defaultPorts: [{ port: 443, https: true }],
-    addressHint: 'Your console’s address. Use a local account (UniFi OS → Admins → add a local-access user).',
-    fields: [ADDRESS('192.168.1.1', 'UniFi console address.'), USER(''), PASS],
+    addressHint:
+      'Your UniFi console’s address (often 192.168.1.1). Sign in with a local account: in UniFi OS open Admins & Users → add an admin, choose “Restrict to local access only”, and give it access to Protect.',
+    fields: [
+      ADDRESS('192.168.1.1', 'The address of your Cloud Key, Dream Machine or NVR.'),
+      { ...USER(''), hint: 'A local UniFi account, not your Ubiquiti cloud email.' },
+      PASS,
+    ],
     fingerprints: [{ port: 443, https: true, path: '/', match: (r) => has(r.body, 'unifi') }],
   },
   {

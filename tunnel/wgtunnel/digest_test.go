@@ -51,7 +51,9 @@ func TestGatewayDigestAuth(t *testing.T) {
 		}
 		b, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		if string(b) != "ok /ISAPI/System/deviceInfo  cookie=" {
+		// The gateway keeps the session cookie from the first reply and replays it.
+		want := map[int]string{0: "ok /ISAPI/System/deviceInfo  cookie=", 1: "ok /ISAPI/System/deviceInfo  cookie=session=abc"}[i]
+		if string(b) != want {
 			t.Fatalf("GET %d: %d %q", i, resp.StatusCode, b)
 		}
 		if resp.Header.Get("Set-Cookie") == "" {
