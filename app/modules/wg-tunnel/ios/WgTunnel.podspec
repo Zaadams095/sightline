@@ -10,6 +10,7 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   # Built from ../../tunnel by scripts/build-tunnel-ios.sh (runs in the EAS pre-install hook).
   s.vendored_frameworks = 'Wgtunnel.xcframework'
-  s.source_files = '**/*.{h,m,swift}'
+  # Only our Swift; a recursive glob would also pick up the xcframework's per-slice headers.
+  s.source_files = '*.swift'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 end

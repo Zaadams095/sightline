@@ -4,9 +4,7 @@ module.exports = (config) => ({
   name: 'NotificationService',
   deploymentTarget: '17.1',
   frameworks: ['CryptoKit'],
-  entitlements: {
-    'com.apple.security.application-groups': config.ios.entitlements['com.apple.security.application-groups'],
-  },
+  // App Group entitlement is mirrored from app.json by the plugin.
   infoPlist: {
     SightlineAppGroup: config.ios.infoPlist.SightlineAppGroup,
     // The bridge is a plain-HTTP LAN address.
