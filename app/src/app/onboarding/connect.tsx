@@ -23,18 +23,24 @@ import { WgTunnel } from '@modules/wg-tunnel';
  * brand-specific fields. "Test" resolves ports/scheme, signs in and lists cameras.
  */
 export default function ConnectSystem() {
-  const params = useLocalSearchParams<{ kind: SystemKind; address?: string }>();
+  // Guided setup (onboarding/guide) may pass the brand's name and usual username.
+  const params = useLocalSearchParams<{ kind: SystemKind; address?: string; username?: string; name?: string }>();
   const d = describe(params.kind);
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const upsert = useApp((s) => s.upsertSystem);
 
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(d.fields.map((f) => [f.key, f.key === 'address' ? (params.address ?? '') : (f.defaultValue ?? '')])),
+    Object.fromEntries(
+      d.fields.map((f) => [
+        f.key,
+        f.key === 'address' ? (params.address ?? '') : f.key === 'username' && params.username ? params.username : (f.defaultValue ?? ''),
+      ]),
+    ),
   );
   // A Hub names itself (its setup page); leave blank to use that name.
   // Everything else starts with its brand name, which the user can change.
-  const [name, setName] = useState(d.category === 'hub' ? '' : d.label);
+  const [name, setName] = useState(d.category === 'hub' ? '' : (params.name ?? d.label));
   const [useTunnel, setUseTunnel] = useState(true);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -108,7 +114,7 @@ export default function ConnectSystem() {
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
       <View style={{ gap: space.xs }}>
-        <T v="title">Connect {d.label}</T>
+        <T v="title">Connect {params.name ?? d.label}</T>
         <T muted>{d.addressHint}</T>
       </View>
 
