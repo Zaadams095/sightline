@@ -1,0 +1,74 @@
+# Free compile check on a GitHub macOS runner before spending an EAS build credit.
+# Mirrors the EAS iOS build (tunnel xcframework, prebuild, pods, xcodebuild) minus signing.
+name: iOS compile check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tunnel/go.mod
+          cache-dependency-path: tunnel/go.sum
+
+      - name: Select newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Install JS dependencies (same as EAS)
+        run: npm ci --include=dev
+
+      - name: Build WireGuard tunnel xcframework
+        run: EAS_BUILD_PLATFORM=ios bash scripts/build-tunnel-ios.sh
+
+      - name: Typecheck & lint
+        run: |
+          npx tsc --noEmit
+          npx expo lint
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios --no-install --clean
+
+      - name: Install pods
+        run: cd ios && pod install
+
+      - name: Compile app + notification extension (simulator, unsigned)
+        run: |
+          set -o pipefail
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee ../xcodebuild.log | grep -E "error:|warning: .*Swift|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" ../xcodebuild.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
+          if-no-files-found: ignore
