@@ -2,7 +2,7 @@
 # Add this repository in Settings → Add-ons → Add-on Store → ⋮ → Repositories:
 #   https://github.com/zaadams095/sightline
 name: Sightline Hub
-version: "0.3.0"
+version: "0.4.0"
 slug: sightline_hub
 description: Instant alerts, sharing and remote access for your cameras in the Sightline app
 url: https://github.com/zaadams095/sightline/tree/main/homeassistant/sightline_hub
