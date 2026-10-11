@@ -23,24 +23,9 @@
         "NSSpeechRecognitionUsageDescription": "Sightline turns your spoken question into text on your iPhone. Your voice never leaves your phone.",
         "NSBonjourServices": [
           "_http._tcp",
-          "_rtsp._tcp",
-          "_http._tcp",
-          "_rtsp._tcp",
-          "_http._tcp",
-          "_rtsp._tcp",
-          "_http._tcp",
           "_rtsp._tcp"
         ],
         "UIBackgroundModes": [
-          "fetch",
-          "processing",
-          "remote-notification",
-          "fetch",
-          "processing",
-          "remote-notification",
-          "fetch",
-          "processing",
-          "remote-notification",
           "fetch",
           "processing",
           "remote-notification"
@@ -56,9 +41,6 @@
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
         "com.apple.security.application-groups": [
-          "group.com.zachadams.sightline",
-          "group.com.zachadams.sightline",
-          "group.com.zachadams.sightline",
           "group.com.zachadams.sightline"
         ],
         "com.apple.developer.icloud-container-identifiers": [
@@ -106,8 +88,20 @@
         "expo-localization",
         {
           "supportedLocales": {
-            "ios": ["en", "es", "fr", "de", "pt-BR"],
-            "android": ["en", "es", "fr", "de", "pt-BR"]
+            "ios": [
+              "en",
+              "es",
+              "fr",
+              "de",
+              "pt-BR"
+            ],
+            "android": [
+              "en",
+              "es",
+              "fr",
+              "de",
+              "pt-BR"
+            ]
           }
         }
       ],
@@ -155,7 +149,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Choose a floor plan or map image to place your cameras on, or photos of people and vehicles for Sightline to recognize on this iPhone.",
-          "cameraPermission": false,
+          "cameraPermission": "Scan a QR code to connect to your Sightline Hub, a shared invite, or your home VPN.",
           "microphonePermission": "Sightline uses the microphone only while you press Talk, so you can speak through your camera or doorbell, or while you speak a question to Ask."
         }
       ],
