@@ -16,6 +16,7 @@ import { resumeHomeAway } from '@/presence/geofence';
 import { AppLockGate } from '@/security/app-lock';
 import { useApp } from '@/state/store';
 import { useIsDark, usePalette } from '@/theme/use-palette';
+import { startWatchSync } from '@/watch/sync';
 
 SplashScreen.preventAutoHideAsync();
 setupNotificationHandling();
@@ -48,12 +49,14 @@ export default function RootLayout() {
     );
     const stopDoorbell = startDoorbellWatch();
     const stopLive = startLiveActivities();
+    const stopWatch = startWatchSync();
     return () => {
       clearTimeout(launchTimer);
       stopBridge();
       stopLifecycle();
       stopDoorbell();
       stopLive();
+      stopWatch();
     };
   }, [hydrated]);
 
@@ -94,6 +97,8 @@ export default function RootLayout() {
             {/* Deep links sightline://invite?… and sightline://hub?… redirect to the join screen. */}
             <Stack.Screen name="invite" options={{ headerShown: false }} />
             <Stack.Screen name="hub" options={{ headerShown: false }} />
+            {/* sightline://tv?… (the QR code on the Apple TV app) connects the TV to a Hub. */}
+            <Stack.Screen name="tv" options={{ title: 'Connect Apple TV' }} />
           </Stack>
           <AppLockGate />
           {/* Starts WebKit's web process at launch so the first live view doesn't pay for it. */}

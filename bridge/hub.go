@@ -39,6 +39,7 @@ type hub struct {
 	settings   hubSettings
 
 	playbacks playbackCache
+	hls       hlsSessions
 
 	mu      sync.RWMutex
 	systems []*system

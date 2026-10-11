@@ -22,6 +22,7 @@ import { getAdapter } from '@/systems/registry';
 import type { CameraSystemAdapter, ReviewItem, SystemConfig } from '@/systems/types';
 import { titleFor } from '@/util/format';
 import { recordLastAlert, syncWidgets } from '@/widgets/sync';
+import { syncWatch } from '@/watch/sync';
 import type { CameraEntry } from '@/systems/registry';
 
 /**
@@ -261,6 +262,7 @@ async function refreshWidgetsInBackground() {
     } catch {}
   }
   await syncWidgets(entries, { force: true }).catch(() => {});
+  await syncWatch(entries, { force: true }).catch(() => {});
 }
 
 /**

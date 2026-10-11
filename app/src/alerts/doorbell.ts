@@ -8,6 +8,7 @@ import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
 import type { CameraSystemAdapter } from '@/systems/types';
+import { notifyWatchRing } from '@/watch/sync';
 
 /**
  * Doorbell rings, from any system: adapters report a ring as an event whose objects include
@@ -51,6 +52,7 @@ export function openDoorbell(p: RingParams, force = false) {
   const id = p.reviewId || `${p.systemId}:${p.cameraId}:${p.at ?? ''}`;
   if (!force && (shown.has(id) || screenOpen)) return;
   shown.add(id);
+  notifyWatchRing(p);
   if (screenOpen) {
     router.setParams({ ...p });
     return;

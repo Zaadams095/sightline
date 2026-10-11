@@ -1,5 +1,5 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Field, Screen, T } from '@/components/ui/primitives';
 import { finishHubJoin, joinAndSaveHub } from '@/systems/hub-join';
 import { looksLikePairingCode, normalizeHubAddress, parseHubLink, type HubLink } from '@/systems/hub-links';
+import { parseTvLink } from '@/tv/link';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
@@ -143,6 +144,12 @@ export default function Invite() {
               if (!scanning) return;
               setScanning(false);
               const parsed = parseHubLink(data);
+              // The code on the Apple TV app: connect that TV instead.
+              const tv = parsed ? null : parseTvLink(data);
+              if (tv) {
+                router.push({ pathname: '/tv', params: { h: tv.host, k: tv.key, n: tv.name } });
+                return;
+              }
               if (!parsed) {
                 setError('That QR code isn’t a Sightline code. Scan the code on the Hub’s setup page or in the invite.');
                 return;

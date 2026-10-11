@@ -121,6 +121,15 @@ This route uses go2rtc's MSE protocol:
 
 For Frigate, the Hub pipes Frigate's internal go2rtc (`/live/mse/api/ws?src=<stream>`). For RTSP sources (NVRs and cameras of every other brand), it restreams with go2rtc's `pkg/rtsp` and `pkg/mp4`.
 
+### `GET /v1/cameras/{id}/live.m3u8?quality=main|sub` (HLS)
+Live view for players without Media Source Extensions (the Apple TV app uses it with AVPlayer). It returns a master playlist and starts a short-lived session for this caller:
+```
+#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.640029,mp4a.40.2"
+hls/<session>/playlist.m3u8?token=…
+```
+The session's files are `/v1/cameras/{id}/hls/<session>/playlist.m3u8`, `init.mp4` and `s<n>.m4s` (fMP4). Every request is grant-checked like the other camera routes, and a session only answers the grant and camera that started it. It ends about 10 seconds after the player stops asking. The source is the same fMP4 stream as the WebSocket route, so this works for every brand. Video is H.264/H.265 with AAC audio. At most 16 sessions run at once; beyond that the Hub answers 503 `busy`. If the camera can't be reached it answers 502 `upstream`.
+
 ### `GET /v1/cameras/{id}/ptz` / `POST /v1/cameras/{id}/ptz`
 `GET` returns `{"canMove": true, "canZoom": false, "presets": ["door"]}`. `POST` takes `{"action": "MOVE_LEFT"}` and returns 204. The actions are `MOVE_UP|MOVE_DOWN|MOVE_LEFT|MOVE_RIGHT|ZOOM_IN|ZOOM_OUT|STOP|preset_<name>`. Moves continue until `STOP`.
 

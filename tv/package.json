@@ -1,0 +1,32 @@
+{
+  "name": "sightline-tv",
+  "main": "index.ts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "prebuild": "expo prebuild --platform ios --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@react-native-tvos/config-tv": "^0.1.7",
+    "expo": "~57.0.27",
+    "expo-status-bar": "~57.0.1",
+    "expo-video": "~57.0.5",
+    "react": "19.2.3",
+    "react-native": "npm:react-native-tvos@0.86.3-0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "react-native": "$react-native"
+  },
+  "expo": {
+    "install": {
+      "exclude": ["react-native"]
+    }
+  }
+}

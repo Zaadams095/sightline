@@ -14,6 +14,7 @@ import { usesGateway } from '@/systems/catalog';
 import { useAllCameras, type CameraEntry } from '@/systems/registry';
 import { space } from '@/theme/tokens';
 import { syncWidgets } from '@/widgets/sync';
+import { syncWatch } from '@/watch/sync';
 import { usePalette } from '@/theme/use-palette';
 
 const TABLET_MIN_WIDTH = 700;
@@ -40,6 +41,7 @@ export default function LiveScreen() {
   // Keep Home Screen widget snapshots fresh while the app is open (throttled).
   useEffect(() => {
     void syncWidgets(allEntries);
+    void syncWatch(allEntries);
   }, [allEntries]);
   const { phoneColumns, density } = useApp((s) => s.appearance);
   const gridViews = useApp((s) => s.gridViews);

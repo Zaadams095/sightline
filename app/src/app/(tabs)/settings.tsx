@@ -66,8 +66,15 @@ export default function SettingsScreen() {
                 : 'Needs a Sightline Hub'
           }
           onPress={() => router.push('/settings/sharing')}
-          last
+          last={!sharable}
         />
+        {sharable && (
+          <Row
+            label="Apple TV"
+            detail="Open Sightline on the TV, then scan the code it shows with your iPhone camera"
+            last
+          />
+        )}
       </Section>
 
       {!guestOnly && (

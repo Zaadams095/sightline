@@ -64,7 +64,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "eas-build-pre-install": "bash scripts/build-tunnel-ios.sh",
+    "eas-build-pre-install": "bash scripts/build-tunnel-ios.sh && bash scripts/ensure-watchos-sdk.sh",
     "typecheck": "tsc --noEmit",
     "preview": "expo start --go",
     "preview:tunnel": "expo start --go --tunnel",
