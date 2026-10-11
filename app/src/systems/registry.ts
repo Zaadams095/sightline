@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 
 import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
+import { DahuaAdapter } from '@/systems/dahua';
 import { FrigateAdapter } from '@/systems/frigate';
 import { RtspAdapter } from '@/systems/rtsp';
+import { UnifiProtectAdapter } from '@/systems/unifi-protect';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 
 const adapters = new Map<string, CameraSystemAdapter>();
@@ -12,6 +14,10 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
   switch (s.kind) {
     case 'frigate':
       return new FrigateAdapter(s, baseUrl);
+    case 'dahua':
+      return new DahuaAdapter(s, baseUrl);
+    case 'unifi-protect':
+      return new UnifiProtectAdapter(s, baseUrl);
     case 'rtsp':
       return new RtspAdapter(s);
     default:

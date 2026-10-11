@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httputil"
 	"net/url"
 	"strings"
@@ -31,6 +32,11 @@ type route struct {
 	pass     string
 	token    string
 	tokenExp time.Time
+
+	// Session cookies for other brands (e.g. UniFi OS's TOKEN), kept per route. They are often
+	// marked Secure, so iOS would never send them back over this plain-HTTP loopback; the
+	// gateway replays them upstream itself, which also covers images and video players.
+	jar http.CookieJar
 }
 
 var (
@@ -47,6 +53,9 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 		return 0, fmt.Errorf("invalid target URL %q", target)
 	}
 	r := &route{target: u, user: user, pass: pass}
+	if authKind != "frigate" {
+		r.jar, _ = cookiejar.New(nil) // never fails with nil options
+	}
 	r.viaTunnel.Store(viaTunnel)
 	r.transport = &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -74,7 +83,13 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 			if authKind == "frigate" {
 				pr.Out.Header.Del("Cookie")
 			}
-			if pr.Out.Method != http.MethodGet && pr.Out.Method != http.MethodHead {
+			if r.jar != nil {
+				addJarCookies(pr.Out, r.jar.Cookies(pr.Out.URL))
+			}
+			// Frigate only checks that the header exists. Other brands (UniFi OS) need the real
+			// token their client sends, so never overwrite one and don't invent one for them.
+			if authKind == "frigate" && pr.Out.Method != http.MethodGet && pr.Out.Method != http.MethodHead &&
+				pr.Out.Header.Get("X-CSRF-TOKEN") == "" {
 				pr.Out.Header.Set("X-CSRF-TOKEN", "1")
 			}
 			switch authKind {
@@ -94,6 +109,11 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 			}
 			if authKind == "frigate" {
 				resp.Header.Del("Set-Cookie")
+			}
+			if r.jar != nil && resp.Request != nil {
+				if cs := resp.Cookies(); len(cs) > 0 {
+					r.jar.SetCookies(resp.Request.URL, cs)
+				}
 			}
 			return nil
 		},
@@ -241,4 +261,15 @@ func jwtExpiry(tok string) time.Time {
 		}
 	}
 	return time.Now().Add(1 * time.Hour)
+}
+
+// addJarCookies adds the route's stored session cookies to an upstream request, unless the
+// client already sent a cookie with the same name (the client's own value wins).
+func addJarCookies(req *http.Request, cookies []*http.Cookie) {
+	for _, c := range cookies {
+		if _, err := req.Cookie(c.Name); err == nil {
+			continue
+		}
+		req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
+	}
 }
