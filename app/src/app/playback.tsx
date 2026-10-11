@@ -8,6 +8,7 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Pressable, ScrollView, StyleS
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DayOverview } from '@/components/playback/day-overview';
+import { StreamPlayback } from '@/components/playback/stream-playback';
 import { SyncedPip } from '@/components/playback/synced-pip';
 import { Timeline } from '@/components/timeline';
 import { Chip, T } from '@/components/ui/primitives';
@@ -135,6 +136,11 @@ export default function PlaybackScreen() {
     staleTime: Infinity,
   });
   const source = playbackSource.data?.kind === 'vod' ? playbackSource.data.uri : null;
+  // Systems without one seekable playlist stream forward from a start time; seeking reopens.
+  const streamMode = playbackSource.data?.kind === 'stream';
+  const [streamStart, setStreamStart] = useState(anchor);
+  const [streamStopped, setStreamStopped] = useState(false);
+  const [streamPlaying, setStreamPlaying] = useState(false);
   const player = useVideoPlayer(source, (p) => {
     p.timeUpdateEventInterval = 0.25;
     p.muted = false;
@@ -162,6 +168,18 @@ export default function PlaybackScreen() {
 
   const seekTo = (t: number) => {
     setScrubWall(null);
+    if (streamMode) {
+      setStreamStart(t);
+      setStreamStopped(false);
+      setWall(t);
+      // Keep the timeline's data window around the new position.
+      if (t < winStart + 60 || t > winEnd - 60) {
+        const fresh = Math.floor(nowSec());
+        setNow(fresh);
+        setAnchor(Math.min(fresh, Math.round(t)));
+      }
+      return;
+    }
     if (t < winStart + 60 || (t > winEnd - 60 && winEnd < now - 60)) {
       const fresh = Math.floor(nowSec());
       pendingSeek.current = t;
@@ -261,6 +279,17 @@ export default function PlaybackScreen() {
     <View style={styles.root}>
       <View style={{ flex: landscape ? 1 : undefined, height: landscape ? undefined : width * (9 / 16), marginTop: landscape ? 0 : insets.top + 52 }}>
         {source && <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} allowsPictureInPicture />}
+        {streamMode && adapter && !streamStopped && (
+          <StreamPlayback
+            adapter={adapter}
+            cameraId={cameraId}
+            start={streamStart}
+            paused={false}
+            rate={1}
+            onWall={setWall}
+            onPlaying={setStreamPlaying}
+          />
+        )}
         {noRecordings && (
           <View style={[StyleSheet.absoluteFill, styles.center]}>
             <T color="#fff">No recordings in this period</T>
@@ -299,7 +328,7 @@ export default function PlaybackScreen() {
         </Pressable>
       </View>
 
-      {showPip && neighborIds.length > 0 && adapter && (
+      {showPip && !streamMode && neighborIds.length > 0 && adapter && (
         <View style={[styles.pips, { top: landscape ? insets.top + 56 : insets.top + 52 + width * (9 / 16) + 8 }]}>
           {neighborIds.map((id) => (
             <SyncedPip
@@ -376,17 +405,28 @@ export default function PlaybackScreen() {
           <Ctl icon="minus.magnifyingglass" small onPress={() => setZoom((z) => Math.max(0, z - 1))} />
           <Ctl icon="backward.end.fill" onPress={() => jumpEvent(-1)} />
           <Ctl icon="gobackward.10" onPress={() => seekTo(wall - 10)} />
-          <Ctl icon={isPlaying ? 'pause.fill' : 'play.fill'} big onPress={() => (isPlaying ? player.pause() : player.play())} />
+          <Ctl
+            icon={(streamMode ? streamPlaying && !streamStopped : isPlaying) ? 'pause.fill' : 'play.fill'}
+            big
+            onPress={() => {
+              if (!streamMode) return isPlaying ? player.pause() : player.play();
+              // Streams can't pause in place: stop, and resume from where we were.
+              if (streamStopped) seekTo(wall);
+              else setStreamStopped(true);
+            }}
+          />
           <Ctl icon="goforward.10" onPress={() => seekTo(wall + 10)} />
           <Ctl icon="forward.end.fill" onPress={() => jumpEvent(1)} />
           <Ctl icon="plus.magnifyingglass" small onPress={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} />
         </View>
         <View style={styles.footerRow}>
+{!streamMode && (
           <Pressable onPress={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])} style={styles.pill}>
             <T v="label" color="#fff">
               {speed}×
             </T>
           </Pressable>
+          )}
           {neighborIds.length > 0 && (
             <Pressable onPress={() => setShowPip((v) => !v)} style={styles.pill}>
               <T v="label" color="#fff">
