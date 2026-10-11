@@ -12,7 +12,6 @@ import { usePalette } from '@/theme/use-palette';
 export default function OnboardingAlerts() {
   const insets = useSafeAreaInsets();
   const setAlerts = useApp((s) => s.setAlerts);
-  const setOnboarded = useApp((s) => s.setOnboarded);
   const onboarded = useApp((s) => s.onboarded);
   const currentMode = useApp((s) => s.alerts.mode);
   // Instant Alerts come from a Sightline Hub, so they're only offered once one is paired.
