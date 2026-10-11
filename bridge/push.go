@@ -20,6 +20,8 @@ type pushMessage struct {
 	Data           map[string]string `json:"data,omitempty"`
 	MutableContent bool              `json:"mutableContent,omitempty"`
 	CategoryID     string            `json:"categoryId,omitempty"`
+	// iOS: "time-sensitive" breaks through Focus (doorbell rings); needs the app's entitlement.
+	InterruptionLevel string `json:"interruptionLevel,omitempty"`
 }
 
 type pusher interface {

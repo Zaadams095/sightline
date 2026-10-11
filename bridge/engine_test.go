@@ -241,3 +241,56 @@ func TestHomeMode(t *testing.T) {
 		t.Fatalf("home mode sent = %+v", p.sent)
 	}
 }
+
+func TestDoorbellAndPackages(t *testing.T) {
+	base := device{
+		ID: "d", PushToken: "ExponentPushToken[x]", SystemID: "sys", CooldownSec: 600,
+		DefaultRule: rule{Enabled: true, Objects: []string{"person"}, Severities: []string{"alert"}},
+		CameraNames: map[string]string{"door": "Front Door"},
+		QuietFor:    []string{"Zach"},
+	}
+	ring := func(id string, subLabels ...string) []byte {
+		r := review{ID: id, Camera: "door", Severity: "detection", Data: reviewData{Objects: []string{"doorbell"}, SubLabels: subLabels}}
+		b, _ := json.Marshal(reviewMessage{Type: "new", Before: r, After: r})
+		return b
+	}
+
+	// Rings bypass the person-only rule, the cooldown and known-people quieting.
+	e, p := newTestEngine(t, base)
+	e.handle(ring("r1"))
+	e.handle(ring("r2", "Zach"))
+	if len(p.sent) != 2 {
+		t.Fatalf("sent %d rings, want 2: %+v", len(p.sent), p.sent)
+	}
+	m := p.sent[0]
+	if m.Title != "Someone's at the door · Front Door" || m.CategoryID != "doorbell-ring" || m.Priority != "high" ||
+		m.InterruptionLevel != "time-sensitive" || m.Data["kind"] != "doorbell" {
+		t.Errorf("ring message = %+v", m)
+	}
+
+	// Packages follow the camera rule unless package alerts are on.
+	e.handle(msg(t, "new", "p1", "porch", "alert", []string{"package"}, nil))
+	if len(p.sent) != 2 {
+		t.Fatalf("package without package alerts should be filtered by the person rule: %+v", p.sent)
+	}
+	withPkg := base
+	withPkg.PackageAlerts = true
+	e2, p2 := newTestEngine(t, withPkg)
+	e2.handle(msg(t, "new", "p1", "porch", "alert", []string{"package"}, nil))
+	e2.handle(msg(t, "new", "p2", "porch", "alert", []string{"package"}, nil)) // same camera soon after: once
+	if len(p2.sent) != 1 {
+		t.Fatalf("sent %d package alerts, want 1", len(p2.sent))
+	}
+	if p2.sent[0].Title != "Package delivered · porch" || p2.sent[0].CategoryID != "camera-alert" || p2.sent[0].InterruptionLevel != "" {
+		t.Errorf("package message = %+v", p2.sent[0])
+	}
+
+	// A snoozed doorbell stays quiet.
+	snoozed := base
+	snoozed.Snoozed = map[string]int64{"door": time.Now().Add(time.Hour).Unix()}
+	e3, p3 := newTestEngine(t, snoozed)
+	e3.handle(ring("r9"))
+	if len(p3.sent) != 0 {
+		t.Errorf("snoozed doorbell sent %+v", p3.sent)
+	}
+}

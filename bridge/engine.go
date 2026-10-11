@@ -55,7 +55,9 @@ type device struct {
 	// Home/Away (from the phone's geofence): while home, only these cameras alert.
 	AtHome        bool     `json:"atHome"`
 	AlertWhenHome []string `json:"alertWhenHome"`
-	UpdatedAt     int64    `json:"updatedAt"`
+	// "Package delivered" alerts regardless of the camera's object filter.
+	PackageAlerts bool  `json:"packageAlerts"`
+	UpdatedAt     int64 `json:"updatedAt"`
 }
 
 type healthPrefs struct {
@@ -215,8 +217,17 @@ func (e *engine) handle(payload []byte) {
 			cams = map[string]int64{}
 			e.lastCam[d.ID] = cams
 		}
-		if now.Unix()-cams[r.Camera] < d.CooldownSec {
+		ring := isDoorbell(r)
+		if !ring && now.Unix()-cams[r.Camera] < d.CooldownSec {
 			continue
+		}
+		// One "Package delivered" per camera for a while, not one per event while it sits there.
+		pkgKey := "package|" + r.Camera
+		if !ring && isPackage(r) {
+			if now.Unix()-cams[pkgKey] < packageRepeatSec {
+				continue
+			}
+			cams[pkgKey] = now.Unix()
 		}
 		cams[r.Camera] = now.Unix()
 		e.notified[key] = true
@@ -250,6 +261,14 @@ func shouldNotify(d device, r review, now time.Time) bool {
 	if !ru.Enabled {
 		return false
 	}
+	if d.Snoozed[r.Camera] > now.Unix() || (d.AtHome && !contains(d.AlertWhenHome, r.Camera)) || inQuietHours(d, now) {
+		return false
+	}
+	// Doorbell rings always notify (unless the camera is off/snoozed/quiet); package
+	// deliveries too when the user turned package alerts on. Mirrors app rules.ts.
+	if isDoorbell(r) || (d.PackageAlerts && isPackage(r)) {
+		return true
+	}
 	if len(ru.Severities) > 0 && !contains(ru.Severities, r.Severity) {
 		return false
 	}
@@ -259,17 +278,14 @@ func shouldNotify(d device, r review, now time.Time) bool {
 	if len(ru.Zones) > 0 && !anyIn(r.Data.Zones, ru.Zones) {
 		return false
 	}
-	if d.Snoozed[r.Camera] > now.Unix() {
-		return false
-	}
-	if d.AtHome && !contains(d.AlertWhenHome, r.Camera) {
-		return false
-	}
-	if onlyKnown(r.Data.SubLabels, d.QuietFor) {
-		return false
-	}
-	return !inQuietHours(d, now)
+	return !onlyKnown(r.Data.SubLabels, d.QuietFor)
 }
+
+// Doorbell rings are events whose objects include "doorbell"; packages are "package" objects.
+func isDoorbell(r review) bool { return contains(r.Data.Objects, "doorbell") }
+func isPackage(r review) bool  { return contains(r.Data.Objects, "package") }
+
+const packageRepeatSec = 4 * 3600
 
 // onlyKnown mirrors app/src/alerts/rules.ts: true when everyone recognized is on the quiet list.
 func onlyKnown(subLabels, quietFor []string) bool {
@@ -326,7 +342,7 @@ func buildMessage(d device, r review) pushMessage {
 	if len(r.Data.Zones) > 0 {
 		body = "In " + strings.ReplaceAll(strings.Join(r.Data.Zones, ", "), "_", " ")
 	}
-	return pushMessage{
+	m := pushMessage{
 		To:       d.PushToken,
 		Title:    what + " · " + name,
 		Body:     body,
@@ -342,6 +358,18 @@ func buildMessage(d device, r review) pushMessage {
 		MutableContent: true,
 		CategoryID:     "camera-alert", // long-press snooze actions, registered by the app
 	}
+	// Same titles as the app's built-in alerts (rules.ts notificationTitle, packages-notify.ts).
+	switch {
+	case isDoorbell(r):
+		m.Title = "Someone's at the door · " + name
+		m.CategoryID = "doorbell-ring" // "Watch" action; tapping opens the full-screen call
+		m.InterruptionLevel = "time-sensitive"
+		m.Data["kind"] = "doorbell"
+	case isPackage(r):
+		m.Title = "Package delivered · " + name
+		m.Data["kind"] = "package"
+	}
+	return m
 }
 
 func contains(list []string, v string) bool {
