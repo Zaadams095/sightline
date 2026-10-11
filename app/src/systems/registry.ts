@@ -7,6 +7,8 @@ import { BlueIrisAdapter } from '@/systems/blue-iris';
 import { FrigateAdapter } from '@/systems/frigate';
 import { usesGateway } from '@/systems/catalog';
 import { OnvifAdapter } from '@/systems/onvif';
+import { HikvisionAdapter } from '@/systems/hikvision';
+import { ReolinkAdapter } from '@/systems/reolink';
 import { RtspAdapter } from '@/systems/rtsp';
 import { ScryptedAdapter } from '@/systems/scrypted';
 import { ShinobiAdapter } from '@/systems/shinobi';
@@ -33,6 +35,10 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
       return new ZoneMinderAdapter(s, baseUrl);
     case 'scrypted':
       return new ScryptedAdapter(s, baseUrl);
+    case 'reolink':
+      return new ReolinkAdapter(s, baseUrl);
+    case 'hikvision':
+      return new HikvisionAdapter(s, baseUrl);
     default:
       throw new Error(`${s.kind} is not supported yet`);
   }

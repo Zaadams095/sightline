@@ -154,7 +154,8 @@ export type LiveSource =
 /**
  * Recorded video for a time window.
  * - vod: seekable HLS of the whole window (gaps removed; mapped with recordingSegments()).
- * - stream: plays forward from the window start; seeking asks for a new window.
+ * - stream: plays forward from the window start; seeking asks for a new window. Whole files
+ *   that begin earlier carry their own `startTime` (see PlaybackFile).
  */
 export type PlaybackSource =
   | { kind: 'vod'; uri: string }
