@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 
 import { ACTION_WATCH, DOORBELL_CATEGORY, openDoorbell, registerDoorbellCategory, ringParamsFrom } from '@/alerts/doorbell';
+import { endEvent, showEvent, showRing } from '@/alerts/live-activity';
 import { isMasked } from '@/alerts/masks';
 import {
   ACTION_GOT_IT,
@@ -217,10 +218,33 @@ async function alertsFor(system: SystemConfig, state: ReturnType<typeof useApp.g
     const video = item.endTime && adapter.previewClip && !isDoorbell(item) ? adapter.previewClip(item).uri : undefined;
     await post(item, adapter.snapshot(item.cameraId, { height: 480 }).uri, name, video);
     await recordLastAlert(item, titleFor(item), name);
+    await showOnLockScreen(item, name, adapter);
     posted++;
+  }
+  // Events that finished since: take their camera's Live Activity down.
+  const ongoing = new Set(fresh.filter((i) => i.endTime == null).map((i) => i.cameraId));
+  for (const cameraId of new Set(fresh.filter((i) => i.endTime != null).map((i) => i.cameraId))) {
+    if (!ongoing.has(cameraId)) await endEvent(system.id, cameraId);
   }
   useApp.getState().setLastNotified(system.id, Math.max(...fresh.map((i) => i.startTime)));
   return posted;
+}
+
+/**
+ * Rings and still-ongoing events as a Live Activity. iOS refuses to start one while the app
+ * is in the background (it can still update a running one), so this mostly matters when the
+ * check runs with the app open.
+ */
+async function showOnLockScreen(item: ReviewItem, camera: string, adapter: CameraSystemAdapter) {
+  if (isDoorbell(item)) {
+    const ring = { systemId: item.systemId, cameraId: item.cameraId, at: String(Math.floor(item.startTime)), reviewId: item.id };
+    await showRing(ring, { camera, adapter, snapshotUrl: item.thumbnailUrl });
+  } else if (item.endTime == null) {
+    await showEvent(
+      { systemId: item.systemId, cameraId: item.cameraId, reviewId: item.id, headline: titleFor(item), camera, since: item.startTime, snapshotUrl: item.thumbnailUrl },
+      adapter,
+    );
+  }
 }
 
 /** Background checks are the only time widgets get new snapshots while the app is closed. */

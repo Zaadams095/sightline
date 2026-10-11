@@ -68,6 +68,8 @@ export interface AlertSettings {
   bridge?: { url: string; pairedAt: number };
   /** Doorbell rings open the full-screen "Someone's at the door" screen. */
   doorbell: { fullScreen: boolean };
+  /** Doorbell rings and ongoing events show as a Live Activity (Lock Screen, Dynamic Island). */
+  lockScreen: boolean;
   /** "Package delivered" / "picked up" alerts, and an optional evening reminder ("HH:MM"). */
   packages: { enabled: boolean; reminder: boolean; reminderTime: string };
 }
@@ -200,6 +202,7 @@ export const useApp = create<AppState>()(
         health: { enabled: true, storagePct: 90 },
         presence: { enabled: false, atHome: false, alertWhenHome: [] },
         doorbell: { fullScreen: true },
+        lockScreen: true,
         packages: { enabled: true, reminder: false, reminderTime: '19:00' },
       },
       savedClips: [],

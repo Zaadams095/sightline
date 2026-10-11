@@ -8,8 +8,27 @@ import { useApp } from '@/state/store';
 import { getAdapter, type CameraEntry } from '@/systems/registry';
 import { space } from '@/theme/tokens';
 import { formatClock, nowSec } from '@/util/format';
+import { LiveActivity } from '@modules/live-activity';
 
 const STORAGE_LEVELS = [80, 90, 95];
+
+/** Live Activities: only on iPhone builds that include them. */
+export function LockScreenSection() {
+  const lockScreen = useApp((s) => s.alerts.lockScreen);
+  const setAlerts = useApp((s) => s.setAlerts);
+  if (!LiveActivity) return null;
+  return (
+    <Section footer="If nothing shows, check that Live Activities are allowed for Sightline in the iPhone Settings app.">
+      <ToggleRow
+        label="Show on Lock Screen"
+        detail="When the doorbell rings or a camera sees something, show it on your Lock Screen for a few minutes, with the latest picture."
+        value={lockScreen}
+        onChange={(v) => setAlerts({ lockScreen: v })}
+        last
+      />
+    </Section>
+  );
+}
 
 /** "Don't alert for these people/cars": names your system can recognize (faces, known plates). */
 export function KnownPeopleSection() {

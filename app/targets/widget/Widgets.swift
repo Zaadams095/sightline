@@ -169,5 +169,6 @@ struct SightlineWidgets: WidgetBundle {
   var body: some Widget {
     CamerasWidget()
     LastAlertWidget()
+    SightlineLiveActivity()
   }
 }

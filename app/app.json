@@ -9,6 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.zachadams.sightline",
+      "icon": {
+        "light": "./assets/images/icon.png",
+        "dark": "./assets/images/icon-dark.png",
+        "tinted": "./assets/images/icon-tinted.png"
+      },
       "supportsTablet": true,
       "requireFullScreen": false,
       "infoPlist": {
@@ -42,6 +47,7 @@
           "NSAllowsLocalNetworking": true
         },
         "SightlineAppGroup": "group.com.zachadams.sightline",
+        "NSSupportsLiveActivities": true,
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {

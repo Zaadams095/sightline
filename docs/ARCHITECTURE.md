@@ -137,6 +137,14 @@ Rules: per camera, object label, zone, severity (alert/detection), quiet hours, 
 - Apple Watch mirrors iPhone notifications, including image attachments (to verify on device).
 - Next: a VPN-backed fetch inside the extension for full-res images and clips when away (24 MB memory limit to evaluate).
 
+## Lock Screen Live Activities
+
+- A doorbell ring ("Someone's at the door · Front Door", snapshot, Watch → `sightline://doorbell?…`) or an ongoing camera event (what was seen, elapsed time, latest snapshot → `sightline://camera/<key>`) shows as a Live Activity on the Lock Screen and in the Dynamic Island. Setting: Alerts → "Show on Lock Screen" (on by default).
+- Layout: `targets/widget/LiveActivity.swift` (in the widget extension). Start/update/end: `modules/live-activity` (native) and `src/alerts/live-activity.ts`. The `SightlineActivityAttributes` struct exists in both and must stay identical (a test compares them).
+- Snapshots are downscaled to a ≤240 px JPEG in the App Group (`live/…`); the activity state only carries the path, well under ActivityKit's 4 KB.
+- Local start only. Rings/events start one when the app sees them itself (in-app doorbell poll, an alert notification received while the app runs, or a background check while the app is open). iOS refuses to *start* an activity from the background, but a background check can update or end a running one. Activities end themselves after 3 min (ring) / 5 min (event), or once the event is seen to end (shown as "Ended" for a minute when the app is open); leftovers are cleaned up when the app becomes active.
+- No remote start: Live Activity pushes (push-to-start / update tokens, `apns-push-type: liveactivity`) must go straight to APNs, signed with the app developer's APNs key. The Expo Push Service has no Live Activity support (its message format has no such fields, and Expo's own Oct 2026 Live Activities guide calls APNs directly with a `.p8` key). Every Hub would need that key, which can't be handed out, and Sightline has no cloud server by design. Revisit if Expo's push service adds Live Activity messages.
+
 ## RTSP cameras
 
 - go2rtc's `pkg/rtsp` + `pkg/mp4` are embedded in the tunnel library. Each camera gets a loopback `/api/ws` that speaks go2rtc's MSE protocol, so the same live player works.

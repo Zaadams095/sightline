@@ -10,6 +10,7 @@ import { WebView } from 'react-native-webview';
 import { watchBridgeSync } from '@/alerts/bridge';
 import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
 import { startDoorbellWatch } from '@/alerts/doorbell';
+import { startLiveActivities } from '@/alerts/live-activity';
 import { startLifecycle } from '@/net/connection';
 import { resumeHomeAway } from '@/presence/geofence';
 import { AppLockGate } from '@/security/app-lock';
@@ -46,11 +47,13 @@ export default function RootLayout() {
       () => void queryClient.invalidateQueries({ queryKey: ['live'] }),
     );
     const stopDoorbell = startDoorbellWatch();
+    const stopLive = startLiveActivities();
     return () => {
       clearTimeout(launchTimer);
       stopBridge();
       stopLifecycle();
       stopDoorbell();
+      stopLive();
     };
   }, [hydrated]);
 

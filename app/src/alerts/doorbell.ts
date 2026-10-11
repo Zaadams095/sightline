@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { AppState } from 'react-native';
 
+import { showFromNotification, showRing } from '@/alerts/live-activity';
 import { isDoorbellCamera, isFreshRing, RING_FRESH_SEC, selectNotifications } from '@/alerts/rules';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
@@ -36,6 +37,8 @@ export interface RingParams {
 }
 
 const shown = new Set<string>();
+/** Rings already put on the Lock Screen by the in-app poll. */
+const liveShown = new Set<string>();
 let screenOpen = false;
 
 /** The call screen reports when it's up so a second ring doesn't stack another one. */
@@ -73,9 +76,11 @@ export function ringParamsFrom(data: Partial<Record<string, string>>): RingParam
  */
 export function startDoorbellWatch(): () => void {
   const received = Notifications.addNotificationReceivedListener((n) => {
-    if (!useApp.getState().alerts.doorbell.fullScreen || !isRingNotification(n)) return;
-    const p = ringParamsFrom(n.request.content.data as Partial<Record<string, string>>);
-    if (p) openDoorbell(p);
+    const ring = isRingNotification(n);
+    const p = ring ? ringParamsFrom(n.request.content.data as Partial<Record<string, string>>) : null;
+    // Lock Screen / Dynamic Island, for rings and camera events alike.
+    showFromNotification(n.request.content, p);
+    if (p && useApp.getState().alerts.doorbell.fullScreen) openDoorbell(p);
   });
 
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -94,7 +99,7 @@ export function startDoorbellWatch(): () => void {
   const poll = async () => {
     if (busy) return;
     const { systems, alerts } = useApp.getState();
-    if (!alerts.doorbell.fullScreen) return;
+    if (!alerts.doorbell.fullScreen && !alerts.lockScreen) return;
     busy = true;
     try {
       const now = Date.now() / 1000;
@@ -109,7 +114,13 @@ export function startDoorbellWatch(): () => void {
         const items = await adapter.listReview({ after: now - RING_FRESH_SEC, limit: 20 }).catch(() => []);
         const rings = selectNotifications(items.filter((i) => isFreshRing(i, now)), alerts, {});
         const ring = rings[rings.length - 1];
-        if (ring) openDoorbell({ systemId: ring.systemId, cameraId: ring.cameraId, at: String(Math.floor(ring.startTime)), reviewId: ring.id });
+        if (!ring) continue;
+        const p = { systemId: ring.systemId, cameraId: ring.cameraId, at: String(Math.floor(ring.startTime)), reviewId: ring.id };
+        if (!liveShown.has(ring.id)) {
+          liveShown.add(ring.id);
+          void showRing(p, { adapter, snapshotUrl: ring.thumbnailUrl });
+        }
+        if (alerts.doorbell.fullScreen) openDoorbell(p);
       }
     } finally {
       busy = false;
