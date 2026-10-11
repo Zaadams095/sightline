@@ -17,6 +17,8 @@ import {
 } from '@/alerts/packages-notify';
 import { isDoorbell, nextTimeOfDay, notificationTitle, selectNotifications } from '@/alerts/rules';
 import { recognizeItems } from '@/familiar/recognize';
+// Background wake-ups write notifications in the app's language too.
+import '@/i18n/device';
 import { checkCheckinsBuiltIn, handleCheckinResponse } from '@/alerts/checkins-run';
 import { FEEDBACK_ACTIONS, featureData, filterSmart, handleSmartResponse, registerLearnedCategory } from '@/alerts/smart';
 import { useSmart } from '@/state/smart';

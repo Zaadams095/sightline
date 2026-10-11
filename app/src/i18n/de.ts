@@ -9,6 +9,8 @@ import viewing from './de/viewing.ts';
 import alerts from './de/alerts.ts';
 import ask from './de/ask.ts';
 import systems from './de/systems.ts';
+import exporting from './de/exporting.ts';
+import wall from './de/wall.ts';
 
 const de: Strings = {
   common,
@@ -21,6 +23,8 @@ const de: Strings = {
   alerts,
   ask,
   systems,
+  exporting,
+  wall,
 };
 
 export default de;

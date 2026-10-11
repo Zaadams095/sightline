@@ -13,6 +13,8 @@ import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHa
 import { watchCheckinCategories } from '@/alerts/checkins-run';
 import { startDoorbellWatch } from '@/alerts/doorbell';
 import { installCrashHandlers } from '@/diagnostics/log';
+// Picks the app's language (Settings → Appearance, else the iPhone's) before anything shows text.
+import '@/i18n/device';
 import { BrandIntro } from '@/components/brand-intro';
 import { startLiveActivities } from '@/alerts/live-activity';
 import { startLifecycle } from '@/net/connection';
