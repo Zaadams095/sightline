@@ -105,7 +105,7 @@ export default function GroupsSettings() {
       )}
 
       <Button title="New group" onPress={() => setEditing({ id: Date.now().toString(36), name: '', cameraKeys: [] })} />
-      <Button title="Import groups from Frigate" kind="secondary" onPress={() => void importFromRecorders()} />
+      <Button title="Import groups from my recorder" kind="secondary" onPress={() => void importFromRecorders()} />
       {msg && <T muted>{msg}</T>}
     </Screen>
   );

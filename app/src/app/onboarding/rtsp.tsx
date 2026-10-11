@@ -34,7 +34,7 @@ export default function RtspSetup() {
       <View style={{ gap: space.xs }}>
         <T v="title">Add an IP camera</T>
         <T muted>
-          Cameras added by address have live view only. Recordings and events need a recorder like Frigate.
+          Cameras added by stream link have live view only. To look back at recordings, add the recorder (NVR) or camera software instead.
         </T>
       </View>
       <Field label="Name" value={name} onChangeText={setName} placeholder="Driveway" autoCapitalize="words" />

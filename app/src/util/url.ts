@@ -1,33 +1,18 @@
-/** Accepts "192.168.1.10", "nvr.lan:5000", or a full URL; defaults to https on 8971. */
+/** Adds http:// to a bare address ("192.168.1.10", "nvr.lan:8080"); full URLs pass through. */
 export function normalizeUrl(input: string): string {
-  let s = input.trim().replace(/\/+$/, '');
-  if (!/^https?:\/\//i.test(s)) {
-    const hasPort = /:\d+$/.test(s);
-    const port = hasPort ? Number(s.split(':').pop()) : 8971;
-    s = `${port === 5000 || port === 80 ? 'http' : 'https'}://${s}${hasPort ? '' : ':8971'}`;
-  }
-  return s;
-}
-
-/** True when the user typed only a host/IP (no scheme, no port), so we should detect the port. */
-export function isBareHost(input: string): boolean {
   const s = input.trim().replace(/\/+$/, '');
-  return !/^https?:\/\//i.test(s) && !/:\d+$/.test(s);
-}
-
-/** Where Frigate usually listens, most likely first: authenticated UI, internal port, reverse proxies. */
-export function frigateCandidates(host: string): string[] {
-  const h = host.trim().replace(/\/+$/, '');
-  return [`https://${h}:8971`, `http://${h}:5000`, `https://${h}:443`, `http://${h}:80`];
+  if (/^https?:\/\//i.test(s)) return s;
+  const port = Number(s.match(/:(\d+)$/)?.[1] ?? 0);
+  return `${port === 443 || port === 8443 ? 'https' : 'http'}://${s}`;
 }
 
 /**
- * Port 8971 is normally HTTPS, but Frigate can run it as plain HTTP (tls.enabled: false), and
- * any port could be either. Ask the server: if an HTTPS request is answered in plain HTTP,
+ * A port that usually serves HTTPS may be running plain HTTP (e.g. TLS turned off), and any
+ * port could be either. Ask the server: if an HTTPS request is answered in plain HTTP,
  * switch the URL to http://. `check` returns "HTTP <status>" or the error text.
  */
 export async function resolveScheme(url: string, check: (url: string) => Promise<string>): Promise<string> {
   if (!url.startsWith('https://')) return url;
-  const res = await check(`${url}/api/version`);
+  const res = await check(`${url}/`);
   return /HTTP response to HTTPS client/i.test(res) ? url.replace(/^https:/, 'http:') : url;
 }

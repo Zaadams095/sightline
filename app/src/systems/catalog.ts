@@ -1,4 +1,5 @@
 import type { SystemKind } from '@/systems/types';
+import type { AuthKind } from '@modules/wg-tunnel';
 
 /**
  * Every supported system, described in plain language. Onboarding, setup forms and network
@@ -46,6 +47,10 @@ export interface SystemDescriptor {
   addressHint: string;
   fields: SetupField[];
   fingerprints: Fingerprint[];
+  /** How the gateway signs in (default: 'http' = answer Basic/Digest when a username is set). */
+  gatewayAuth?: AuthKind;
+  /** False for systems the app never reaches over HTTP (cameras added by stream link). */
+  usesGateway?: boolean;
 }
 
 const ADDRESS = (placeholder: string, hint: string): SetupField => ({
@@ -85,6 +90,7 @@ export const CATALOG: SystemDescriptor[] = [
       { port: 80, https: false },
     ],
     addressHint: 'The address you open Frigate at in a browser, e.g. 192.168.1.10:8971.',
+    gatewayAuth: 'frigate',
     fields: [ADDRESS('192.168.1.10:8971', 'Port is optional; Sightline finds it.'), { ...USER(''), optional: true }, { ...PASS, optional: true }],
     fingerprints: [
       { port: 8971, https: true, path: '/', match: (r) => has(r.body, 'frigate') },
@@ -238,6 +244,7 @@ export const CATALOG: SystemDescriptor[] = [
     available: true,
     defaultPorts: [],
     addressHint: 'The RTSP link from the camera manual, e.g. rtsp://user:pass@192.168.1.50:554/stream1.',
+    usesGateway: false,
     fields: [],
     fingerprints: [],
   },
@@ -245,6 +252,10 @@ export const CATALOG: SystemDescriptor[] = [
 
 export function describe(kind: SystemKind): SystemDescriptor {
   return CATALOG.find((d) => d.kind === kind)!;
+}
+
+export function usesGateway(kind: SystemKind): boolean {
+  return describe(kind)?.usesGateway !== false;
 }
 
 /** Every port worth scanning during discovery (plus RTSP, which marks "some camera is here"). */

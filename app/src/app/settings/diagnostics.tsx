@@ -25,7 +25,7 @@ interface Step {
  */
 export default function Diagnostics() {
   const p = usePalette();
-  const firstSystem = useApp((s) => s.systems.find((x) => x.kind === 'frigate'));
+  const firstSystem = useApp((s) => s.systems.find((x) => x.endpoint.lanUrl));
   const links = useLinks((s) => s.links);
   const [address, setAddress] = useState(firstSystem?.endpoint.lanUrl ?? '');
   const [steps, setSteps] = useState<Step[]>([]);

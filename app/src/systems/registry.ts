@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { FrigateAdapter } from '@/systems/frigate';
+import { usesGateway } from '@/systems/catalog';
 import { RtspAdapter } from '@/systems/rtsp';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 
@@ -21,7 +22,8 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
 
 /** Adapter for a system, kept in sync with its current route (LAN vs tunnel port). */
 export function getAdapter(s: SystemConfig, link: SystemLink | undefined): CameraSystemAdapter | null {
-  if (s.kind === 'frigate' && !link?.baseUrl) return null;
+  // Systems reached over HTTP need a route (gateway port) before an adapter is useful.
+  if (usesGateway(s.kind) && !link?.baseUrl) return null;
   let a = adapters.get(s.id);
   if (a && a.config !== s) {
     a.dispose();
@@ -30,8 +32,8 @@ export function getAdapter(s: SystemConfig, link: SystemLink | undefined): Camer
   if (!a) {
     a = create(s, link?.baseUrl ?? '');
     adapters.set(s.id, a);
-  } else if (a instanceof FrigateAdapter && link?.baseUrl) {
-    a.setBaseUrl(link.baseUrl);
+  } else if (link?.baseUrl) {
+    a.setBaseUrl?.(link.baseUrl);
   }
   return a;
 }
@@ -60,7 +62,7 @@ export function useAllCameras(opts: { includeHidden?: boolean } = {}) {
   const order = useApp((st) => st.phoneOrder);
   const hidden = useApp((st) => st.hidden);
 
-  const ready = systems.filter((s) => s.kind !== 'frigate' || links[s.id]?.mode === 'lan' || links[s.id]?.mode === 'tunnel');
+  const ready = systems.filter((s) => !usesGateway(s.kind) || links[s.id]?.mode === 'lan' || links[s.id]?.mode === 'tunnel');
   const key = ready.map((s) => `${s.id}@${links[s.id]?.baseUrl ?? ''}`).join('|');
 
   const query = useQuery({

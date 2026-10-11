@@ -204,5 +204,8 @@ export interface CameraSystemAdapter {
   ptzInfo?(cameraId: string): Promise<PtzInfo>;
   ptz?(cameraId: string, action: PtzAction | `preset_${string}`): Promise<void>;
 
+  /** Called when the route to the system changes (LAN ⇄ VPN gateway port). */
+  setBaseUrl?(url: string): void;
+
   dispose(): void;
 }

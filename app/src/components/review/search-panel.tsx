@@ -15,7 +15,7 @@ import { formatRelative, labelFor } from '@/util/format';
 const EXAMPLES = ['person carrying a package', 'white pickup truck', 'dog in the yard', 'someone at the door at night'];
 
 /**
- * Smart search over Frigate's semantic index: "description" matches generated/AI descriptions,
+ * Smart search on systems that support it: "description" matches generated/AI descriptions,
  * "thumbnail" matches what the object looked like.
  */
 export function SearchPanel() {

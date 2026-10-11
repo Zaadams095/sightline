@@ -42,7 +42,7 @@ export default function OnboardingAlerts() {
         onSelect={() => setMode('instant')}
         title="Instant Alerts"
         tag="Recommended"
-        body="Alerts arrive within a second. Add one small container next to Frigate (the app gives you a ready-to-paste snippet). No images leave your network."
+        body="Alerts arrive within a second. Needs a Sightline Hub at home (a free add-on for Home Assistant, or an app for your NAS or computer). No images leave your network."
       />
       <Button title="Finish" onPress={finish} />
     </Screen>

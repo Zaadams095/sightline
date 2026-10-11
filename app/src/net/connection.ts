@@ -5,6 +5,7 @@ import { parseStatus, WgTunnel, type AuthKind } from '@modules/wg-tunnel';
 import { secrets, SECRET } from '@/state/secrets';
 import type { SystemConfig } from '@/systems/types';
 import { useApp } from '@/state/store';
+import { describe, usesGateway } from '@/systems/catalog';
 import { fetchWithTimeout } from '@/util/fetch';
 import { resolveScheme } from '@/util/url';
 
@@ -49,7 +50,8 @@ function hostPort(url: string): string {
 }
 
 function authKindFor(s: SystemConfig): AuthKind {
-  if (s.kind === 'frigate') return 'frigate';
+  const kind = describe(s.kind)?.gatewayAuth;
+  if (kind) return kind;
   // NVRs/cameras answer with Basic or Digest challenges; the gateway handles either.
   return s.username ? 'http' : '';
 }
@@ -84,6 +86,12 @@ export async function ensureTunnel(): Promise<void> {
  */
 export async function connectSystem(s: SystemConfig, opts: { publish?: boolean } = {}): Promise<SystemLink> {
   const publish = opts.publish ?? true;
+  // Cameras added by stream link have no HTTP side; their live video is restreamed on demand.
+  if (!usesGateway(s.kind)) {
+    const link: SystemLink = { baseUrl: '', mode: 'lan' };
+    if (publish) useLinks.getState().set(s.id, link);
+    return link;
+  }
   const links = useLinks.getState();
   const prev = publish ? links.links[s.id] : privateLinks[s.id];
   const store = {
@@ -95,7 +103,7 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
   if (!WgTunnel) {
     const baseUrl = s.endpoint.lanUrl.replace(/\/$/, '');
     let link: SystemLink = { baseUrl, mode: 'lan' };
-    if (s.kind === 'frigate') {
+    if (describe(s.kind)?.gatewayAuth === 'frigate') {
       const err = await directFrigateLogin(s, baseUrl);
       if (err) link = { baseUrl, mode: 'offline', error: err };
     }
@@ -194,12 +202,12 @@ async function directFrigateLogin(s: SystemConfig, baseUrl: string): Promise<str
       if (!res.ok && res.status !== 404) return `Login failed (HTTP ${res.status})`;
     }
     const probe = await fetchWithTimeout(`${baseUrl}/api/version`, { credentials: 'include' });
-    return probe.ok ? null : `Frigate returned HTTP ${probe.status}`;
+    return probe.ok ? null : `${s.name} returned HTTP ${probe.status}`;
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith('No response')) return `${e.message}. Is the phone on the same network as Frigate?`;
+    if (e instanceof Error && e.message.startsWith('No response')) return `${e.message}. Is the phone on the same network as ${s.name}?`;
     return baseUrl.startsWith('https')
-      ? "Couldn't connect. Expo Go can't accept Frigate's self-signed certificate; use http://<ip>:5000 for previews."
-      : "Couldn't reach Frigate on this network";
+      ? "Couldn't connect. Expo Go can't accept self-signed certificates; use an http:// address for previews."
+      : `Couldn't reach ${s.name} on this network`;
   }
 }
 

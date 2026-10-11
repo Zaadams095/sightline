@@ -10,7 +10,7 @@ import { formatClock, nowSec } from '@/util/format';
 
 const STORAGE_LEVELS = [80, 90, 95];
 
-/** "Don't alert for these people/cars": names Frigate can recognize (faces, known plates). */
+/** "Don't alert for these people/cars": names your system can recognize (faces, known plates). */
 export function KnownPeopleSection() {
   const systems = useApp((s) => s.systems);
   const links = useLinks((s) => s.links);
@@ -35,8 +35,8 @@ export function KnownPeopleSection() {
       title="Known people & cars"
       footer={
         all.length
-          ? 'Selected names never trigger alerts. Anyone Frigate doesn’t recognize still alerts.'
-          : 'Turn on face recognition or known plates in Frigate to skip alerts for family and your own cars.'
+          ? 'Selected names never trigger alerts. Anyone your system doesn’t recognize still alerts.'
+          : 'If your system recognizes faces or license plates, their names appear here so family and your own cars don’t set off alerts.'
       }>
       <View style={styles.chips}>
         {all.length === 0 && <T muted>{names.isLoading ? 'Loading…' : 'No recognized names yet'}</T>}

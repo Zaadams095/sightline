@@ -1,7 +1,7 @@
 import type { RecordingSegment } from '@/systems/types';
 
 /**
- * Frigate's VOD playlist concatenates recordings and drops the gaps between them, so
+ * Seekable (vod) playlists concatenate recordings and drop the gaps between them, so
  * player time ≠ wall time − windowStart. These map between the two using the clipped
  * recording spans of the window.
  */
