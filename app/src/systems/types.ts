@@ -158,7 +158,19 @@ export type LiveSource =
  */
 export type PlaybackSource =
   | { kind: 'vod'; uri: string }
-  | { kind: 'stream'; source: LiveSource | { kind: 'file'; uri: string } };
+  | { kind: 'stream'; source: LiveSource | PlaybackFile };
+
+/**
+ * A recorded file (MP4) played from its beginning. Recorders that store whole files (one per
+ * event or per N minutes) can't start a file at an arbitrary second, so `startTime` says
+ * when the file begins (unix seconds): the player seeks to `requested start − startTime` and
+ * maps wall clock as `startTime + position`. Absent = the file starts at the requested start.
+ */
+export interface PlaybackFile {
+  kind: 'file';
+  uri: string;
+  startTime?: number;
+}
 
 export interface CameraSystemAdapter {
   readonly config: SystemConfig;
