@@ -32,16 +32,20 @@ export function SavedPanel() {
   };
 
   const actions = (c: SavedClip) => {
-    const opts = [c.localUri ? 'Share' : 'Download for offline', c.localUri ? 'Remove download' : null, 'Delete bookmark', 'Cancel'].filter(
-      Boolean,
-    ) as string[];
+    const canDownload = !!adapterFor(c)?.clip;
+    const opts = [
+      c.localUri ? 'Share' : canDownload ? 'Download to this phone' : null,
+      c.localUri ? 'Remove download' : null,
+      'Delete bookmark',
+      'Cancel',
+    ].filter(Boolean) as string[];
     ActionSheetIOS.showActionSheetWithOptions(
       { title: c.title, options: opts, destructiveButtonIndex: opts.indexOf('Delete bookmark'), cancelButtonIndex: opts.length - 1 },
       async (i) => {
         const choice = opts[i];
         try {
           if (choice === 'Share' && c.localUri) await shareLocalFile(c.localUri, c.cameraName);
-          if (choice === 'Download for offline') {
+          if (choice === 'Download to this phone') {
             const adapter = adapterFor(c);
             if (!adapter) throw new Error('Not connected to this camera system right now.');
             setBusyId(c.id);
@@ -73,8 +77,8 @@ export function SavedPanel() {
       <View style={styles.empty}>
         <T v="heading">No saved clips yet</T>
         <T muted style={{ textAlign: 'center' }}>
-          Tap the star while watching a recording to save it. Saved events are kept on your recorder forever, and you can download them to
-          watch offline.
+          Tap the star while watching a recording to bookmark it. Download a bookmark to keep a copy on your phone, even after your recorder
+          clears old video.
         </T>
       </View>
     );

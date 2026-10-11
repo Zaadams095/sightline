@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { Button, Field, Row, Screen, Section, T } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp, type CameraGroup } from '@/state/store';
+import { useFeatureSupport } from '@/systems/caps';
 import { getAdapter, useAllCameras } from '@/systems/registry';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -18,6 +19,7 @@ export default function GroupsSettings() {
   const systems = useApp((s) => s.systems);
   const links = useLinks((s) => s.links);
   const { entries } = useAllCameras({ includeHidden: true });
+  const support = useFeatureSupport();
   const [editing, setEditing] = useState<CameraGroup | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -105,7 +107,7 @@ export default function GroupsSettings() {
       )}
 
       <Button title="New group" onPress={() => setEditing({ id: Date.now().toString(36), name: '', cameraKeys: [] })} />
-      <Button title="Import groups from my recorder" kind="secondary" onPress={() => void importFromRecorders()} />
+      {support.groups && <Button title="Import groups from my recorder" kind="secondary" onPress={() => void importFromRecorders()} />}
       {msg && <T muted>{msg}</T>}
     </Screen>
   );

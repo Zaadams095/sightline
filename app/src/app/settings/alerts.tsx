@@ -7,7 +7,9 @@ import { ruleFor } from '@/alerts/rules';
 import { DoorbellPackagesSection, HealthSection, KnownPeopleSection, SnoozedSection } from '@/components/alerts/alert-extras';
 import { Button, Chip, Field, Row, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { useApp, type CameraAlertRule } from '@/state/store';
+import { useFeatureSupport } from '@/systems/caps';
 import { useAllCameras } from '@/systems/registry';
+import { labelFor } from '@/util/format';
 import type { Camera, Severity } from '@/systems/types';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -20,6 +22,7 @@ export default function AlertSettings() {
   const setAlerts = useApp((s) => s.setAlerts);
   const setRule = useApp((s) => s.setCameraRule);
   const { entries } = useAllCameras({ includeHidden: true });
+  const support = useFeatureSupport();
   const [open, setOpen] = useState<string | null>(null);
   const [testMsg, setTestMsg] = useState<string | null>(null);
 
@@ -36,7 +39,7 @@ export default function AlertSettings() {
 
       <DoorbellPackagesSection />
 
-      <KnownPeopleSection />
+      {support.knownNames && <KnownPeopleSection />}
 
       <Section title="Quiet hours">
         <ToggleRow
@@ -58,7 +61,7 @@ export default function AlertSettings() {
         )}
       </Section>
 
-      <HealthSection />
+      {support.health && <HealthSection />}
 
       <Section title="Cooldown per camera">
         <View style={styles.chips}>
@@ -71,7 +74,7 @@ export default function AlertSettings() {
       <T v="caption" muted style={{ textTransform: 'uppercase', letterSpacing: 0.6, marginLeft: space.xs }}>
         Cameras
       </T>
-      {entries.map(({ camera }) => {
+      {entries.map(({ camera, adapter }) => {
         const rule = ruleFor(alerts, camera.key);
         const custom = !!alerts.rules[camera.key];
         return (
@@ -90,6 +93,7 @@ export default function AlertSettings() {
                 custom={custom}
                 onChange={(r) => setRule(camera.key, r)}
                 onReset={() => setRule(camera.key, null)}
+                canMask={!!adapter.detectionPoints}
               />
             )}
           </Section>
@@ -116,23 +120,25 @@ function RuleEditor({
   custom,
   onChange,
   onReset,
+  canMask,
 }: {
   camera: Camera;
   rule: CameraAlertRule;
   custom: boolean;
   onChange: (r: CameraAlertRule) => void;
   onReset: () => void;
+  canMask: boolean;
 }) {
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const severities: { v: Severity; label: string }[] = [
-    { v: 'alert', label: 'Alerts' },
-    { v: 'detection', label: 'Detections' },
+    { v: 'alert', label: 'Important (people, cars…)' },
+    { v: 'detection', label: 'Other motion' },
   ];
   return (
     <View style={{ padding: space.lg, gap: space.md }}>
       <ToggleRow label="Notify for this camera" value={rule.enabled} onChange={(enabled) => onChange({ ...rule, enabled })} last />
       <T v="label" muted>
-        Severity
+        Notify me for
       </T>
       <View style={styles.chips0}>
         {severities.map((s) => (
@@ -140,17 +146,17 @@ function RuleEditor({
         ))}
       </View>
       <T v="label" muted>
-        Objects {rule.objects.length === 0 ? '(any)' : ''}
+        What {rule.objects.length === 0 ? '(anything)' : ''}
       </T>
       <View style={styles.chips0}>
         {camera.objects.map((o) => (
-          <Chip key={o} label={o} selected={rule.objects.includes(o)} onPress={() => onChange({ ...rule, objects: toggle(rule.objects, o) })} />
+          <Chip key={o} label={labelFor([o])} selected={rule.objects.includes(o)} onPress={() => onChange({ ...rule, objects: toggle(rule.objects, o) })} />
         ))}
       </View>
       {camera.zones.length > 0 && (
         <>
           <T v="label" muted>
-            Zones {rule.zones.length === 0 ? '(anywhere)' : ''}
+            Where {rule.zones.length === 0 ? '(anywhere)' : ''}
           </T>
           <View style={styles.chips0}>
             {camera.zones.map((z) => (
@@ -159,7 +165,13 @@ function RuleEditor({
           </View>
         </>
       )}
-      <MaskButton cameraKey={camera.key} />
+      {canMask ? (
+        <MaskButton cameraKey={camera.key} />
+      ) : (
+        <T v="caption" muted>
+          To ignore part of this camera’s view (like the street), set up motion zones in the camera’s or recorder’s own app.
+        </T>
+      )}
       {custom && <Button title="Use default rule" kind="ghost" onPress={onReset} />}
     </View>
   );
@@ -169,7 +181,7 @@ function MaskButton({ cameraKey }: { cameraKey: string }) {
   const count = useApp((s) => s.masks[cameraKey]?.length ?? 0);
   return (
     <Button
-      title={count ? `Alert masks (${count})` : 'Add alert mask'}
+      title={count ? `Ignored areas (${count})` : 'Ignore an area of the picture'}
       kind="secondary"
       onPress={() => router.push({ pathname: '/settings/masks', params: { key: cameraKey } })}
     />

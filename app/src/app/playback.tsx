@@ -232,8 +232,16 @@ export default function PlaybackScreen() {
       removeClip(existing.id);
       return;
     }
-    const retained = current?.detections ?? [];
+    const retained = adapter?.retain ? (current?.detections ?? []) : [];
     await Promise.allSettled(retained.map((id) => adapter?.retain?.(id, true)));
+    if (!adapter?.retain) {
+      Alert.alert(
+        'Bookmarked',
+        adapter?.clip
+          ? 'Your recorder may delete old video over time. To keep this for good, download it from Review → Saved.'
+          : 'Your recorder may delete old video over time.',
+      );
+    }
     saveClip({
       id: `${params.systemId}-${cameraId}-${Math.floor(bookmarkRange[0])}`,
       systemId: params.systemId,

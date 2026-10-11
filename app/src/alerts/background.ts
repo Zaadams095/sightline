@@ -250,7 +250,7 @@ export async function checkHealth(): Promise<number> {
       }
       for (const s of report.storage) {
         if (s.usedPct >= alerts.health.storagePct) {
-          toPost.push({ key: `${system.id}:storage:${s.path}`, title: `${system.name} storage is ${s.usedPct}% full`, body: `${s.freeGb} GB free on ${s.path}.` });
+          toPost.push({ key: `${system.id}:storage:${s.path}`, title: `${system.name} storage is ${s.usedPct}% full`, body: `${s.freeGb} GB left. Older video will be replaced sooner than usual.` });
         }
       }
     } catch (e) {

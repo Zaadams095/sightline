@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } f
 import { Button, Chip, Field, T } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
-import { getAdapter } from '@/systems/registry';
+import { getAdapter, useAllCameras } from '@/systems/registry';
 import type { SearchHit } from '@/systems/types';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -24,6 +24,9 @@ export function SearchPanel() {
   const systems = useApp((s) => s.systems);
   const links = useLinks((s) => s.links);
   const radius = useApp((s) => s.appearance.radius);
+  const { entries } = useAllCameras({ includeHidden: true });
+  const nameOf = (systemId: string, cameraId: string) =>
+    entries.find((e) => e.camera.key === `${systemId}:${cameraId}`)?.camera.name ?? cameraId;
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'thumbnail' | 'description'>('thumbnail');
   const [hits, setHits] = useState<SearchHit[] | null>(null);
@@ -111,7 +114,7 @@ export function SearchPanel() {
                   {h.subLabel ?? labelFor([h.label])}
                 </T>
                 <T v="caption" muted numberOfLines={1}>
-                  {h.cameraId.replace(/_/g, ' ')} · {formatRelative(h.startTime)}
+                  {nameOf(h.systemId, h.cameraId)} · {formatRelative(h.startTime)}
                 </T>
               </Pressable>
             ))}
