@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
@@ -7,10 +8,16 @@ import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { SamplePill } from '@/components/demo-banner';
 import { LiveView, prefetchLiveOptions, useLive } from '@/components/live/live-view';
 import { useT } from '@/i18n/use-t';
+import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import type { CameraSystemAdapter, Camera } from '@/systems/types';
 import { OVERLAY_MAX_SCALE } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
+import { useAppActive } from '@/util/app-active';
+
+/** Away from home every tile refresh crosses the home upload; keep it light. */
+const AWAY_REFRESH_MS = 4000;
+const AWAY_MAX_HEIGHT = 360;
 
 interface Props {
   camera: Camera;
@@ -53,17 +60,28 @@ export const CameraTile = memo(function CameraTile({
     void queryClient.prefetchQuery(prefetchLiveOptions(adapter, camera.id));
   };
 
+  // Refresh only while this grid is actually on screen: not behind a full-screen camera, on
+  // another tab, or with the app in the background, where it would just compete with the
+  // video being watched. Away from home (VPN), every refresh crosses the home internet's
+  // upload, so tiles refresh more gently and at a smaller size.
+  const focused = useIsFocused();
+  const appActive = useAppActive();
+  const away = useLinks((s) => s.links[adapter.config.id]?.mode) === 'tunnel';
+  const running = active && focused && appActive;
+  const every = away ? Math.max(intervalMs, AWAY_REFRESH_MS) : intervalMs;
+  const height = away ? Math.min(requestHeight, AWAY_MAX_HEIGHT) : requestHeight;
+
   useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => setTick((t) => t + 1), intervalMs);
+    if (!running) return;
+    const id = setInterval(() => setTick((t) => t + 1), every);
     return () => clearInterval(id);
-  }, [active, intervalMs]);
+  }, [running, every]);
 
   // Only ask for stills from systems that have them; the others would just 404 every second.
-  const base = adapter.capabilities.snapshots ? adapter.snapshot(camera.id, { height: requestHeight }).uri : '';
+  const base = adapter.capabilities.snapshots ? adapter.snapshot(camera.id, { height }).uri : '';
   // Cameras without a snapshot URL show a muted low-res live stream while visible.
   const liveTile = !base && adapter.capabilities.live;
-  const live = useLive(adapter, camera.id, 'sub', liveTile && active);
+  const live = useLive(adapter, camera.id, 'sub', liveTile && running);
   const next = base ? `${base}${base.includes('?') ? '&' : '?'}t=${tick}` : null;
 
   return (

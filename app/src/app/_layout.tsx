@@ -94,7 +94,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={navTheme}>
           <StatusBar style={dark ? 'light' : 'dark'} />
-          <Stack screenOptions={{ headerShadowVisible: false, headerLargeTitleShadowVisible: false }}>
+          <Stack screenOptions={{ headerShadowVisible: false, headerLargeTitleShadowVisible: false, headerBackButtonDisplayMode: 'minimal' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="camera/[key]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
