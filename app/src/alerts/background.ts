@@ -15,10 +15,10 @@ import {
   trackPackages,
 } from '@/alerts/packages-notify';
 import { isDoorbell, nextTimeOfDay, notificationTitle, selectNotifications } from '@/alerts/rules';
-import { connectSystem } from '@/net/connection';
+import { connectSystem, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
-import type { ReviewItem } from '@/systems/types';
+import type { CameraSystemAdapter, ReviewItem, SystemConfig } from '@/systems/types';
 import { titleFor } from '@/util/format';
 import { recordLastAlert, syncWidgets } from '@/widgets/sync';
 import type { CameraEntry } from '@/systems/registry';
@@ -53,17 +53,20 @@ export function setupNotificationHandling() {
   registerDoorbellCategory();
   registerPackageCategory();
 
-  Notifications.addNotificationResponseReceivedListener(handleResponse);
+  Notifications.addNotificationResponseReceivedListener((resp) => void handleResponse(resp));
 }
 
 /**
  * Opens the clip for a tapped notification, or applies a snooze action. Also called at startup
  * with the response that launched the app, because a cold start can miss the listener.
  */
-export function handleResponse(resp: Notifications.NotificationResponse) {
+export async function handleResponse(resp: Notifications.NotificationResponse) {
   const id = `${resp.notification.request.identifier}:${resp.actionIdentifier}`;
   if (handledResponses.has(id)) return;
   handledResponses.add(id);
+  // Background actions (snooze) can launch the app without the UI: write into the saved
+  // settings, not the empty defaults that would then overwrite them.
+  if (!useApp.persist.hasHydrated()) await useApp.persist.rehydrate();
 
   const d = resp.notification.request.content.data as Partial<Record<string, string>>;
   if (!d.systemId || !d.cameraId) return;
@@ -107,7 +110,7 @@ export function handleResponse(resp: Notifications.NotificationResponse) {
 export async function handleLaunchNotification() {
   const resp = await Notifications.getLastNotificationResponseAsync().catch(() => null);
   if (resp) {
-    handleResponse(resp);
+    await handleResponse(resp);
     await Notifications.clearLastNotificationResponseAsync().catch(() => {});
   }
 }
@@ -158,55 +161,65 @@ export async function checkForAlerts(): Promise<number> {
   for (const system of state.systems) {
     // Hubs that push to this phone already alert instantly; don't post them twice.
     if (system.kind === 'hub' && system.extra?.push === '1') continue;
-    const link = await connectSystem(system);
-    if (link.mode !== 'lan' && link.mode !== 'tunnel') continue;
-    const adapter = getAdapter(system, link);
-    if (!adapter?.listReview) continue;
-
-    const since = state.lastNotified[system.id] ?? Date.now() / 1000 - 3600;
-    const items = await adapter.listReview({ after: since, limit: 50 });
-    const fresh = items.filter((i) => i.startTime > since);
-
-    // Packages: new events, plus a second look at cameras with a package still out (an event
-    // that was in progress last time may have finished since).
-    let cameraNames: Map<string, string> | null = null;
-    const nameOf = async (cameraKey: string) => {
-      cameraNames ??= new Map((await adapter.listCameras().catch(() => [])).map((c) => [c.id, c.name]));
-      const id = cameraKey.slice(system.id.length + 1);
-      return cameraNames.get(id) ?? id;
-    };
-    const recheckAfter = packageRecheckAfter(system.id);
-    const recheck =
-      recheckAfter != null && recheckAfter < since
-        ? (await adapter.listReview({ after: recheckAfter, before: since + 1, limit: 100 }).catch(() => [])).filter(packageRecheckFilter)
-        : [];
-    const freshIds = new Set(fresh.map((i) => i.id));
-    const pkg = await trackPackages([...recheck.filter((i) => !freshIds.has(i.id)), ...fresh], nameOf);
-    posted += pkg.posted;
-    if (fresh.length === 0) continue;
-
-    const lastByCamera: Record<string, number> = {};
-    // An event announced as "Package delivered" doesn't also alert as "Package".
-    const matched = selectNotifications(fresh.filter((i) => !pkg.deliveredIds.has(i.id)), state.alerts, lastByCamera);
-    // Drop items whose objects stayed entirely inside the camera's alert masks.
-    const unmasked: ReviewItem[] = [];
-    for (const item of matched) {
-      const masks = state.masks[`${item.systemId}:${item.cameraId}`];
-      if (masks?.length && adapter.detectionPoints && isMasked(await adapter.detectionPoints(item).catch(() => []), masks)) continue;
-      unmasked.push(item);
-    }
-    const selected = unmasked.slice(-MAX_PER_RUN);
-    for (const item of selected) {
-      const name = await nameOf(`${system.id}:${item.cameraId}`);
-      const video = item.endTime && adapter.previewClip && !isDoorbell(item) ? adapter.previewClip(item).uri : undefined;
-      await post(item, adapter.snapshot(item.cameraId, { height: 480 }).uri, name, video);
-      await recordLastAlert(item, titleFor(item), name);
-      posted++;
-    }
-    useApp.getState().setLastNotified(system.id, Math.max(...fresh.map((i) => i.startTime)));
+    // One unreachable or misbehaving system must not stop alerts from the others.
+    try {
+      posted += await alertsFor(system, state);
+    } catch {}
   }
-  posted += await checkHealth();
+  posted += await checkHealth().catch(() => 0);
   await refreshWidgetsInBackground();
+  return posted;
+}
+
+/** New alerts for one system; returns how many notifications were posted. */
+async function alertsFor(system: SystemConfig, state: ReturnType<typeof useApp.getState>): Promise<number> {
+  const link = await connectSystem(system);
+  if (link.mode !== 'lan' && link.mode !== 'tunnel') return 0;
+  const adapter = getAdapter(system, link);
+  if (!adapter?.listReview) return 0;
+  let posted = 0;
+
+  const since = state.lastNotified[system.id] ?? Date.now() / 1000 - 3600;
+  const items = await adapter.listReview({ after: since, limit: 50 });
+  const fresh = items.filter((i) => i.startTime > since);
+
+  // Packages: new events, plus a second look at cameras with a package still out (an event
+  // that was in progress last time may have finished since).
+  let cameraNames: Map<string, string> | null = null;
+  const nameOf = async (cameraKey: string) => {
+    cameraNames ??= new Map((await adapter.listCameras().catch(() => [])).map((c) => [c.id, c.name]));
+    const id = cameraKey.slice(system.id.length + 1);
+    return cameraNames.get(id) ?? id;
+  };
+  const recheckAfter = packageRecheckAfter(system.id);
+  const recheck =
+    recheckAfter != null && recheckAfter < since
+      ? (await adapter.listReview({ after: recheckAfter, before: since + 1, limit: 100 }).catch(() => [])).filter(packageRecheckFilter)
+      : [];
+  const freshIds = new Set(fresh.map((i) => i.id));
+  const pkg = await trackPackages([...recheck.filter((i) => !freshIds.has(i.id)), ...fresh], nameOf);
+  posted += pkg.posted;
+  if (fresh.length === 0) return posted;
+
+  const lastByCamera: Record<string, number> = {};
+  // An event announced as "Package delivered" doesn't also alert as "Package".
+  const matched = selectNotifications(fresh.filter((i) => !pkg.deliveredIds.has(i.id)), state.alerts, lastByCamera);
+  // Drop items whose objects stayed entirely inside the camera's alert masks.
+  const unmasked: ReviewItem[] = [];
+  for (const item of matched) {
+    const masks = state.masks[`${item.systemId}:${item.cameraId}`];
+    if (masks?.length && adapter.detectionPoints && isMasked(await adapter.detectionPoints(item).catch(() => []), masks)) continue;
+    unmasked.push(item);
+  }
+  const selected = unmasked.slice(-MAX_PER_RUN);
+  for (const item of selected) {
+    const name = await nameOf(`${system.id}:${item.cameraId}`);
+    const video = item.endTime && adapter.previewClip && !isDoorbell(item) ? adapter.previewClip(item).uri : undefined;
+    await post(item, adapter.snapshot(item.cameraId, { height: 480 }).uri, name, video);
+    await recordLastAlert(item, titleFor(item), name);
+    posted++;
+  }
+  useApp.getState().setLastNotified(system.id, Math.max(...fresh.map((i) => i.startTime)));
   return posted;
 }
 
@@ -214,12 +227,14 @@ export async function checkForAlerts(): Promise<number> {
 async function refreshWidgetsInBackground() {
   const entries: CameraEntry[] = [];
   for (const system of useApp.getState().systems) {
-    const link = await connectSystem(system);
-    if (link.mode !== 'lan' && link.mode !== 'tunnel') continue;
-    const adapter = getAdapter(system, link);
-    if (!adapter) continue;
-    const cams = await adapter.listCameras().catch(() => []);
-    entries.push(...cams.filter((c) => c.enabled).map((camera) => ({ camera, adapter })));
+    try {
+      const link = await connectSystem(system);
+      if (link.mode !== 'lan' && link.mode !== 'tunnel') continue;
+      const adapter = getAdapter(system, link);
+      if (!adapter) continue;
+      const cams = await adapter.listCameras().catch(() => []);
+      entries.push(...cams.filter((c) => c.enabled).map((camera) => ({ camera, adapter })));
+    } catch {}
   }
   await syncWidgets(entries, { force: true }).catch(() => {});
 }
@@ -235,8 +250,11 @@ export async function checkHealth(): Promise<number> {
   const toPost: { key: string; title: string; body: string }[] = [];
 
   for (const system of systems) {
-    const link = await connectSystem(system);
-    const adapter = getAdapter(system, link);
+    const link = await connectSystem(system).catch((): SystemLink => ({ baseUrl: '', mode: 'offline' }));
+    let adapter: CameraSystemAdapter | null = null;
+    try {
+      adapter = getAdapter(system, link);
+    } catch {}
     if (!adapter?.health) continue;
     // Unreachable could just mean we're away without the VPN, so only judge systems we reached.
     if (link.mode !== 'lan' && link.mode !== 'tunnel') {

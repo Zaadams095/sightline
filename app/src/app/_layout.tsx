@@ -40,7 +40,11 @@ export default function RootLayout() {
     // Give the navigator a moment to mount before routing to a tapped notification's clip.
     const launchTimer = setTimeout(() => void handleLaunchNotification(), 300);
     const stopBridge = watchBridgeSync();
-    const stopLifecycle = startLifecycle(() => useApp.getState().systems);
+    // After a foreground or network change, re-resolve live streams onto the new route.
+    const stopLifecycle = startLifecycle(
+      () => useApp.getState().systems,
+      () => void queryClient.invalidateQueries({ queryKey: ['live'] }),
+    );
     const stopDoorbell = startDoorbellWatch();
     return () => {
       clearTimeout(launchTimer);

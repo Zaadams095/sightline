@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
@@ -17,8 +17,11 @@ import { ShinobiAdapter } from '@/systems/shinobi';
 import { ZoneMinderAdapter } from '@/systems/zoneminder';
 import { UnifiProtectAdapter } from '@/systems/unifi-protect';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
+import { configVersion, sameConfig } from '@/util/config';
 
 const adapters = new Map<string, CameraSystemAdapter>();
+/** Config objects already found equal to their adapter's, so renders don't re-compare. */
+const checked = new Map<string, SystemConfig>();
 
 /** Systems whose adapter talks HTTP to a base URL chosen by connectSystem (LAN/tunnel/remote). */
 
@@ -60,9 +63,14 @@ export function getAdapter(s: SystemConfig, link: SystemLink | undefined): Camer
   // Systems reached over HTTP need a route (gateway port) before an adapter is useful.
   if (usesGateway(s.kind) && !link?.baseUrl) return null;
   let a = adapters.get(s.id);
-  if (a && a.config !== s) {
-    a.dispose();
-    a = undefined;
+  // Same settings in a new object (e.g. after the store rehydrates) keep the adapter, its
+  // sign-in session and caches; only a real edit rebuilds it.
+  if (a && a.config !== s && checked.get(s.id) !== s) {
+    if (sameConfig(a.config, s)) checked.set(s.id, s);
+    else {
+      a.dispose();
+      a = undefined;
+    }
   }
   if (!a) {
     a = create(s, link?.baseUrl ?? '');
@@ -76,6 +84,7 @@ export function getAdapter(s: SystemConfig, link: SystemLink | undefined): Camer
 export function dropAdapter(id: string) {
   adapters.get(id)?.dispose();
   adapters.delete(id);
+  checked.delete(id);
 }
 
 export function useAdapter(systemId: string): CameraSystemAdapter | null {
@@ -97,13 +106,22 @@ export function useAllCameras(opts: { includeHidden?: boolean } = {}) {
   const order = useApp((st) => st.phoneOrder);
   const hidden = useApp((st) => st.hidden);
 
-  const ready = systems.filter((s) => !usesGateway(s.kind) || links[s.id]?.mode === 'lan' || links[s.id]?.mode === 'tunnel');
-  const key = ready.map((s) => `${s.id}@${links[s.id]?.baseUrl ?? ''}`).join('|');
+  // A system re-checking its route (every foreground) keeps showing its cameras on the route
+  // it already had, instead of the grid emptying until the check finishes.
+  const ready = systems.filter((s) => {
+    const link = links[s.id];
+    if (!usesGateway(s.kind) || link?.mode === 'lan' || link?.mode === 'tunnel') return true;
+    return link?.mode === 'connecting' && !!link.baseUrl;
+  });
+  // The config version makes an edited system (address, name, options) refetch.
+  const key = ready.map((s) => `${s.id}@${links[s.id]?.baseUrl ?? ''}#${configVersion(s)}`).join('|');
 
   const query = useQuery({
     queryKey: ['cameras', key],
     enabled: ready.length > 0,
     staleTime: 5 * 60_000,
+    // While a route changes (LAN ↔ VPN), show the cameras we had until the new list arrives.
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const results = await Promise.allSettled(
         ready.map(async (s) => {

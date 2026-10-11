@@ -28,3 +28,19 @@ export function friendlyNetError(raw: string, name: string): string {
   }
   return `Couldn’t connect to ${name}.`;
 }
+
+/** Go/fetch/HTTP wording that means the text came from a library, not from us. */
+const TECHNICAL =
+  /\b(dial|tcp|udp|eof|errno|econn\w*|x509|tls|i\/o|status code|http \d{3}|network request failed|unexpected token|json|undefined|null|nsurlerror\w*)\b|:\d{2,5}\b|0x[0-9a-f]+/i;
+
+/**
+ * The message to show for an error during setup or a reconnect: adapters already throw plain
+ * sentences (wrong password, wrong address…), which pass through; anything that reads like a
+ * raw network or HTTP error is translated by friendlyNetError.
+ */
+export function userMessage(e: unknown, name: string): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  return !raw.trim() || TECHNICAL.test(raw) || /refused|no such host|timed? ?out|unreachable|certificate/i.test(raw)
+    ? friendlyNetError(raw, name)
+    : raw;
+}

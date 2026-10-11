@@ -5,7 +5,8 @@ import { WgTunnel } from '@modules/wg-tunnel';
 /** What the players can show directly. RTSP never reaches the UI; it's restreamed to MSE. */
 export type ResolvedLive = { kind: 'mse'; wsUrl: string } | { kind: 'hls'; uri: string } | { kind: 'mjpeg'; uri: string };
 
-const rtspPorts = new Map<string, number>();
+/** Running restreamers by RTSP URL, with the system that opened each (to release per system). */
+const rtspPorts = new Map<string, { port: number; systemId: string }>();
 
 function rtspHostPort(url: string): string {
   const u = new URL(url.replace(/^rtsps?:/, 'http:'));
@@ -29,10 +30,10 @@ export async function resolveLive(source: LiveSource, system: SystemConfig): Pro
     viaTunnel = true;
   }
 
-  let port = rtspPorts.get(source.url);
+  let port = rtspPorts.get(source.url)?.port;
   if (port == null) {
     port = await WgTunnel.addRTSPSource(source.url, viaTunnel);
-    rtspPorts.set(source.url, port);
+    rtspPorts.set(source.url, { port, systemId: system.id });
   } else {
     WgTunnel.setRTSPViaTunnel(port, viaTunnel);
   }
@@ -41,18 +42,18 @@ export async function resolveLive(source: LiveSource, system: SystemConfig): Pro
 
 /** Stops the restreamer for one RTSP URL (e.g. a playback stream that's no longer shown). */
 export function releaseLiveUrl(url: string) {
-  const port = rtspPorts.get(url);
-  if (port != null) {
-    WgTunnel?.removeRTSPSource(port);
+  const entry = rtspPorts.get(url);
+  if (entry) {
+    WgTunnel?.removeRTSPSource(entry.port);
     rtspPorts.delete(url);
   }
 }
 
-/** Drops restreamers whose URL starts with a prefix (e.g. after a system's credentials change). */
-export function releaseLive(urlPrefix: string) {
-  for (const [url, port] of rtspPorts) {
-    if (url.startsWith(urlPrefix)) {
-      WgTunnel?.removeRTSPSource(port);
+/** Stops every restreamer one system opened (e.g. after its address or sign-in changed). */
+export function releaseSystemLive(systemId: string) {
+  for (const [url, entry] of rtspPorts) {
+    if (entry.systemId === systemId) {
+      WgTunnel?.removeRTSPSource(entry.port);
       rtspPorts.delete(url);
     }
   }

@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { LivePlayer, type LiveState } from '@/components/live/live-player';
 import { resolveLive, type ResolvedLive } from '@/systems/live';
 import type { CameraSystemAdapter } from '@/systems/types';
+import { setPlayerMuted } from '@/util/player';
 
 /** Resolves a camera's live source (any brand) into something playable. Shared cache key. */
 export function useLive(adapter: CameraSystemAdapter | null, cameraId: string, quality: 'main' | 'sub' = 'main', enabled = true) {
@@ -36,27 +39,62 @@ interface Props {
   openedAt?: number;
 }
 
-/** Plays any resolved live source: go2rtc MSE, HLS, or MJPEG. */
-export function LiveView({ live, muted = true, fit = 'contain', ...rest }: Props) {
-  if (live.kind === 'mse') return <LivePlayer wsUrl={live.wsUrl} muted={muted} fit={fit} {...rest} />;
-  if (live.kind === 'hls') return <HlsLive uri={live.uri} muted={muted} fit={fit} />;
-  return <MjpegLive uri={live.uri} fit={fit} />;
+/** Plays any resolved live source: go2rtc MSE, HLS, or MJPEG. All report `onState`. */
+export function LiveView({ live, muted = true, fit = 'contain', onState, ...rest }: Props) {
+  if (live.kind === 'mse') return <LivePlayer wsUrl={live.wsUrl} muted={muted} fit={fit} onState={onState} {...rest} />;
+  if (live.kind === 'hls') return <HlsLive uri={live.uri} muted={muted} fit={fit} onState={onState} />;
+  return <MjpegLive uri={live.uri} fit={fit} onState={onState} />;
 }
 
-function HlsLive({ uri, muted, fit }: { uri: string; muted: boolean; fit: 'contain' | 'cover' }) {
+/** Reports a state only when it changes (callers often pass a fresh callback each render). */
+function useReporter(onState?: (s: LiveState) => void) {
+  const last = useRef<LiveState | null>(null);
+  return (s: LiveState) => {
+    if (last.current === s) return;
+    last.current = s;
+    onState?.(s);
+  };
+}
+
+function HlsLive({ uri, muted, fit, onState }: { uri: string; muted: boolean; fit: 'contain' | 'cover'; onState?: (s: LiveState) => void }) {
   const player = useVideoPlayer(uri, (p) => {
     p.muted = muted;
     p.play();
+  });
+  // The setup callback only runs once; later mute/unmute taps are applied here.
+  useEffect(() => {
+    setPlayerMuted(player, muted);
+  }, [player, muted]);
+
+  const report = useReporter(onState);
+  const playedOnce = useRef(false);
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status === 'error') report('error');
+    else if (status === 'loading') report(playedOnce.current ? 'stalled' : 'connecting');
+  });
+  useEventListener(player, 'playingChange', ({ isPlaying }) => {
+    if (isPlaying) playedOnce.current = true;
+    report(isPlaying ? 'playing' : 'stalled');
   });
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit={fit} nativeControls={false} />;
 }
 
 /** Motion-JPEG (older systems): WebKit renders it natively in an <img>. */
-function MjpegLive({ uri, fit }: { uri: string; fit: 'contain' | 'cover' }) {
-  const html = `<html><body style="margin:0;background:#000"><img src="${uri.replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:${fit}"></body></html>`;
+function MjpegLive({ uri, fit, onState }: { uri: string; fit: 'contain' | 'cover'; onState?: (s: LiveState) => void }) {
+  const report = useReporter(onState);
+  // The page reports the first decoded frame (playing) or a failed load (error).
+  const html = `<html><body style="margin:0;background:#000"><img src="${uri.replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:${fit}"
+    onload="window.ReactNativeWebView.postMessage('playing')" onerror="window.ReactNativeWebView.postMessage('error')"></body></html>`;
   return (
     <View style={StyleSheet.absoluteFill}>
-      <WebView source={{ html }} style={{ flex: 1, backgroundColor: '#000' }} scrollEnabled={false} originWhitelist={['*']} />
+      <WebView
+        source={{ html }}
+        style={{ flex: 1, backgroundColor: '#000' }}
+        scrollEnabled={false}
+        originWhitelist={['*']}
+        onLoadStart={() => report('connecting')}
+        onMessage={(e) => report(e.nativeEvent.data === 'error' ? 'error' : 'playing')}
+      />
     </View>
   );
 }

@@ -2,10 +2,11 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { AppState } from 'react-native';
 
-import { isFreshRing, RING_FRESH_SEC, selectNotifications } from '@/alerts/rules';
+import { isDoorbellCamera, isFreshRing, RING_FRESH_SEC, selectNotifications } from '@/alerts/rules';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
+import type { CameraSystemAdapter } from '@/systems/types';
 
 /**
  * Doorbell rings, from any system: adapters report a ring as an event whose objects include
@@ -18,6 +19,7 @@ import { getAdapter } from '@/systems/registry';
 export const DOORBELL_CATEGORY = 'doorbell-ring';
 export const ACTION_WATCH = 'doorbell-watch';
 const POLL_MS = 8000;
+const DOORBELL_RECHECK_MS = 10 * 60_000;
 
 export function registerDoorbellCategory() {
   void Notifications.setNotificationCategoryAsync(DOORBELL_CATEGORY, [
@@ -78,6 +80,17 @@ export function startDoorbellWatch(): () => void {
 
   let timer: ReturnType<typeof setInterval> | null = null;
   let busy = false;
+  // Whether each system has a doorbell camera, re-checked now and then (cameras get added).
+  const doorbells = new Map<string, { has: boolean; at: number }>();
+  const hasDoorbell = async (systemId: string, adapter: CameraSystemAdapter) => {
+    const known = doorbells.get(systemId);
+    if (known && Date.now() - known.at < DOORBELL_RECHECK_MS) return known.has;
+    const cams = await adapter.listCameras().catch(() => null);
+    if (!cams) return known?.has ?? false;
+    const has = cams.some(isDoorbellCamera);
+    doorbells.set(systemId, { has, at: Date.now() });
+    return has;
+  };
   const poll = async () => {
     if (busy) return;
     const { systems, alerts } = useApp.getState();
@@ -91,6 +104,8 @@ export function startDoorbellWatch(): () => void {
         if (link?.mode !== 'lan' && link?.mode !== 'tunnel') continue;
         const adapter = getAdapter(s, link);
         if (!adapter?.listReview || !adapter.capabilities.events) continue;
+        // Asking every recorder for events every few seconds is wasted work without a doorbell.
+        if (!(await hasDoorbell(s.id, adapter))) continue;
         const items = await adapter.listReview({ after: now - RING_FRESH_SEC, limit: 20 }).catch(() => []);
         const rings = selectNotifications(items.filter((i) => isFreshRing(i, now)), alerts, {});
         const ring = rings[rings.length - 1];

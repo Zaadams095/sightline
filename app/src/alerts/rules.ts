@@ -86,6 +86,14 @@ export function isDoorbell(item: { objects: string[] }): boolean {
   return item.objects.includes('doorbell');
 }
 
+/**
+ * Whether a camera can ring: adapters that know mark doorbells with a 'doorbell' object;
+ * for the rest, a camera named like one ("Doorbell", "Front door bell") counts.
+ */
+export function isDoorbellCamera(camera: { objects: string[]; name: string }): boolean {
+  return camera.objects.includes('doorbell') || /door\s*bell/i.test(camera.name);
+}
+
 export function hasPackage(item: { objects: string[] }): boolean {
   return item.objects.includes('package');
 }
