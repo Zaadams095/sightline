@@ -35,6 +35,12 @@ func main() {
 	engine.secret = cfg.secret
 
 	client := connectMQTT(cfg, engine)
+
+	bgCtx, stopBg := context.WithCancel(context.Background())
+	defer stopBg()
+	if cfg.frigateURL != "" {
+		go newHealthMonitor(cfg.frigateURL, store, pusher).run(bgCtx, time.Minute)
+	}
 	defer client.Disconnect(250)
 
 	srv := &http.Server{Addr: cfg.listen, Handler: api(cfg, store, engine), ReadHeaderTimeout: 10 * time.Second}

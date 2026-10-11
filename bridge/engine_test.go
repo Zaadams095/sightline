@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -159,5 +160,70 @@ func TestThumbnailRoundTrip(t *testing.T) {
 	}
 	if _, err := jpeg.Decode(bytes.NewReader(got)); err != nil {
 		t.Errorf("thumbnail is not a valid JPEG: %v", err)
+	}
+}
+
+func TestSnoozeAndKnownPeople(t *testing.T) {
+	d := device{
+		ID: "d", PushToken: "ExponentPushToken[x]", DefaultRule: rule{Enabled: true},
+		QuietFor: []string{"Zach"},
+		Snoozed:  map[string]int64{"back": time.Now().Add(time.Hour).Unix()},
+	}
+	e, p := newTestEngine(t, d)
+	review := func(id, cam string, subLabels ...string) []byte {
+		r := review{ID: id, Camera: cam, Severity: "alert", Data: reviewData{Objects: []string{"person"}, SubLabels: subLabels}}
+		b, _ := json.Marshal(reviewMessage{Type: "new", Before: r, After: r})
+		return b
+	}
+	e.handle(review("r1", "front", "Zach"))        // only known: quiet
+	e.handle(review("r2", "back"))                 // snoozed camera: quiet
+	e.handle(review("r3", "front", "Zach", "Bob")) // someone unknown with him: alerts
+	if len(p.sent) != 1 || p.sent[0].Data["reviewId"] != "r3" {
+		t.Fatalf("sent = %+v", p.sent)
+	}
+	if p.sent[0].Title != "Zach & Bob · front" || p.sent[0].CategoryID != "camera-alert" {
+		t.Errorf("message = %+v", p.sent[0])
+	}
+}
+
+func TestHealthAlertsOnceUntilResolved(t *testing.T) {
+	s, _ := openStore(t.TempDir())
+	_ = s.put(device{ID: "d", PushToken: "ExponentPushToken[x]", Health: healthPrefs{Enabled: true, StoragePct: 90},
+		CameraNames: map[string]string{"front": "Front Door"}})
+	p := &fakePusher{}
+	h := newHealthMonitor("http://unused", s, p)
+
+	var st frigateStats
+	_ = json.Unmarshal([]byte(`{"cameras":{"front":{"camera_fps":0},"back":{"camera_fps":5}},
+		"service":{"storage":{"/media/frigate/recordings":{"total":1000,"used":950,"free":50},"/dev/shm":{"total":1,"used":1}}}}`), &st)
+	h.evaluate(st, frigateConfig{}, nil)
+	h.evaluate(st, frigateConfig{}, nil) // same problems: no repeats
+	if len(p.sent) != 2 {
+		t.Fatalf("first poll sent %d: %+v", len(p.sent), p.sent)
+	}
+	if p.sent[0].Title != "Front Door is offline" && p.sent[1].Title != "Front Door is offline" {
+		t.Errorf("missing friendly offline title: %+v", p.sent)
+	}
+
+	// Recovers, then goes offline again: alerts again.
+	var ok frigateStats
+	_ = json.Unmarshal([]byte(`{"cameras":{"front":{"camera_fps":5}}}`), &ok)
+	h.evaluate(ok, frigateConfig{}, nil)
+	h.evaluate(st, frigateConfig{}, nil)
+	if len(p.sent) != 4 {
+		t.Fatalf("after recovery sent %d", len(p.sent))
+	}
+
+	// Frigate down: only after 3 consecutive failures.
+	p.sent = nil
+	for i := 0; i < 2; i++ {
+		h.evaluate(frigateStats{}, frigateConfig{}, errors.New("connection refused"))
+	}
+	if len(p.sent) != 0 {
+		t.Fatal("down alert fired too early")
+	}
+	h.evaluate(frigateStats{}, frigateConfig{}, errors.New("connection refused"))
+	if len(p.sent) != 1 || p.sent[0].Title != "Frigate isn't responding" {
+		t.Fatalf("down alert = %+v", p.sent)
 	}
 }

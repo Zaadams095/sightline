@@ -29,7 +29,7 @@ export async function bridgeSecret(): Promise<string> {
 
 export function composeSnippet(secret: string): string {
   return `  sightline-bridge:
-    image: ghcr.io/zachadams/sightline-bridge:latest
+    image: ghcr.io/zaadams095/sightline-bridge:latest
     container_name: sightline-bridge
     restart: unless-stopped
     ports:
@@ -38,6 +38,7 @@ export function composeSnippet(secret: string): string {
       MQTT_URL: tcp://mqtt:1883        # same broker Frigate uses
       # MQTT_USER: frigate
       # MQTT_PASSWORD: change-me
+      FRIGATE_URL: http://frigate:5000  # Frigate's internal port on this compose network
       BRIDGE_SECRET: ${secret}
       TZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
     volumes:
@@ -115,6 +116,13 @@ export async function syncBridge(): Promise<void> {
     detectSizes,
     quietHours: st.alerts.quietHours,
     cooldownSec: st.alerts.cooldownSec,
+    quietFor: st.alerts.quietFor,
+    snoozed: Object.fromEntries(
+      Object.entries(st.alerts.snoozed)
+        .filter(([k]) => k.startsWith(prefix))
+        .map(([k, until]) => [k.slice(prefix.length), until]),
+    ),
+    health: st.alerts.health,
   });
 }
 

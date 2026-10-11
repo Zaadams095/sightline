@@ -19,6 +19,7 @@ type pushMessage struct {
 	ThreadID       string            `json:"threadId,omitempty"`
 	Data           map[string]string `json:"data,omitempty"`
 	MutableContent bool              `json:"mutableContent,omitempty"`
+	CategoryID     string            `json:"categoryId,omitempty"`
 }
 
 type pusher interface {

@@ -47,7 +47,17 @@ type device struct {
 	DetectSizes map[string]size   `json:"detectSizes"`
 	QuietHours  quietHours        `json:"quietHours"`
 	CooldownSec int64             `json:"cooldownSec"`
-	UpdatedAt   int64             `json:"updatedAt"`
+	// Recognized names (Frigate sub-labels) that never alert; unrecognized objects always do.
+	QuietFor []string `json:"quietFor"`
+	// Camera name -> unix seconds until which alerts from it are muted.
+	Snoozed   map[string]int64 `json:"snoozed"`
+	Health    healthPrefs      `json:"health"`
+	UpdatedAt int64            `json:"updatedAt"`
+}
+
+type healthPrefs struct {
+	Enabled    bool `json:"enabled"`
+	StoragePct int  `json:"storagePct"`
 }
 
 type reviewData struct {
@@ -240,14 +250,33 @@ func shouldNotify(d device, r review, now time.Time) bool {
 	if len(ru.Severities) > 0 && !contains(ru.Severities, r.Severity) {
 		return false
 	}
-	objects := append(append([]string{}, r.Data.Objects...), r.Data.SubLabels...)
-	if len(ru.Objects) > 0 && !anyIn(objects, ru.Objects) {
+	if len(ru.Objects) > 0 && !anyIn(r.Data.Objects, ru.Objects) {
 		return false
 	}
 	if len(ru.Zones) > 0 && !anyIn(r.Data.Zones, ru.Zones) {
 		return false
 	}
+	if d.Snoozed[r.Camera] > now.Unix() {
+		return false
+	}
+	if onlyKnown(r.Data.SubLabels, d.QuietFor) {
+		return false
+	}
 	return !inQuietHours(d, now)
+}
+
+// onlyKnown mirrors app/src/alerts/rules.ts: true when everyone recognized is on the quiet list.
+func onlyKnown(subLabels, quietFor []string) bool {
+	names := uniq(subLabels)
+	if len(names) == 0 {
+		return false
+	}
+	for _, n := range names {
+		if !contains(quietFor, n) {
+			return false
+		}
+	}
+	return true
 }
 
 func inQuietHours(d device, now time.Time) bool {
@@ -276,9 +305,12 @@ func buildMessage(d device, r review) pushMessage {
 	if name == "" {
 		name = r.Camera
 	}
+	// Same as the app's titleFor: recognized names first, else object labels.
 	what := "Motion"
-	objs := uniq(append(append([]string{}, r.Data.Objects...), r.Data.SubLabels...))
-	if len(objs) > 0 {
+	objs := uniq(r.Data.Objects)
+	if names := uniq(r.Data.SubLabels); len(names) > 0 {
+		what = strings.Join(names, " & ")
+	} else if len(objs) > 0 {
 		for i, o := range objs {
 			objs[i] = strings.ToUpper(o[:1]) + strings.ReplaceAll(o[1:], "_", " ")
 		}
@@ -302,6 +334,7 @@ func buildMessage(d device, r review) pushMessage {
 			"reviewId": r.ID,
 		},
 		MutableContent: true,
+		CategoryID:     "camera-alert", // long-press snooze actions, registered by the app
 	}
 }
 
