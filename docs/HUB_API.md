@@ -209,6 +209,26 @@ These require an owner or full grant.
 
 `DELETE` revokes immediately (204). A `full` caller can't revoke owners (403).
 
+### `GET /v1/diagnostics` (owner only)
+
+Recent backend errors (in memory, newest 100, repeats folded) so the owner's app can attach them
+to a problem report the user chooses to send (docs/CRASH_REPORTS.md). Everything is scrubbed when
+recorded: no addresses, host names, usernames, passwords, tokens, emails or system names.
+
+```json
+{
+  "version": "0.3.0",
+  "uptime": 86400,
+  "systems": [{ "brand": "hikvision", "connected": false }],
+  "errors": [{ "time": 1790000000, "brand": "hikvision", "area": "snapshot", "category": "auth-401",
+               "detail": "the username or password is wrong", "count": 3 }]
+}
+```
+
+`area` is the feature (`cameras`, `live`, `snapshot`, `ptz`, `events`, `alerts`, `recordings`,
+`clips`, `playback`); `category` is one of `auth`, `auth-401`, `auth-403`, `http-<status>`,
+`timeout`, `dns`, `refused`, `unreachable`, `reset`, `tls`, `bad-reply`, `other`. Other roles get 403.
+
 ## Deep links
 
 The app handles these links, whether scanned as a QR code or tapped:

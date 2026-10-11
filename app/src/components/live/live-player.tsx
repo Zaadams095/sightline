@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { msePlayerHtml } from '@/components/live/mse-player-html';
+import { noteProblem } from '@/diagnostics/log';
 import { useLiveStats } from '@/state/live-stats';
 
 export type LiveState = 'connecting' | 'playing' | 'stalled' | 'error';
@@ -18,10 +19,12 @@ interface Props {
   timingLabel?: string;
   openedAt?: number;
   onState?: (s: LiveState) => void;
+  /** System kind, for diagnostics. */
+  brand?: string;
 }
 
 /** Low-latency live view via go2rtc MSE in a WKWebView. */
-export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onState, timingLabel, openedAt }: Props) {
+export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onState, timingLabel, openedAt, brand }: Props) {
   const setStats = useLiveStats((s) => s.set);
   const web = useRef<WebView>(null);
   const [state, setState] = useState<LiveState>('connecting');
@@ -72,6 +75,7 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
               const at = (k: string) => (m[k] != null ? page + m[k] : undefined);
               setStats({ camera: timingLabel, page, wsOpen: at('wsOpen'), codecs: at('codecs'), firstData: at('firstData'), playing: at('playing') });
             } else if (msg.type === 'state') {
+              if (msg.value === 'error' && state !== 'error') noteProblem('player', msg.detail ?? 'error', { brand, feature: 'live-mse' });
               setState(msg.value);
               setDetail(msg.detail);
               onState?.(msg.value);

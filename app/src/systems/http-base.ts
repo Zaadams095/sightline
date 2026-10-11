@@ -1,3 +1,4 @@
+import { noteRequestProblem } from '@/diagnostics/log';
 import { useLinks } from '@/net/connection';
 import { httpMessage, withQuery, type Query } from '@/systems/http-kit';
 import type { SystemConfig } from '@/systems/types';
@@ -38,6 +39,7 @@ export abstract class HttpSystem {
     try {
       return await fetchWithTimeout(this.url(path, q), { credentials: 'omit', ...init }, timeoutMs);
     } catch (e) {
+      noteRequestProblem(this.config.kind, path, e);
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.startsWith('No response')) throw new Error(`${this.label} didn’t answer in time. Check that it’s on and reachable.`);
       throw new Error(`Couldn’t reach ${this.label}. Check the address and that your phone is on the same network.`);
@@ -46,7 +48,10 @@ export abstract class HttpSystem {
 
   protected async request(path: string, init: RequestInit = {}, q?: Query, timeoutMs = 10000): Promise<Response> {
     const res = await this.send(path, init, q, timeoutMs);
-    if (!res.ok) throw new Error(httpMessage(res.status, this.label));
+    if (!res.ok) {
+      noteRequestProblem(this.config.kind, path, `HTTP ${res.status}`);
+      throw new Error(httpMessage(res.status, this.label));
+    }
     return res;
   }
 
@@ -56,6 +61,7 @@ export abstract class HttpSystem {
     try {
       return JSON.parse(text) as T;
     } catch {
+      noteRequestProblem(this.config.kind, path, 'unexpected reply');
       throw new Error(`${this.label} sent an unexpected reply. Check that the address points to ${this.label}.`);
     }
   }

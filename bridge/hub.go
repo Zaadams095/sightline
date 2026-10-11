@@ -39,6 +39,8 @@ type hub struct {
 	settings   hubSettings
 
 	playbacks playbackCache
+	// diag keeps recent backend errors for GET /v1/diagnostics (diagnostics.go).
+	diag *diagLog
 
 	mu      sync.RWMutex
 	systems []*system
@@ -74,6 +76,7 @@ func newHub(cfg config, s *store, e *engine, p pusher) (*hub, error) {
 		pairLimit:   newLimiter(5, time.Minute, 20, 10*time.Minute),
 		redeemLimit: newLimiter(10, time.Minute, 60, 10*time.Minute),
 		startedAt:   time.Now(),
+		diag:        newDiagLog(),
 	}
 	if b, err := os.ReadFile(h.settingsPath()); err == nil {
 		if err := json.Unmarshal(b, &h.settings); err != nil {
@@ -192,6 +195,7 @@ func (h *hub) reloadSystems() {
 		go func() {
 			if err := s.b.Watch(ctx, &systemSink{h: h, s: s}); err != nil && !errors.Is(err, backend.ErrUnsupported) {
 				log.Printf("%s events: %v", s.cfg.ID, err)
+				h.noteErr(s, "alerts", err)
 			}
 		}()
 		hm := newBackendHealthMonitor(s.b, h.store, h.pusher)

@@ -156,7 +156,7 @@ func (h *hub) handlePlayback(w http.ResponseWriter, r *http.Request) {
 	pb, isPlayer, err := h.playbackFor(r.Context(), s, native, start, end)
 	switch {
 	case err != nil:
-		backendError(w, err)
+		h.upstream(w, s, "playback", err)
 		return
 	case !isPlayer && !s.b.Capabilities().Recordings:
 		backendError(w, backend.ErrUnsupported)
@@ -205,7 +205,7 @@ func (h *hub) playbackMedia(w http.ResponseWriter, r *http.Request) (*system, ba
 		err = backend.ErrUnsupported
 	}
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "playback", err)
 		return nil, backend.Playback{}, 0, 0, false
 	}
 	return s, pb, start, end, true
@@ -249,7 +249,7 @@ func (h *hub) handlePlaybackStream(w http.ResponseWriter, r *http.Request) {
 var replaySlack = 5 * time.Second
 
 func (h *hub) handlePlaybackFile(w http.ResponseWriter, r *http.Request) {
-	_, pb, start, _, ok := h.playbackMedia(w, r)
+	s, pb, start, _, ok := h.playbackMedia(w, r)
 	if !ok {
 		return
 	}
@@ -263,7 +263,7 @@ func (h *hub) handlePlaybackFile(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := pb.File(r.Context(), r.Header)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "playback", err)
 		return
 	}
 	h.proxyMedia(w, resp, "", "")

@@ -44,7 +44,7 @@ func (h *hub) handleLive(w http.ResponseWriter, r *http.Request) {
 	quality := r.URL.Query().Get("quality")
 	src, err := s.b.Live(r.Context(), native, quality)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "live", err)
 		return
 	}
 	ws, err := upgrader.Upgrade(w, r, nil)
