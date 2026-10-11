@@ -22,7 +22,9 @@ export default function OnboardingAway() {
   const insets = useSafeAreaInsets();
   const hasHub = useApp((s) => s.systems.some((x) => x.kind === 'hub'));
   const [choice, setChoice] = useState<Choice>(null);
-  const next = () => router.push('/onboarding/alerts');
+  // Adding another system later (from Settings) keeps the alert choice already made.
+  const onboarded = useApp((s) => s.onboarded);
+  const next = () => (onboarded ? router.replace('/') : router.push('/onboarding/alerts'));
 
   if (hasHub) {
     // The Hub already provides remote access; nothing to set up here.
@@ -52,7 +54,7 @@ export default function OnboardingAway() {
       <Option
         icon="lock.shield"
         title="My own VPN (advanced)"
-        body="If your router already runs a WireGuard VPN, scan its QR code. Sightline turns it on by itself only when needed."
+        body="If your router already has a VPN you connect to from your phone, scan its QR code. Sightline turns it on by itself only when needed."
         selected={choice === 'vpn'}
         onPress={() => setChoice('vpn')}
       />
@@ -67,7 +69,7 @@ export default function OnboardingAway() {
       )}
       {choice === 'vpn' &&
         (isExpoGo ? (
-          <T muted>Preview mode: the built-in VPN only works in the full app.</T>
+          <T muted>Preview mode: your own VPN only works in the full app.</T>
         ) : (
           <VpnSetup onSaved={next} />
         ))}

@@ -7,13 +7,13 @@ import { useLinks, type LinkMode } from '@/net/connection';
 import { usePalette } from '@/theme/use-palette';
 
 const LABEL: Record<LinkMode, string> = {
-  lan: 'Home network',
-  tunnel: 'VPN',
+  lan: 'At home',
+  tunnel: 'Away from home',
   connecting: 'Connecting…',
   offline: 'Offline',
 };
 
-/** Summarizes how the app is reaching the user's systems; tap for VPN settings. */
+/** Summarizes how the app is reaching the user's systems; tap for away-from-home settings. */
 export function ConnectionBadge() {
   const p = usePalette();
   const links = useLinks(useShallow((s) => Object.values(s.links)));
@@ -27,12 +27,16 @@ export function ConnectionBadge() {
         ? 'tunnel'
         : 'lan';
   const color = { lan: p.success, tunnel: p.accent, connecting: p.warning, offline: p.danger }[mode];
-  // Away from home through a Sightline Hub's own link (no VPN involved).
-  const label = mode === 'tunnel' && links.every((l) => l.mode !== 'tunnel' || l.remote) ? 'Away (Hub)' : LABEL[mode];
+  // Whether through a Sightline Hub's own link or the user's VPN, it reads the same.
+  const label = LABEL[mode];
 
   return (
     <Pressable
       onPress={() => router.push('/settings/vpn')}
+      accessibilityRole="button"
+      accessibilityLabel={`Connection: ${label}`}
+      accessibilityHint="Opens away-from-home settings"
+      hitSlop={{ top: 8, bottom: 8 }}
       style={[styles.pill, { backgroundColor: p.surfaceRaised, borderColor: p.border }]}>
       <StatusDot color={color} />
       <T v="caption">{label}</T>

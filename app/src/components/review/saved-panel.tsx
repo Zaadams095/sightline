@@ -47,7 +47,7 @@ export function SavedPanel() {
           if (choice === 'Share' && c.localUri) await shareLocalFile(c.localUri, c.cameraName);
           if (choice === 'Download to this phone') {
             const adapter = adapterFor(c);
-            if (!adapter) throw new Error('Not connected to this camera system right now.');
+            if (!adapter) throw new Error('Can’t reach the recorder right now.');
             setBusyId(c.id);
             const uri = await downloadClipForOffline(adapter, c);
             saveClip({ ...c, localUri: uri });

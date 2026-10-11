@@ -178,14 +178,14 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'unifi-protect',
     label: 'UniFi Protect',
-    blurb: 'Ubiquiti Cloud Key, UNVR, Dream Machine, Cloud Gateway',
+    blurb: 'UniFi cameras on a Cloud Key, Dream Machine or UniFi recorder',
     category: 'recorder',
     available: true,
     defaultPorts: [{ port: 443, https: true }],
     addressHint:
       'Your UniFi console’s address (often 192.168.1.1). Sign in with a local account: in UniFi OS open Admins & Users → add an admin, choose “Restrict to local access only”, and give it access to Protect.',
     fields: [
-      ADDRESS('192.168.1.1', 'The address of your Cloud Key, Dream Machine or NVR.'),
+      ADDRESS('192.168.1.1', 'The address of your Cloud Key, Dream Machine or UniFi recorder.'),
       { ...USER(''), hint: 'A local UniFi account, not your Ubiquiti cloud email.' },
       PASS,
     ],
@@ -217,7 +217,7 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'scrypted',
     label: 'Scrypted',
-    blurb: 'Home video platform (live view by camera link)',
+    blurb: 'Home video software (live view, added camera by camera)',
     category: 'software',
     available: true,
     defaultPorts: [
@@ -281,7 +281,7 @@ export const CATALOG: SystemDescriptor[] = [
         key: 'password',
         label: 'API key',
         placeholder: 'Paste the API key',
-        hint: 'In Shinobi, open the menu (your name, top left) → API Keys. Tick the permissions, set Allowed IPs to 0.0.0.0, tap Add, then copy the key.',
+        hint: 'In Shinobi, open the menu (your name, top left) → API Keys. Tick the permissions. Under Allowed IPs, enter this phone’s address (iPhone Settings → Wi-Fi → tap ⓘ next to your network → IP Address). Tap Add, then copy the key.',
         secure: true,
       },
       {
@@ -296,7 +296,7 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'agent-dvr',
     label: 'Agent DVR',
-    blurb: 'iSpy Agent DVR',
+    blurb: 'Camera software by iSpy',
     category: 'software',
     available: true,
     defaultPorts: [{ port: 8090, https: false }],
@@ -314,8 +314,8 @@ export const CATALOG: SystemDescriptor[] = [
   },
   {
     kind: 'onvif',
-    label: 'Camera (ONVIF)',
-    blurb: 'Most IP cameras: just the address and password',
+    label: 'Other network camera',
+    blurb: 'Most Wi-Fi and wired cameras: just the address and password',
     category: 'camera',
     available: true,
     defaultPorts: [
@@ -326,7 +326,10 @@ export const CATALOG: SystemDescriptor[] = [
     ],
     addressHint: 'The camera’s address from your router’s device list or the camera’s app. Sign in with the same login you use in the camera’s app or web page.',
     fields: [
-      ADDRESS('192.168.1.70', 'Just the address is usually enough. If it doesn’t connect, add the camera’s ONVIF port, e.g. 192.168.1.70:8000.'),
+      ADDRESS(
+        '192.168.1.70',
+        'Just the address is usually enough. If it doesn’t connect, turn on “ONVIF” (the standard way apps talk to cameras) in the camera’s app, and add the port it shows, e.g. 192.168.1.70:8000.',
+      ),
       { ...USER(), hint: 'Often “admin”. Some cameras need a separate camera account, made in their app.' },
       { ...PASS, hint: 'The camera’s password (not your Wi-Fi password).' },
     ],
@@ -340,11 +343,11 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'rtsp',
     label: 'Camera by stream link',
-    blurb: 'Any camera with an RTSP link (advanced)',
+    blurb: 'Paste a video link from the camera’s manual (advanced)',
     category: 'camera',
     available: true,
     defaultPorts: [],
-    addressHint: 'The RTSP link from the camera manual, e.g. rtsp://user:pass@192.168.1.50:554/stream1.',
+    addressHint: 'The video link (starts with rtsp://) from the camera’s manual, e.g. rtsp://user:pass@192.168.1.50:554/stream1.',
     usesGateway: false,
     fields: [],
     fingerprints: [],

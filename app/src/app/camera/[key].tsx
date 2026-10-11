@@ -3,10 +3,12 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { ActionSheetIOS, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { LiveState } from '@/components/live/live-player';
 import { LiveView, useLive } from '@/components/live/live-view';
+import { useLinks } from '@/net/connection';
 import { nextTimeOfDay } from '@/alerts/rules';
 import { PtzPad } from '@/components/ptz-pad';
 import { T } from '@/components/ui/primitives';
@@ -26,6 +28,11 @@ export default function CameraScreen() {
   // Answering a doorbell opens with sound on.
   const [muted, setMuted] = useState(unmuted !== '1');
   const [showPtz, setShowPtz] = useState(false);
+  const [liveState, setLiveState] = useState<LiveState>();
+  const [attempt, setAttempt] = useState(0);
+  const systemExists = useApp((s) => s.systems.some((x) => x.id === systemId));
+  const linkMode = useLinks((s) => s.links[systemId]?.mode);
+  const linkError = useLinks((s) => s.links[systemId]?.error);
   const radius = useApp((s) => s.appearance.radius);
   const snoozedUntil = useApp((s) => s.alerts.snoozed[key] ?? 0);
   const snooze = useApp((s) => s.snooze);
@@ -58,7 +65,44 @@ export default function CameraScreen() {
     enabled: !!adapter?.listReview,
   });
 
-  if (!adapter) return <View style={styles.root} />;
+  if (!adapter) {
+    const waiting = systemExists && (linkMode === undefined || linkMode === 'connecting');
+    return (
+      <View style={[styles.root, styles.center, { padding: space.xl, gap: space.md }]}>
+        {waiting ? (
+          <>
+            <ActivityIndicator color="#fff" />
+            <T color="rgba(255,255,255,0.7)">Connecting…</T>
+          </>
+        ) : (
+          <>
+            <SymbolView name="video.slash" tintColor="rgba(255,255,255,0.6)" size={40} />
+            <T v="heading" color="#fff" style={{ textAlign: 'center' }}>
+              {systemExists ? 'Can’t reach this camera right now' : 'This camera isn’t available'}
+            </T>
+            <T color="rgba(255,255,255,0.7)" style={{ textAlign: 'center' }}>
+              {systemExists
+                ? (linkError ?? 'Make sure its recorder is turned on. If you’re away from home, check Settings → Away from home.')
+                : 'It may have been removed from Sightline.'}
+            </T>
+          </>
+        )}
+        <Pressable onPress={() => router.back()} accessibilityRole="button" style={styles.pillBtn}>
+          <T v="label" color="#fff">
+            Close
+          </T>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const liveFailed = live.isError || cameras.isError || liveState === 'error';
+  const retryLive = () => {
+    setLiveState(undefined);
+    setAttempt((n) => n + 1);
+    void cameras.refetch();
+    void live.refetch();
+  };
 
   const videoH = landscape ? height : width / (camera?.aspect ?? 16 / 9);
   // Show the frame the tile already had (instant, from memory), then a sharper one once loaded.
@@ -77,18 +121,50 @@ export default function CameraScreen() {
     <View style={styles.root}>
       <View style={{ height: videoH, marginTop: landscape ? 0 : insets.top + 52 }}>
         {live.data ? (
-          <LiveView live={live.data} muted={muted} poster={poster} timingLabel={camera?.name ?? cameraId} openedAt={openedAt} />
+          <LiveView
+            key={attempt}
+            live={live.data}
+            muted={muted}
+            poster={poster}
+            timingLabel={camera?.name ?? cameraId}
+            openedAt={openedAt}
+            onState={setLiveState}
+          />
         ) : (
           <View style={StyleSheet.absoluteFill}>{poster}</View>
+        )}
+        {!live.data && !liveFailed && adapter.capabilities.live && (
+          <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
+            <ActivityIndicator color="#fff" accessibilityLabel="Loading live video" />
+          </View>
+        )}
+        {(liveFailed || !adapter.capabilities.live) && (
+          <View style={[StyleSheet.absoluteFill, styles.center, styles.scrim]}>
+            <T color="#fff" style={{ textAlign: 'center', paddingHorizontal: space.xl }}>
+              {!adapter.capabilities.live
+                ? 'Live video isn’t available for this camera in this version of the app.'
+                : 'Couldn’t start live video. Make sure the camera and its recorder are turned on, then try again.'}
+            </T>
+            {liveFailed && (
+              <Pressable
+                onPress={retryLive}
+                accessibilityRole="button"
+                style={styles.pillBtn}>
+                <T v="label" color="#fff">
+                  Try again
+                </T>
+              </Pressable>
+            )}
+          </View>
         )}
       </View>
 
       <View style={[styles.topBar, { top: insets.top + 6 }]}>
-        <RoundButton icon="xmark" onPress={() => router.back()} />
+        <RoundButton icon="xmark" label="Close" onPress={() => router.back()} />
         <T v="heading" color="#fff" numberOfLines={1} style={{ flex: 1, textAlign: 'center' }}>
           {camera?.name ?? cameraId}
         </T>
-        <RoundButton icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} onPress={() => setMuted((m) => !m)} />
+        <RoundButton icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} label={muted ? 'Turn sound on' : 'Turn sound off'} onPress={() => setMuted((m) => !m)} />
       </View>
 
       {!landscape && (
@@ -97,7 +173,7 @@ export default function CameraScreen() {
             {adapter.capabilities.review && (
               <Action
                 icon="clock.arrow.circlepath"
-                label="Timeline"
+                label="Recordings"
                 onPress={() =>
                   router.push({
                     pathname: '/playback',
@@ -113,7 +189,7 @@ export default function CameraScreen() {
                 onPress={() => router.push({ pathname: '/timelapse', params: { systemId, cameraId } })}
               />
             )}
-            {camera?.ptz && <Action icon="move.3d" label="PTZ" active={showPtz} onPress={() => setShowPtz((v) => !v)} />}
+            {camera?.ptz && <Action icon="move.3d" label="Move camera" active={showPtz} onPress={() => setShowPtz((v) => !v)} />}
             <Action
               icon={isSnoozed ? 'bell.slash.fill' : 'bell'}
               label={isSnoozed ? `Muted till ${formatClock(snoozedUntil)}` : 'Snooze'}
@@ -124,6 +200,10 @@ export default function CameraScreen() {
 
           {showPtz && camera?.ptz ? (
             <PtzPad adapter={adapter} cameraId={cameraId} />
+          ) : !adapter.listReview ? (
+            <T v="caption" color="rgba(255,255,255,0.5)" style={{ paddingHorizontal: space.lg }}>
+              Recent activity isn’t available for this camera.
+            </T>
           ) : (
             <FlatList
               data={recent.data ?? []}
@@ -135,12 +215,18 @@ export default function CameraScreen() {
                 </T>
               }
               ListEmptyComponent={
-                <T v="caption" color="rgba(255,255,255,0.5)">
-                  {recent.isLoading ? 'Loading…' : 'No activity'}
-                </T>
+                recent.isLoading ? (
+                  <ActivityIndicator color="rgba(255,255,255,0.6)" style={{ alignSelf: 'flex-start' }} />
+                ) : (
+                  <T v="caption" color="rgba(255,255,255,0.5)">
+                    {recent.isError ? 'Couldn’t load recent activity from the recorder.' : 'Nothing happened in the last 24 hours.'}
+                  </T>
+                )
               }
               renderItem={({ item }) => (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${titleFor(item)}, ${formatRelative(item.startTime)}. Opens the recording.`}
                   style={styles.event}
                   onPress={() =>
                     router.push({
@@ -178,9 +264,9 @@ function splitKey(key: string): [string, string] {
   return [key.slice(0, i), key.slice(i + 1)];
 }
 
-function RoundButton({ icon, onPress }: { icon: React.ComponentProps<typeof SymbolView>['name']; onPress: () => void }) {
+function RoundButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof SymbolView>['name']; label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} hitSlop={8} style={styles.round}>
+    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={label} style={styles.round}>
       <SymbolView name={icon} tintColor="#fff" size={18} />
     </Pressable>
   );
@@ -198,7 +284,12 @@ function Action({
   active?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.action, active && { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: !!active }}
+      style={[styles.action, active && { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
       <SymbolView name={icon} tintColor="#fff" size={20} />
       <T v="caption" color="#fff">
         {label}
@@ -209,6 +300,9 @@ function Action({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
+  center: { alignItems: 'center', justifyContent: 'center', gap: space.md },
+  scrim: { backgroundColor: 'rgba(0,0,0,0.6)' },
+  pillBtn: { paddingHorizontal: 20, minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)' },
   topBar: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   round: {
     width: 40,

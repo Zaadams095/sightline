@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { checkForAlerts, registerBackgroundAlerts, requestNotificationPermission } from '@/alerts/background';
 import { ruleFor } from '@/alerts/rules';
 import { DoorbellPackagesSection, HealthSection, KnownPeopleSection, SnoozedSection } from '@/components/alerts/alert-extras';
-import { Button, Chip, Field, Row, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
+import { Button, Chip, Row, Screen, Section, T, TimeStepper, ToggleRow } from '@/components/ui/primitives';
 import { useApp, type CameraAlertRule } from '@/state/store';
 import { useFeatureSupport } from '@/systems/caps';
 import { useAllCameras } from '@/systems/registry';
@@ -23,16 +23,33 @@ export default function AlertSettings() {
   const setRule = useApp((s) => s.setCameraRule);
   const { entries } = useAllCameras({ includeHidden: true });
   const support = useFeatureSupport();
+  // Instant push needs a paired Sightline Hub (or the older stand-alone alerts container).
+  const instantReady = useApp((s) => s.systems.some((x) => x.kind === 'hub') || !!s.alerts.bridge);
   const [open, setOpen] = useState<string | null>(null);
   const [testMsg, setTestMsg] = useState<string | null>(null);
 
   return (
     <Screen>
-      <Section title="Delivery" footer={alerts.mode === 'built-in' ? 'iOS schedules background checks, so alerts may arrive several minutes late. Instant Alerts deliver within a second.' : undefined}>
+      <Section
+        title="Delivery"
+        footer={
+          !instantReady
+            ? 'Built-in alerts are checked in the background when iOS allows, so they can arrive several minutes late. Instant Alerts arrive within a second, but need a Sightline Hub at home.'
+            : alerts.mode === 'built-in'
+              ? 'iOS schedules background checks, so alerts may arrive several minutes late. Instant Alerts deliver within a second.'
+              : 'Alerts come through your Sightline Hub within a second.'
+        }>
         <View style={styles.chips}>
           <Chip label="Built-in" selected={alerts.mode === 'built-in'} onPress={() => { setAlerts({ mode: 'built-in' }); void registerBackgroundAlerts(); }} />
-          <Chip label="Instant Alerts" selected={alerts.mode === 'instant'} onPress={() => { setAlerts({ mode: 'instant' }); void registerBackgroundAlerts(); }} />
+          <Chip
+            label="Instant Alerts"
+            selected={alerts.mode === 'instant'}
+            disabled={!instantReady && alerts.mode !== 'instant'}
+            accessibilityLabel={instantReady ? 'Instant Alerts' : 'Instant Alerts, needs a Sightline Hub'}
+            onPress={() => { setAlerts({ mode: 'instant' }); void registerBackgroundAlerts(); }}
+          />
         </View>
+        {!instantReady && <Row label="Set up a Sightline Hub" detail="Free. Also lets you share cameras and watch away from home." onPress={() => router.push('/settings/bridge')} last />}
       </Section>
 
       <SnoozedSection entries={entries} />
@@ -50,14 +67,10 @@ export default function AlertSettings() {
           last={!alerts.quietHours.enabled}
         />
         {alerts.quietHours.enabled && (
-          <View style={[styles.row, { padding: space.lg }]}>
-            <View style={{ flex: 1 }}>
-              <Field label="From" value={alerts.quietHours.start} onChangeText={(start) => setAlerts({ quietHours: { ...alerts.quietHours, start } })} placeholder="23:00" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Field label="To" value={alerts.quietHours.end} onChangeText={(end) => setAlerts({ quietHours: { ...alerts.quietHours, end } })} placeholder="06:30" />
-            </View>
-          </View>
+          <>
+            <TimeStepper label="From" value={alerts.quietHours.start} onChange={(start) => setAlerts({ quietHours: { ...alerts.quietHours, start } })} />
+            <TimeStepper label="Until" value={alerts.quietHours.end} onChange={(end) => setAlerts({ quietHours: { ...alerts.quietHours, end } })} last />
+          </>
         )}
       </Section>
 

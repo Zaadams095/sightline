@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
+import { SymbolView } from 'expo-symbols';
 import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
@@ -67,6 +68,9 @@ export const CameraTile = memo(function CameraTile({
         onPressIn={prefetchLive}
         onPress={() => onPress?.(shown ?? undefined)}
         onLongPress={onLongPress}
+        accessibilityRole="button"
+        accessibilityLabel={camera.enabled ? camera.name : `${camera.name}, camera off`}
+        accessibilityHint="Opens live view"
         style={({ pressed }) => [
           styles.frame,
           { borderRadius: radius, backgroundColor: palette.surface, opacity: pressed ? 0.85 : 1 },
@@ -94,7 +98,7 @@ export const CameraTile = memo(function CameraTile({
         {labelStyle === 'overlay' && (
           <View style={styles.labelWrap}>
             <View style={[styles.labelPill, { backgroundColor: palette.scrim }]}>
-              {camera.ptz && <Text style={styles.badge}>PTZ</Text>}
+              {camera.ptz && <SymbolView name="move.3d" tintColor="#fff" size={11} accessibilityLabel="Can be moved" />}
               <Text style={styles.label} numberOfLines={1}>
                 {camera.name}
               </Text>

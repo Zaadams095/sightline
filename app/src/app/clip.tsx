@@ -20,7 +20,7 @@ export default function OfflineClip() {
     <View style={styles.root}>
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls allowsPictureInPicture />
       <View style={[styles.top, { top: insets.top + 6 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.round}>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={styles.round}>
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -34,7 +34,12 @@ export default function OfflineClip() {
           )}
         </View>
         {clip?.localUri && (
-          <Pressable onPress={() => shareLocalFile(clip.localUri!, clip.cameraName)} hitSlop={8} style={styles.round}>
+          <Pressable
+            onPress={() => shareLocalFile(clip.localUri!, clip.cameraName)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Share video"
+            style={styles.round}>
             <SymbolView name="square.and.arrow.up" tintColor="#fff" size={17} />
           </Pressable>
         )}
