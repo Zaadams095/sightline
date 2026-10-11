@@ -1,5 +1,7 @@
-# Builds the Instant Alerts bridge and publishes it to GitHub Container Registry.
-name: Bridge image
+# Builds the Sightline Hub (formerly the Instant Alerts bridge) and publishes it to GitHub
+# Container Registry under both names: existing installs keep pulling sightline-bridge, new
+# installs and the Home Assistant add-on use sightline-hub. Same image.
+name: Hub image
 
 on:
   push:
@@ -24,7 +26,7 @@ jobs:
 
       - name: Test
         working-directory: bridge
-        run: go vet ./... && go test ./...
+        run: go vet ./... && go vet -tags notsnet ./... && go test ./...
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -44,5 +46,7 @@ jobs:
           tags: |
             ghcr.io/zaadams095/sightline-bridge:latest
             ghcr.io/zaadams095/sightline-bridge:${{ github.sha }}
+            ghcr.io/zaadams095/sightline-hub:latest
+            ghcr.io/zaadams095/sightline-hub:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

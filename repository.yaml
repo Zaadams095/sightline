@@ -1,0 +1,4 @@
+# Home Assistant add-on repository (the add-on is in homeassistant/sightline_hub).
+name: Sightline
+url: https://github.com/zaadams095/sightline
+maintainer: Zach Adams
