@@ -4,19 +4,22 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { useApp } from '@/state/store';
 import { CATALOG, type Category, type SystemDescriptor } from '@/systems/catalog';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
 const SECTIONS: { category: Category; title: string }[] = [
-  { category: 'recorder', title: 'Recorders (NVR boxes)' },
-  { category: 'software', title: 'Camera software' },
+  { category: 'recorder', title: 'Recorders (the box your cameras plug into)' },
+  { category: 'software', title: 'Camera software on a computer' },
   { category: 'camera', title: 'Individual cameras' },
 ];
 
 export default function Welcome() {
   const p = usePalette();
   const insets = useSafeAreaInsets();
+  // Opened from Settings → "Add a recorder or camera": offer a way back out.
+  const adding = useApp((s) => s.onboarded);
 
   const pick = (d: SystemDescriptor) => {
     if (d.kind === 'rtsp') router.push('/onboarding/rtsp');
@@ -24,11 +27,24 @@ export default function Welcome() {
   };
 
   return (
-    <Screen style={{ paddingTop: insets.top + space.xxl }}>
+    <Screen style={{ paddingTop: insets.top + (adding ? space.sm : space.xxl) }}>
+      {adding && (
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={{ alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' }}>
+          <T color={p.accent}>Cancel</T>
+        </Pressable>
+      )}
       <View style={{ gap: space.sm }}>
-        <T v="title" style={{ fontSize: 34 }}>
-          Your cameras.{'\n'}Your network.
-        </T>
+        {adding ? (
+          <T v="title">Add a recorder or camera</T>
+        ) : (
+          <T v="title" style={{ fontSize: 34 }}>
+            Your cameras.{'\n'}Your network.
+          </T>
+        )}
         <T muted>Watch live, look back at recordings and get alerts, straight from your own system. Nothing goes through the cloud.</T>
       </View>
 
@@ -56,6 +72,8 @@ export default function Welcome() {
                 key={d.kind}
                 disabled={!d.available}
                 onPress={() => pick(d)}
+                accessibilityRole="button"
+                accessibilityLabel={`${d.label}. ${d.available ? d.blurb : 'Coming soon'}`}
                 style={({ pressed }) => [
                   styles.card,
                   { backgroundColor: pressed ? p.surfaceRaised : p.surface, borderColor: p.border, opacity: d.available ? 1 : 0.45 },
@@ -78,7 +96,7 @@ export default function Welcome() {
 function BigOption({ icon, title, onPress }: { icon: React.ComponentProps<typeof SymbolView>['name']; title: string; onPress: () => void }) {
   const p = usePalette();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.big, { backgroundColor: pressed ? p.surfaceRaised : p.surface, borderColor: p.border }]}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={title} style={({ pressed }) => [styles.big, { backgroundColor: pressed ? p.surfaceRaised : p.surface, borderColor: p.border }]}>
       <SymbolView name={icon} tintColor={p.accent} size={26} />
       <T v="label" style={{ textAlign: 'center' }}>
         {title}

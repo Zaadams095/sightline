@@ -16,7 +16,7 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon sf={{ default: 'video', selected: 'video.fill' }} />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="review">
-        <NativeTabs.Trigger.Label>Review</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Recordings</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'clock.arrow.circlepath', selected: 'clock.arrow.circlepath' }} />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="map">

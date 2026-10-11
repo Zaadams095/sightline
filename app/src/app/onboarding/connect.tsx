@@ -32,7 +32,8 @@ export default function ConnectSystem() {
     Object.fromEntries(d.fields.map((f) => [f.key, f.key === 'address' ? (params.address ?? '') : (f.defaultValue ?? '')])),
   );
   // A Hub names itself (its setup page); leave blank to use that name.
-  const [name, setName] = useState(d.category === 'hub' ? '' : 'Home');
+  // Everything else starts with its brand name, which the user can change.
+  const [name, setName] = useState(d.category === 'hub' ? '' : d.label);
   const [useTunnel, setUseTunnel] = useState(true);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -112,7 +113,7 @@ export default function ConnectSystem() {
         label={d.category === 'hub' ? 'Name (optional)' : 'Name'}
         value={name}
         onChangeText={setName}
-        placeholder={d.category === 'hub' ? 'Uses the Hub’s name' : 'Home'}
+        placeholder={d.category === 'hub' ? 'Uses the Hub’s name' : d.label}
         autoCapitalize="words"
       />
       {d.fields.map((f) => (
@@ -132,8 +133,8 @@ export default function ConnectSystem() {
       {d.category !== 'hub' && (
         <Card>
           <ToggleRow
-            label="Use VPN when away"
-            detail="Reach it away from home through your own WireGuard VPN (Settings → VPN). Not needed with a Sightline Hub."
+            label="Reach it when I’m away"
+            detail="Uses your own VPN, if you set one up (Settings → Away from home). Not needed with a Sightline Hub."
             value={useTunnel}
             onChange={setUseTunnel}
             last
@@ -145,7 +146,11 @@ export default function ConnectSystem() {
 
       {unreachable && (
         <>
-          <Button title="Run diagnostics" kind="ghost" onPress={() => router.push('/settings/diagnostics')} />
+          <Button
+            title="Check the connection step by step"
+            kind="ghost"
+            onPress={() => router.push({ pathname: '/settings/diagnostics', params: { kind: d.kind, address: unreachable.endpoint.lanUrl } })}
+          />
           <Button
             title="Save anyway and set up away-from-home access"
             kind="secondary"

@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 
-import { Screen, Section, T } from '@/components/ui/primitives';
+import { IconButton, Screen, Section, T } from '@/components/ui/primitives';
 import { useApp } from '@/state/store';
 import { useAllCameras } from '@/systems/registry';
 import { space } from '@/theme/tokens';
@@ -28,19 +28,16 @@ export default function CameraOrder() {
         {entries.map((e, i) => (
           <View key={e.camera.key} style={[styles.row, { borderBottomColor: p.border, borderBottomWidth: i === entries.length - 1 ? 0 : StyleSheet.hairlineWidth }]}>
             <View style={styles.arrows}>
-              <Pressable onPress={() => move(i, -1)} hitSlop={6} disabled={i === 0}>
-                <T muted={i === 0} color={i === 0 ? undefined : p.accent}>
-                  ▲
-                </T>
-              </Pressable>
-              <Pressable onPress={() => move(i, 1)} hitSlop={6} disabled={i === entries.length - 1}>
-                <T muted={i === entries.length - 1} color={i === entries.length - 1 ? undefined : p.accent}>
-                  ▼
-                </T>
-              </Pressable>
+              <IconButton icon="chevron.up" label={`Move ${e.camera.name} up`} onPress={() => move(i, -1)} disabled={i === 0} />
+              <IconButton icon="chevron.down" label={`Move ${e.camera.name} down`} onPress={() => move(i, 1)} disabled={i === entries.length - 1} />
             </View>
             <T style={{ flex: 1 }}>{e.camera.name}</T>
-            <Switch value={!hidden.includes(e.camera.key)} onValueChange={() => toggleHidden(e.camera.key)} trackColor={{ true: p.accent }} />
+            <Switch
+              value={!hidden.includes(e.camera.key)}
+              onValueChange={() => toggleHidden(e.camera.key)}
+              trackColor={{ true: p.accent }}
+              accessibilityLabel={`Show ${e.camera.name} on the Live tab`}
+            />
           </View>
         ))}
       </Section>
@@ -50,5 +47,5 @@ export default function CameraOrder() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm, minHeight: 52 },
-  arrows: { flexDirection: 'row', gap: space.md },
+  arrows: { flexDirection: 'row', marginLeft: -space.sm },
 });

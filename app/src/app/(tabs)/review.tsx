@@ -113,7 +113,7 @@ export default function ReviewScreen() {
         contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingBottom: 120, gap: space.md }}
         keyboardShouldPersistTaps="handled">
         <T v="title" style={{ paddingHorizontal: space.lg }}>
-          Review
+          Recordings
         </T>
         {modeTabs}
         {mode === 'search' ? <SearchPanel /> : <SavedPanel />}
@@ -132,7 +132,7 @@ export default function ReviewScreen() {
       ListHeaderComponent={
         <View style={{ paddingTop: insets.top + space.sm, gap: space.md, paddingBottom: space.sm }}>
           <T v="title" style={{ paddingHorizontal: space.lg }}>
-            Review
+            Recordings
           </T>
           {modeTabs}
           <PackagesCard names={names} />

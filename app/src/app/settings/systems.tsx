@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { Alert } from 'react-native';
 
 import { unregisterHubDevice } from '@/alerts/bridge';
 import { Button, Card, Field, Screen, T, ToggleRow } from '@/components/ui/primitives';
@@ -33,43 +34,80 @@ export default function SystemSettings() {
   }));
   const [useTunnel, setUseTunnel] = useState(system?.endpoint.useTunnel ?? true);
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState<{ ok: boolean; text: string } | null>(null);
 
   if (!system || !d) {
     return (
       <Screen>
-        <T muted>System not found.</T>
+        <T muted>This recorder or camera was removed.</T>
       </Screen>
     );
   }
 
   const save = async () => {
     setBusy(true);
-    const { address, username, password, ...extra } = values;
-    if (password) await secrets.set(system.id, SECRET.password, password);
-    const next: SystemConfig = {
-      ...system,
-      name: name.trim() || system.name,
-      username: username?.trim() || undefined,
-      extra: { ...system.extra, ...extra },
-      endpoint: {
-        ...system.endpoint,
-        lanUrl: address && address !== system.endpoint.lanUrl ? await resolveAddress(d, address) : system.endpoint.lanUrl,
-        useTunnel,
-      },
-    };
-    // Credentials live in the native route (and any RTSP restreamers), so rebuild them.
-    disconnectSystem(system.id);
-    dropAdapter(system.id);
-    releaseLive(`rtsp://`);
-    upsert(next);
-    await connectSystem(next);
-    setBusy(false);
+    setSaved(null);
+    try {
+      const { address, username, password, ...extra } = values;
+      if (password) await secrets.set(system.id, SECRET.password, password);
+      const next: SystemConfig = {
+        ...system,
+        name: name.trim() || system.name,
+        username: username?.trim() || undefined,
+        extra: { ...system.extra, ...extra },
+        endpoint: {
+          ...system.endpoint,
+          lanUrl: address && address !== system.endpoint.lanUrl ? await resolveAddress(d, address) : system.endpoint.lanUrl,
+          useTunnel,
+        },
+      };
+      // Credentials live in the native route (and any RTSP restreamers), so rebuild them.
+      disconnectSystem(system.id);
+      dropAdapter(system.id);
+      releaseLive(`rtsp://`);
+      upsert(next);
+      const res = await connectSystem(next);
+      setSaved(
+        res.mode === 'offline'
+          ? { ok: false, text: `Saved, but couldn’t connect. ${res.error ?? 'Check the address and that it’s turned on.'}` }
+          : { ok: true, text: 'Saved and connected.' },
+      );
+    } catch (e) {
+      setSaved({ ok: false, text: `Couldn’t save: ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const remove = () =>
+    Alert.alert(
+      `Remove ${system.name}?`,
+      'Its cameras will disappear from this app. Nothing on the recorder or cameras is changed, and you can add it again later.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (system.kind === 'hub') {
+              // Stop this phone's push from the Hub before forgetting its token.
+              await unregisterHubDevice(system);
+              await forgetHubToken(system.id);
+            }
+            disconnectSystem(system.id);
+            dropAdapter(system.id);
+            await secrets.remove(system.id, SECRET.password);
+            removeSystem(system.id);
+            router.back();
+          },
+        },
+      ],
+    );
 
   return (
     <Screen>
       <T muted>
-        {d.label} · {link?.mode === 'lan' ? 'Connected at home' : link?.mode === 'tunnel' ? 'Connected over VPN' : 'Not connected'}
+        {d.label} · {link?.mode === 'lan' ? 'Connected at home' : link?.mode === 'tunnel' ? 'Connected away from home' : 'Not connected'}
         {link?.error ? `\n${link.error}` : ''}
       </T>
       <Field label="Name" value={name} onChangeText={setName} autoCapitalize="words" />
@@ -99,22 +137,8 @@ export default function SystemSettings() {
         )
       )}
       <Button title="Save & reconnect" onPress={save} loading={busy} />
-      <Button
-        title="Remove system"
-        kind="ghost"
-        onPress={async () => {
-          if (system.kind === 'hub') {
-            // Stop this phone's push from the Hub before forgetting its token.
-            await unregisterHubDevice(system);
-            await forgetHubToken(system.id);
-          }
-          disconnectSystem(system.id);
-          dropAdapter(system.id);
-          await secrets.remove(system.id, SECRET.password);
-          removeSystem(system.id);
-          router.back();
-        }}
-      />
+      {saved && <T color={saved.ok ? p.success : p.danger}>{saved.text}</T>}
+      <Button title="Remove from Sightline" kind="ghost" onPress={remove} />
       <T v="caption" color={p.textMuted}>
         Removing a system only removes it from this app. Nothing on your recorder or cameras is changed.
       </T>

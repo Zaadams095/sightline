@@ -75,7 +75,7 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
     if (fail) {
       throw new Error(
         /authori/i.test(fail)
-          ? 'Shinobi didn’t accept the API key and group key. Check both, and that the key’s “Allowed IPs” is 0.0.0.0.'
+          ? 'Shinobi didn’t accept the API key and group key. Check both, and that the key’s “Allowed IPs” includes this phone’s address.'
           : `Shinobi said: ${fail}`,
       );
     }

@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { Chip } from '@/components/ui/primitives';
+import { Chip, T } from '@/components/ui/primitives';
 import type { CameraSystemAdapter, PtzAction } from '@/systems/types';
 import { usePalette } from '@/theme/use-palette';
 
@@ -16,15 +17,41 @@ export function PtzPad({ adapter, cameraId }: { adapter: CameraSystemAdapter; ca
     staleTime: Infinity,
   });
 
+  const [failed, setFailed] = useState(false);
   const send = (a: PtzAction | `preset_${string}`) => {
-    adapter.ptz?.(cameraId, a).catch(() => {});
+    if (!adapter.ptz) return;
+    adapter
+      .ptz(cameraId, a)
+      .then(() => a !== 'STOP' && setFailed(false))
+      .catch(() => setFailed(true));
   };
 
   const canMove = info.data?.canMove ?? true;
   const canZoom = info.data?.canZoom ?? false;
 
+  if (info.isLoading) {
+    return (
+      <View style={[styles.root, styles.center]}>
+        <ActivityIndicator color="#fff" />
+        <T v="caption" color="rgba(255,255,255,0.6)">
+          Getting the camera’s controls…
+        </T>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
+      {failed && (
+        <T v="caption" color="#FF9F0A" style={{ textAlign: 'center', paddingHorizontal: 16 }}>
+          The camera didn’t respond. Check it’s online, then try again.
+        </T>
+      )}
+      {info.isError && (
+        <T v="caption" color="rgba(255,255,255,0.6)" style={{ textAlign: 'center', paddingHorizontal: 16 }}>
+          Couldn’t read this camera’s controls, so the basic ones are shown.
+        </T>
+      )}
       <View style={styles.controls}>
         {canMove && (
           <View style={styles.dpad}>
@@ -59,10 +86,22 @@ export function PtzPad({ adapter, cameraId }: { adapter: CameraSystemAdapter; ca
   );
 }
 
+const SPOKEN: Partial<Record<PtzAction, string>> = {
+  MOVE_UP: 'Turn camera up',
+  MOVE_DOWN: 'Turn camera down',
+  MOVE_LEFT: 'Turn camera left',
+  MOVE_RIGHT: 'Turn camera right',
+  ZOOM_IN: 'Zoom in',
+  ZOOM_OUT: 'Zoom out',
+};
+
 function Btn({ icon, action, send }: { icon: SFSymbol; action: PtzAction; send: (a: PtzAction) => void }) {
   const p = usePalette();
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={SPOKEN[action] ?? action}
+      accessibilityHint="Hold to keep moving"
       onPressIn={() => {
         void Haptics.selectionAsync();
         send(action);
@@ -78,6 +117,7 @@ function Btn({ icon, action, send }: { icon: SFSymbol; action: PtzAction; send: 
 const SIZE = 52;
 const styles = StyleSheet.create({
   root: { gap: 14 },
+  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 36 },
   dpad: { gap: 6 },
   row: { flexDirection: 'row', justifyContent: 'center', gap: 6 },

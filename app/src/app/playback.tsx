@@ -146,6 +146,7 @@ export default function PlaybackScreen() {
     p.muted = false;
   });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { status: playerStatus } = useEvent(player, 'statusChange', { status: player.status });
 
   const applyPendingSeek = () => {
     if (pendingSeek.current != null && segQuery.data && player.status === 'readyToPlay') {
@@ -238,7 +239,7 @@ export default function PlaybackScreen() {
       Alert.alert(
         'Bookmarked',
         adapter?.clip
-          ? 'Your recorder may delete old video over time. To keep this for good, download it from Review → Saved.'
+          ? 'Your recorder may delete old video over time. To keep this for good, download it from Recordings → Saved.'
           : 'Your recorder may delete old video over time.',
       );
     }
@@ -280,6 +281,14 @@ export default function PlaybackScreen() {
 
   const shown = scrubWall ?? wall;
   const noRecordings = segQuery.isSuccess && segments.length === 0;
+  const loadFailed = segQuery.isError || playbackSource.isError || (!!source && playerStatus === 'error');
+  const loadingVideo =
+    !loadFailed && !noRecordings && (segQuery.isLoading || playbackSource.isLoading || (!!source && playerStatus === 'loading'));
+  const cantPlay = !!adapter && !adapter.playback && !adapter.recordingSegments;
+  const retryLoad = () => {
+    void segQuery.refetch();
+    void playbackSource.refetch();
+  };
   const pipW = Math.min(150, width * 0.32);
   const dayChips = (days.data ?? [dayKey(now)]).slice(0, 30);
 
@@ -298,15 +307,42 @@ export default function PlaybackScreen() {
             onPlaying={setStreamPlaying}
           />
         )}
-        {noRecordings && (
+        {noRecordings && !loadFailed && (
           <View style={[StyleSheet.absoluteFill, styles.center]}>
-            <T color="#fff">No recordings in this period</T>
+            <T color="#fff" style={styles.overlayText}>
+              No recordings around this time. Pick another day below, or drag the timeline.
+            </T>
+          </View>
+        )}
+        {loadingVideo && (
+          <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
+            <ActivityIndicator color="#fff" accessibilityLabel="Loading recording" />
+          </View>
+        )}
+        {(loadFailed || !adapter || cantPlay) && (
+          <View style={[StyleSheet.absoluteFill, styles.center, { gap: space.md }]}>
+            <T color="#fff" style={styles.overlayText}>
+              {!adapter
+                ? 'Can’t reach the recorder right now. If you’re away from home, check Settings → Away from home.'
+                : cantPlay
+                  ? 'Recordings from this camera can’t be played in Sightline.'
+                  : playerStatus === 'error' && !segQuery.isError && !playbackSource.isError
+                    ? 'This recording couldn’t be played. Try another time on the timeline.'
+                    : 'Couldn’t load recordings from the recorder. Make sure it’s turned on, then try again.'}
+            </T>
+            {loadFailed && (
+              <Pressable onPress={retryLoad} accessibilityRole="button" style={styles.retry}>
+                <T v="label" color="#fff">
+                  Try again
+                </T>
+              </Pressable>
+            )}
           </View>
         )}
       </View>
 
       <View style={[styles.topBar, { top: insets.top + 6 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.round}>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={styles.round}>
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -320,15 +356,25 @@ export default function PlaybackScreen() {
             </T>
           )}
         </View>
-        <Pressable onPress={() => void toggleSaved()} hitSlop={8} style={styles.round}>
+        <Pressable
+          onPress={() => void toggleSaved()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={existing ? 'Remove from saved' : 'Save this moment'}
+          style={styles.round}>
           <SymbolView name={existing ? 'star.fill' : 'star'} tintColor={existing ? '#FFD60A' : '#fff'} size={18} />
         </Pressable>
         {adapter?.clip && (
-          <Pressable onPress={share} hitSlop={8} style={styles.round} disabled={sharing}>
+          <Pressable onPress={share} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share a clip" style={styles.round} disabled={sharing}>
             {sharing ? <ActivityIndicator color="#fff" /> : <SymbolView name="square.and.arrow.up" tintColor="#fff" size={17} />}
           </Pressable>
         )}
-        <Pressable onPress={() => router.replace({ pathname: '/camera/[key]', params: { key: cameraKey } })} style={styles.liveBtn}>
+        <Pressable
+          onPress={() => router.replace({ pathname: '/camera/[key]', params: { key: cameraKey } })}
+          accessibilityRole="button"
+          accessibilityLabel="Watch live"
+          hitSlop={{ top: 6, bottom: 6 }}
+          style={styles.liveBtn}>
           <View style={styles.liveDot} />
           <T v="caption" color="#fff">
             LIVE
@@ -410,11 +456,12 @@ export default function PlaybackScreen() {
         )}
 
         <View style={styles.buttons}>
-          <Ctl icon="minus.magnifyingglass" small onPress={() => setZoom((z) => Math.max(0, z - 1))} />
-          <Ctl icon="backward.end.fill" onPress={() => jumpEvent(-1)} />
-          <Ctl icon="gobackward.10" onPress={() => seekTo(wall - 10)} />
+          <Ctl icon="minus.magnifyingglass" label="Zoom timeline out" small onPress={() => setZoom((z) => Math.max(0, z - 1))} />
+          <Ctl icon="backward.end.fill" label="Previous event" onPress={() => jumpEvent(-1)} />
+          <Ctl icon="gobackward.10" label="Back 10 seconds" onPress={() => seekTo(wall - 10)} />
           <Ctl
             icon={(streamMode ? streamPlaying && !streamStopped : isPlaying) ? 'pause.fill' : 'play.fill'}
+            label={(streamMode ? streamPlaying && !streamStopped : isPlaying) ? 'Pause' : 'Play'}
             big
             onPress={() => {
               if (!streamMode) return isPlaying ? player.pause() : player.play();
@@ -423,13 +470,18 @@ export default function PlaybackScreen() {
               else setStreamStopped(true);
             }}
           />
-          <Ctl icon="goforward.10" onPress={() => seekTo(wall + 10)} />
-          <Ctl icon="forward.end.fill" onPress={() => jumpEvent(1)} />
-          <Ctl icon="plus.magnifyingglass" small onPress={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} />
+          <Ctl icon="goforward.10" label="Forward 10 seconds" onPress={() => seekTo(wall + 10)} />
+          <Ctl icon="forward.end.fill" label="Next event" onPress={() => jumpEvent(1)} />
+          <Ctl icon="plus.magnifyingglass" label="Zoom timeline in" small onPress={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} />
         </View>
         <View style={styles.footerRow}>
           {!streamMode && (
-            <Pressable onPress={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])} style={styles.pill}>
+            <Pressable
+              onPress={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])}
+              accessibilityRole="button"
+              accessibilityLabel={`Playback speed ${speed} times`}
+              hitSlop={{ top: 8, bottom: 8 }}
+              style={styles.pill}>
               <T v="label" color="#fff">
                 {speed}×
               </T>
@@ -462,9 +514,21 @@ export default function PlaybackScreen() {
   );
 }
 
-function Ctl({ icon, onPress, big, small }: { icon: React.ComponentProps<typeof SymbolView>['name']; onPress: () => void; big?: boolean; small?: boolean }) {
+function Ctl({
+  icon,
+  label,
+  onPress,
+  big,
+  small,
+}: {
+  icon: React.ComponentProps<typeof SymbolView>['name'];
+  label: string;
+  onPress: () => void;
+  big?: boolean;
+  small?: boolean;
+}) {
   return (
-    <Pressable onPress={onPress} hitSlop={6} style={[styles.ctl, big && styles.ctlBig]}>
+    <Pressable onPress={onPress} hitSlop={6} accessibilityRole="button" accessibilityLabel={label} style={[styles.ctl, big && styles.ctlBig]}>
       <SymbolView name={icon} tintColor={small ? 'rgba(255,255,255,0.7)' : '#fff'} size={big ? 26 : small ? 16 : 20} />
     </Pressable>
   );
@@ -473,6 +537,8 @@ function Ctl({ icon, onPress, big, small }: { icon: React.ComponentProps<typeof 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
   center: { alignItems: 'center', justifyContent: 'center' },
+  overlayText: { textAlign: 'center', paddingHorizontal: space.xl },
+  retry: { paddingHorizontal: 20, minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)' },
   topBar: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   round: {
     width: 40,

@@ -72,15 +72,15 @@ export default function RootLayout() {
             <Stack.Screen name="doorbell" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
             <Stack.Screen name="timelapse" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
-            <Stack.Screen name="settings/alerts" options={{ title: 'Notifications' }} />
-            <Stack.Screen name="settings/vpn" options={{ title: 'VPN' }} />
-            <Stack.Screen name="settings/systems" options={{ title: 'Camera systems' }} />
+            <Stack.Screen name="settings/alerts" options={{ title: 'Alerts' }} />
+            <Stack.Screen name="settings/vpn" options={{ title: 'Away from home' }} />
+            <Stack.Screen name="settings/systems" options={{ title: 'Recorder or camera' }} />
             <Stack.Screen name="settings/cameras" options={{ title: 'Cameras & order' }} />
             <Stack.Screen name="settings/grid" options={{ title: 'Grid layouts' }} />
             <Stack.Screen name="settings/groups" options={{ title: 'Camera groups' }} />
             <Stack.Screen name="settings/bridge" options={{ title: 'Instant Alerts' }} />
-            <Stack.Screen name="settings/masks" options={{ title: 'Alert masks' }} />
-            <Stack.Screen name="settings/diagnostics" options={{ title: 'Diagnostics' }} />
+            <Stack.Screen name="settings/masks" options={{ title: 'Ignored areas' }} />
+            <Stack.Screen name="settings/diagnostics" options={{ title: 'Connection check' }} />
             <Stack.Screen name="settings/home-away" options={{ title: 'Home & Away' }} />
             <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />
             <Stack.Screen name="settings/sharing" options={{ title: 'Sharing' }} />

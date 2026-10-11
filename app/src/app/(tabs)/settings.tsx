@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Platform, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Row, Screen, Section, StatusDot, T } from '@/components/ui/primitives';
@@ -24,7 +24,12 @@ export default function SettingsScreen() {
   const alerts = useApp((s) => s.alerts);
   const links = useLinks((s) => s.links);
   const tunnelUp = useLinks((s) => s.tunnelUp);
-  // Someone who only has shared cameras doesn't need VPN or bridge setup.
+  const { width } = useWindowDimensions();
+  // Custom grid layouts only matter on a big screen (same rule as the Live tab).
+  const tablet = (Platform.OS === 'ios' && Platform.isPad) || width >= 700;
+  const hasHub = systems.some((s) => s.kind === 'hub');
+  const hubRemote = systems.some((s) => s.kind === 'hub' && !!s.extra?.remoteUrl);
+  // Someone who only has shared cameras doesn't need away-from-home or Hub setup.
   const guestOnly = systems.length > 0 && systems.every(isGuest);
   const sharable = systems.some(canShare);
   const shared = systems.find((s) => sharedDetail(s));
@@ -47,7 +52,7 @@ export default function SettingsScreen() {
             />
           );
         })}
-        <Row label="Add a system" onPress={() => router.push('/onboarding')} last />
+        <Row label="Add a recorder or camera" onPress={() => router.push('/onboarding')} last />
       </Section>
 
       <Section title="Sharing">
@@ -67,15 +72,19 @@ export default function SettingsScreen() {
 
       {!guestOnly && (
         <Section title="Connection">
-          <Row label="VPN" detail={tunnelUp ? 'Connected' : 'Connects automatically when away'} onPress={() => router.push('/settings/vpn')} />
-          <Row label="Diagnostics" detail="Test the connection step by step" onPress={() => router.push('/settings/diagnostics')} last />
+          <Row
+            label="Away from home"
+            detail={hubRemote ? 'On, through your Sightline Hub' : tunnelUp ? 'Connected' : 'Watch your cameras from anywhere'}
+            onPress={() => router.push('/settings/vpn')}
+          />
+          <Row label="Connection check" detail="Find out why a recorder or camera won’t connect" onPress={() => router.push('/settings/diagnostics')} last />
         </Section>
       )}
 
       <Section title="Alerts">
         <Row
-          label="Notifications"
-          detail={alerts.mode === 'instant' ? 'Instant Alerts' : 'Built-in (background checks)'}
+          label="Alert settings"
+          detail={alerts.mode === 'instant' ? 'Instant Alerts' : 'Built-in (may arrive a few minutes late)'}
           onPress={() => router.push('/settings/alerts')}
         />
         <Row
@@ -84,7 +93,14 @@ export default function SettingsScreen() {
           onPress={() => router.push('/settings/home-away')}
           last={guestOnly}
         />
-        {!guestOnly && <Row label="Instant Alerts setup" onPress={() => router.push('/settings/bridge')} last />}
+        {!guestOnly && (
+          <Row
+            label="Instant Alerts"
+            detail={hasHub || alerts.bridge ? 'Ready: alerts within a second' : 'Needs a Sightline Hub'}
+            onPress={() => router.push('/settings/bridge')}
+            last
+          />
+        )}
       </Section>
 
       <Section title="Privacy">
@@ -94,8 +110,8 @@ export default function SettingsScreen() {
       <Section title="Look & layout">
         <Row label="Appearance" detail="Theme, accent color, tile style" onPress={() => router.push('/settings/appearance')} />
         <Row label="Cameras & order" detail="Reorder or hide cameras" onPress={() => router.push('/settings/cameras')} />
-        <Row label="Camera groups" detail="Front Yard, Back Yard, Indoors…" onPress={() => router.push('/settings/groups')} />
-        <Row label="iPad grid layouts" detail="Custom multi-size camera walls" onPress={() => router.push('/settings/grid')} last />
+        <Row label="Camera groups" detail="Front Yard, Back Yard, Indoors…" onPress={() => router.push('/settings/groups')} last={!tablet} />
+        {tablet && <Row label="Grid layouts" detail="Custom multi-size camera walls" onPress={() => router.push('/settings/grid')} last />}
       </Section>
 
       <View style={{ alignItems: 'center', paddingTop: space.md }}>

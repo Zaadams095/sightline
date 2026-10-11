@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
-import { Button, Field, Row, Screen, Section, T } from '@/components/ui/primitives';
+import { Button, Field, IconButton, Row, Screen, Section, T } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp, type CameraGroup } from '@/state/store';
 import { useFeatureSupport } from '@/systems/caps';
@@ -84,21 +84,22 @@ export default function GroupsSettings() {
           {groups.map((g, i) => (
             <View key={g.id} style={[styles.row, { borderBottomColor: p.border, borderBottomWidth: i === groups.length - 1 ? 0 : StyleSheet.hairlineWidth }]}>
               <View style={styles.arrows}>
-                <Pressable onPress={() => moveGroup(g.id, -1)} hitSlop={6} disabled={i === 0}>
-                  <T color={i === 0 ? p.border : p.accent}>▲</T>
-                </Pressable>
-                <Pressable onPress={() => moveGroup(g.id, 1)} hitSlop={6} disabled={i === groups.length - 1}>
-                  <T color={i === groups.length - 1 ? p.border : p.accent}>▼</T>
-                </Pressable>
+                <IconButton icon="chevron.up" label={`Move ${g.name} up`} onPress={() => moveGroup(g.id, -1)} disabled={i === 0} />
+                <IconButton icon="chevron.down" label={`Move ${g.name} down`} onPress={() => moveGroup(g.id, 1)} disabled={i === groups.length - 1} />
               </View>
-              <Pressable style={{ flex: 1 }} onPress={() => setEditing(g)}>
+              <Pressable style={{ flex: 1, minHeight: 44, justifyContent: 'center' }} onPress={() => setEditing(g)} accessibilityRole="button" accessibilityHint="Edit this group">
                 <T>{g.name}</T>
                 <T v="caption" muted>
                   {g.cameraKeys.length} camera{g.cameraKeys.length === 1 ? '' : 's'}
                   {g.source ? ' · from your recorder' : ''}
                 </T>
               </Pressable>
-              <Pressable onPress={() => deleteGroup(g.id)} hitSlop={8}>
+              <Pressable
+                onPress={() => deleteGroup(g.id)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${g.name}`}
+                style={{ minHeight: 44, justifyContent: 'center' }}>
                 <T color={p.danger}>Delete</T>
               </Pressable>
             </View>
@@ -115,5 +116,5 @@ export default function GroupsSettings() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm, minHeight: 56 },
-  arrows: { gap: 2 },
+  arrows: { flexDirection: 'row', marginLeft: -space.sm },
 });

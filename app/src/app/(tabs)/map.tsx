@@ -94,11 +94,26 @@ export default function MapScreen() {
       <View style={styles.header}>
         <T v="title">Map</T>
         <View style={styles.row}>
-          <Chip label="View" selected={mode === 'view'} onPress={() => setMode('view')} />
-          <Chip label="Place" selected={mode === 'place'} onPress={() => setMode('place')} />
-          <Chip label="Link" selected={mode === 'link'} onPress={() => { setMode('link'); setLinkFrom(null); }} />
+          <Chip label="View" selected={mode === 'view'} onPress={() => setMode('view')} accessibilityLabel="View: watch activity" />
+          <Chip label="Place" selected={mode === 'place'} onPress={() => setMode('place')} accessibilityLabel="Place: put cameras on the map" />
+          <Chip
+            label="Connect"
+            selected={mode === 'link'}
+            onPress={() => {
+              setMode('link');
+              setLinkFrom(null);
+            }}
+            accessibilityLabel="Connect: link cameras someone can walk between"
+          />
         </View>
       </View>
+      <T v="caption" muted>
+        {mode === 'view'
+          ? 'Viewing your map. Switch to Place to put cameras on it, or Connect to link cameras next to each other.'
+          : mode === 'place'
+            ? 'Placing cameras: add them below, then drag each pin to where the camera is.'
+            : 'Connecting cameras: tells Sightline which cameras a person walks between, so it can follow them.'}
+      </T>
 
       <CameraMapView
         map={map}
@@ -129,8 +144,18 @@ export default function MapScreen() {
                 Drag the pin to move it. Aim it so the cone matches what the camera sees.
               </T>
               <View style={styles.row}>
-                <Chip label="⟲ 15°" selected={false} onPress={() => updateSelected({ heading: (sel.heading + 345) % 360 })} />
-                <Chip label="⟳ 15°" selected={false} onPress={() => updateSelected({ heading: (sel.heading + 15) % 360 })} />
+                <Chip
+                  label="Turn left"
+                  accessibilityLabel="Turn left 15 degrees"
+                  selected={false}
+                  onPress={() => updateSelected({ heading: (sel.heading + 345) % 360 })}
+                />
+                <Chip
+                  label="Turn right"
+                  accessibilityLabel="Turn right 15 degrees"
+                  selected={false}
+                  onPress={() => updateSelected({ heading: (sel.heading + 15) % 360 })}
+                />
                 <Chip label="Narrower" selected={false} onPress={() => updateSelected({ fov: Math.max(30, sel.fov - 15) })} />
                 <Chip label="Wider" selected={false} onPress={() => updateSelected({ fov: Math.min(180, sel.fov + 15) })} />
               </View>
@@ -153,7 +178,13 @@ export default function MapScreen() {
               </T>
               <View style={styles.wrap}>
                 {unplaced.map((e) => (
-                  <Chip key={e.camera.key} label={`+ ${e.camera.name}`} selected={false} onPress={() => place(e.camera.key)} />
+                  <Chip
+                    key={e.camera.key}
+                    label={e.camera.name}
+                    accessibilityLabel={`Add ${e.camera.name} to the map`}
+                    selected={false}
+                    onPress={() => place(e.camera.key)}
+                  />
                 ))}
               </View>
             </View>
@@ -168,13 +199,19 @@ export default function MapScreen() {
               ? `Now tap the camera someone would reach next from ${names.get(linkFrom)}.`
               : 'Tap two cameras a person can walk between (like Driveway → Front Door). Tap a linked pair again to unlink.'}
           </T>
+          {map.links.length > 0 && (
+            <T v="caption" muted>
+              The time is about how long it takes to walk between them. Tap it to change.
+            </T>
+          )}
           {map.links.map((l) => (
             <View key={`${l.a}|${l.b}`} style={[styles.linkRow, { borderColor: p.border }]}>
               <T style={{ flex: 1 }} numberOfLines={1}>
-                {names.get(l.a)} ↔ {names.get(l.b)}
+                {names.get(l.a)} and {names.get(l.b)}
               </T>
               <Chip
-                label={`~${l.transitSec}s`}
+                label={`About ${l.transitSec}s`}
+                accessibilityLabel={`Walk time about ${l.transitSec} seconds. Tap to change.`}
                 selected={false}
                 onPress={() =>
                   setMap({

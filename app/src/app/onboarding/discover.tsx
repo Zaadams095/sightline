@@ -30,7 +30,7 @@ export default function Discover() {
   }, [run]);
 
   const open = (f: Found) => {
-    if (!f.kind || !describe(f.kind).available) {
+    if (!f.kind) {
       // An unrecognized camera: the generic camera setup (or stream link) handles it.
       router.push({ pathname: '/onboarding/connect', params: { kind: describe('onvif').available ? 'onvif' : 'rtsp', address: f.host } });
       return;
@@ -55,21 +55,33 @@ export default function Discover() {
         <T muted>Nothing found. Make sure you’re on your home Wi-Fi, or choose your brand on the previous screen.</T>
       )}
       {found?.map((f) => {
-        const supported = !!f.kind && describe(f.kind).available;
+        // A brand Sightline recognizes but can't connect to yet: shown, but not tappable.
+        const unsupported = !!f.kind && !describe(f.kind).available;
+        const note = unsupported
+          ? 'Sightline can’t connect to this one yet.'
+          : f.kind
+            ? f.address
+            : `${f.address} · Brand unknown. Tap to try with its password.`;
         return (
           <Pressable
             key={f.host}
             onPress={() => open(f)}
-            style={({ pressed }) => [styles.item, { backgroundColor: pressed ? p.surfaceRaised : p.surface, borderColor: p.border }]}>
+            disabled={unsupported}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: unsupported }}
+            accessibilityLabel={`${f.label}. ${note}`}
+            style={({ pressed }) => [
+              styles.item,
+              { backgroundColor: pressed ? p.surfaceRaised : p.surface, borderColor: p.border, opacity: unsupported ? 0.55 : 1 },
+            ]}>
             <SymbolView name={f.kind === 'hub' ? 'server.rack' : f.kind ? 'externaldrive.connected.to.line.below' : 'video'} tintColor={p.accent} size={24} />
             <View style={{ flex: 1 }}>
               <T v="label">{f.label}</T>
               <T v="caption" muted>
-                {f.address}
-                {f.kind && !supported ? ' · support coming soon' : ''}
+                {note}
               </T>
             </View>
-            <T muted>›</T>
+            {!unsupported && <SymbolView name="chevron.right" tintColor={p.textMuted} size={13} weight="semibold" />}
           </Pressable>
         );
       })}
