@@ -16,9 +16,14 @@
         "NSLocalNetworkUsageDescription": "Connect to cameras and recorders on your home network.",
         "NSBonjourServices": [
           "_http._tcp",
+          "_rtsp._tcp",
+          "_http._tcp",
           "_rtsp._tcp"
         ],
         "UIBackgroundModes": [
+          "fetch",
+          "processing",
+          "remote-notification",
           "fetch",
           "processing",
           "remote-notification"
@@ -26,10 +31,12 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
-        "SightlineAppGroup": "group.com.zachadams.sightline"
+        "SightlineAppGroup": "group.com.zachadams.sightline",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "com.apple.security.application-groups": [
+          "group.com.zachadams.sightline",
           "group.com.zachadams.sightline"
         ]
       },
