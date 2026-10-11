@@ -15,6 +15,10 @@ interface NativeWgTunnel {
   tunnelStatus(): string;
   validateConfig(conf: string): string;
   probe(hostport: string, viaTunnel: boolean, timeoutMs: number): Promise<boolean>;
+  /** '' when reachable, otherwise the dial error. */
+  probeError(hostport: string, viaTunnel: boolean, timeoutMs: number): Promise<string>;
+  /** 'HTTP <status>' or the error (self-signed certs allowed). */
+  httpCheck(url: string, viaTunnel: boolean, timeoutMs: number): Promise<string>;
   addRoute(
     target: string,
     viaTunnel: boolean,

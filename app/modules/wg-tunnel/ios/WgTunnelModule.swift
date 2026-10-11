@@ -29,6 +29,15 @@ public class WgTunnelModule: Module {
       WgtunnelProbe(hostport, viaTunnel, timeoutMs)
     }
 
+    // Diagnostics: the real error text instead of a yes/no.
+    AsyncFunction("probeError") { (hostport: String, viaTunnel: Bool, timeoutMs: Int) -> String in
+      WgtunnelProbeError(hostport, viaTunnel, timeoutMs)
+    }
+
+    AsyncFunction("httpCheck") { (url: String, viaTunnel: Bool, timeoutMs: Int) -> String in
+      WgtunnelHTTPCheck(url, viaTunnel, timeoutMs)
+    }
+
     AsyncFunction("addRoute") {
       (target: String, viaTunnel: Bool, insecureTLS: Bool, authKind: String, user: String, pass: String) -> Int in
       var port: Int = 0

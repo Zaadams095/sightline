@@ -53,10 +53,10 @@ func TestParseWgQuick(t *testing.T) {
 
 func TestParseWgQuickErrors(t *testing.T) {
 	cases := map[string]string{
-		"no address":  "[Interface]\nPrivateKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=\n[Peer]\nEndpoint = 1.2.3.4:1\n",
-		"no peer":     "[Interface]\nAddress = 10.0.0.2/32\n",
-		"bad key":     "[Interface]\nPrivateKey = nope\nAddress = 10.0.0.2/32\n",
-		"garbage":     "hello world",
+		"no address": "[Interface]\nPrivateKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=\n[Peer]\nEndpoint = 1.2.3.4:1\n",
+		"no peer":    "[Interface]\nAddress = 10.0.0.2/32\n",
+		"bad key":    "[Interface]\nPrivateKey = nope\nAddress = 10.0.0.2/32\n",
+		"garbage":    "hello world",
 	}
 	for name, conf := range cases {
 		if ValidateConfig(conf) == "" {
@@ -147,5 +147,20 @@ func TestTunnelRouteWithoutTunnelFails(t *testing.T) {
 	}
 	if !strings.Contains(TunnelStatus(), `"running":false`) {
 		t.Error(TunnelStatus())
+	}
+}
+
+func TestDiagnostics(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "https://")
+	if msg := ProbeError(host, false, 1000); msg != "" {
+		t.Errorf("ProbeError on open port = %q", msg)
+	}
+	if msg := ProbeError("127.0.0.1:1", false, 1000); msg == "" {
+		t.Error("ProbeError on closed port should explain the failure")
+	}
+	if got := HTTPCheck(srv.URL+"/api/version", false, 2000); got != "HTTP 200" {
+		t.Errorf("HTTPCheck = %q", got)
 	}
 }

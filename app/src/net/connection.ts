@@ -119,12 +119,12 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
     const baseUrl = `http://127.0.0.1:${port}`;
 
     // Retry once: the first local connection can fail while iOS shows the Local Network prompt.
-    let direct = await WgTunnel.probe(hostPort(target), false, LAN_PROBE_MS);
-    if (!direct) {
+    let dialError = await WgTunnel.probeError(hostPort(target), false, LAN_PROBE_MS);
+    if (dialError) {
       await new Promise((r) => setTimeout(r, 1000));
-      direct = await WgTunnel.probe(hostPort(target), false, LAN_PROBE_MS);
+      dialError = await WgTunnel.probeError(hostPort(target), false, LAN_PROBE_MS);
     }
-    if (direct) {
+    if (!dialError) {
       WgTunnel.setRouteViaTunnel(port, false);
       const link: SystemLink = { baseUrl, port, mode: 'lan' };
       store.set(s.id, link);
@@ -136,7 +136,7 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
         baseUrl,
         port,
         mode: 'offline',
-        error: `Couldn't reach ${hostPort(target)} from this network. If you're on home Wi-Fi, check the address and that Local Network access is on (iOS Settings → Sightline).`,
+        error: `Couldn't reach ${hostPort(target)}: ${dialError}. Settings → Diagnostics can test the connection step by step.`,
       };
       store.set(s.id, link);
       return link;

@@ -38,7 +38,8 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Connection">
-        <Row label="VPN" detail={tunnelUp ? 'Connected' : 'Connects automatically when away'} onPress={() => router.push('/settings/vpn')} last />
+        <Row label="VPN" detail={tunnelUp ? 'Connected' : 'Connects automatically when away'} onPress={() => router.push('/settings/vpn')} />
+        <Row label="Diagnostics" detail="Test the connection step by step" onPress={() => router.push('/settings/diagnostics')} last />
       </Section>
 
       <Section title="Alerts">

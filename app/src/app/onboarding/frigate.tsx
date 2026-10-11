@@ -116,6 +116,9 @@ export default function FrigateSetup() {
       {result && <T color={result.ok ? p.success : p.danger}>{result.msg}</T>}
 
       {unreachable && (
+        <Button title="Run diagnostics" kind="ghost" onPress={() => router.push('/settings/diagnostics')} />
+      )}
+      {unreachable && (
         <Button
           title="Save anyway and set up VPN"
           kind="secondary"
