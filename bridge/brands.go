@@ -13,7 +13,7 @@ import _ "github.com/zachadams/sightline/bridge/backend/frigate"
 
 // import _ "github.com/zachadams/sightline/bridge/backend/reolink"
 
-// import _ "github.com/zachadams/sightline/bridge/backend/unifi"
+import _ "github.com/zachadams/sightline/bridge/backend/unifi"
 
 // import _ "github.com/zachadams/sightline/bridge/backend/onvif"
 
