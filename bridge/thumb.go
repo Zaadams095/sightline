@@ -2,21 +2,15 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
-	"io"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 // Push payloads are capped at ~4 KB, so the bridge embeds a tiny, end-to-end encrypted JPEG
@@ -68,36 +62,6 @@ func openThumb(secret, b64 string) ([]byte, error) {
 		return nil, errors.New("short payload")
 	}
 	return gcm.Open(nil, raw[:gcm.NonceSize()], raw[gcm.NonceSize():], nil)
-}
-
-// snapshotter fetches the current frame from Frigate's internal (unauthenticated) API.
-type snapshotter struct {
-	base   string // e.g. http://frigate:5000
-	client *http.Client
-}
-
-func newSnapshotter(base string) *snapshotter {
-	if base == "" {
-		return nil
-	}
-	return &snapshotter{base: base, client: &http.Client{Timeout: 4 * time.Second}}
-}
-
-func (s *snapshotter) fetch(ctx context.Context, camera string, height int) ([]byte, error) {
-	u := fmt.Sprintf("%s/api/%s/latest.jpg?height=%d&quality=85", s.base, url.PathEscape(camera), height)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("frigate snapshot: HTTP %d", resp.StatusCode)
-	}
-	return io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 }
 
 // tinyJPEG downsizes to thumbWidth and lowers quality until it fits the byte budget.

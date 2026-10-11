@@ -2,53 +2,51 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-	"sort"
 	"strings"
 	"time"
+
+	"github.com/zachadams/sightline/bridge/backend"
+	"github.com/zachadams/sightline/bridge/backend/frigate"
 )
 
-// healthMonitor polls Frigate's internal API and pushes one alert per new problem
-// (camera offline, storage nearly full, Frigate not answering), re-arming once it clears.
+// healthMonitor polls a system's health and pushes one alert per new problem (camera offline,
+// storage nearly full, system not answering), re-arming once it clears.
 type healthMonitor struct {
-	base   string
+	poll   func(ctx context.Context) (backend.Health, error)
+	label  string // "Frigate"
 	store  *store
 	pusher pusher
-	client *http.Client
+	// cameraID maps a native camera ID to the ID devices know it by (nil = unchanged).
+	cameraID func(native string) string
+	// allow reports whether a device may hear about a camera ("" = system-wide issue).
+	allow func(d device, camera string) bool
 
 	active   map[string]bool // issue key -> already notified
 	failures int
 }
 
-type frigateStats struct {
-	Cameras map[string]struct {
-		CameraFPS float64 `json:"camera_fps"`
-	} `json:"cameras"`
-	Service struct {
-		Storage map[string]struct {
-			Total float64 `json:"total"`
-			Used  float64 `json:"used"`
-			Free  float64 `json:"free"`
-		} `json:"storage"`
-	} `json:"service"`
-}
-
-type frigateConfig struct {
-	Cameras map[string]struct {
-		Enabled *bool `json:"enabled"`
-	} `json:"cameras"`
-}
+// Frigate wire types, kept under their old names for the tests.
+type (
+	frigateStats  = frigate.Stats
+	frigateConfig = frigate.Config
+)
 
 type issue struct {
 	key, title, body string
+	camera           string
 	storagePct       int // >0 for storage issues: only devices with a threshold <= this are told
 }
 
+// newHealthMonitor watches a Frigate at base (the original bridge behavior).
 func newHealthMonitor(base string, s *store, p pusher) *healthMonitor {
-	return &healthMonitor{base: base, store: s, pusher: p, client: &http.Client{Timeout: 10 * time.Second}, active: map[string]bool{}}
+	f := frigate.New(backend.Config{ID: "frigate", Kind: "frigate", URL: base})
+	return newBackendHealthMonitor(f, s, p)
+}
+
+func newBackendHealthMonitor(b backend.Backend, s *store, p pusher) *healthMonitor {
+	return &healthMonitor{poll: b.Health, label: b.Label(), store: s, pusher: p, active: map[string]bool{}}
 }
 
 func (h *healthMonitor) run(ctx context.Context, every time.Duration) {
@@ -64,66 +62,44 @@ func (h *healthMonitor) run(ctx context.Context, every time.Duration) {
 	}
 }
 
-func (h *healthMonitor) getJSON(ctx context.Context, path string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.base+path, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := h.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-	return json.NewDecoder(resp.Body).Decode(out)
-}
-
 func (h *healthMonitor) check(ctx context.Context) {
-	var stats frigateStats
-	var cfg frigateConfig
-	err := h.getJSON(ctx, "/api/stats", &stats)
-	if err == nil {
-		err = h.getJSON(ctx, "/api/config", &cfg)
+	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	report, err := h.poll(cctx)
+	if ctx.Err() != nil {
+		return
 	}
-	h.evaluate(stats, cfg, err)
+	h.evaluateHealth(report, err)
 }
 
-// evaluate turns one poll into notifications; split out for tests.
+// evaluate turns one Frigate stats/config poll into notifications.
 func (h *healthMonitor) evaluate(stats frigateStats, cfg frigateConfig, pollErr error) {
+	h.evaluateHealth(frigate.HealthFrom(stats, cfg), pollErr)
+}
+
+// evaluateHealth turns one poll into notifications; split out for tests.
+func (h *healthMonitor) evaluateHealth(report backend.Health, pollErr error) {
 	var issues []issue
 	if pollErr != nil {
 		h.failures++
 		// Three misses in a row (~3 min) before calling it down, to ride out restarts.
 		if h.failures >= 3 {
-			issues = append(issues, issue{key: "down", title: "Frigate isn't responding", body: pollErr.Error()})
+			issues = append(issues, issue{key: "down", title: h.label + " isn't responding", body: pollErr.Error()})
 		}
 	} else {
 		h.failures = 0
-		names := make([]string, 0, len(stats.Cameras))
-		for name := range stats.Cameras {
-			names = append(names, name)
+		for _, native := range report.Offline {
+			cam := native
+			if h.cameraID != nil {
+				cam = h.cameraID(native)
+			}
+			issues = append(issues, issue{key: "offline:" + cam, camera: cam, title: native + " is offline", body: "No video from this camera."})
 		}
-		sort.Strings(names)
-		for _, name := range names {
-			c := cfg.Cameras[name]
-			if c.Enabled != nil && !*c.Enabled {
-				continue
-			}
-			if stats.Cameras[name].CameraFPS == 0 {
-				issues = append(issues, issue{key: "offline:" + name, title: name + " is offline", body: "No video from this camera."})
-			}
-		}
-		for path, s := range stats.Service.Storage {
-			if s.Total <= 0 || !strings.HasPrefix(path, "/media/frigate") {
-				continue
-			}
-			pct := int(s.Used / s.Total * 100)
+		for _, s := range report.Storage {
 			issues = append(issues, issue{
-				key: "storage:" + path, storagePct: pct,
-				title: fmt.Sprintf("Recorder storage is %d%% full", pct),
-				body:  fmt.Sprintf("%.1f GB free on %s.", s.Free/1024, path),
+				key: "storage:" + s.Path, storagePct: s.UsedPct,
+				title: fmt.Sprintf("Recorder storage is %d%% full", s.UsedPct),
+				body:  fmt.Sprintf("%.1f GB free on %s.", s.FreeGB, s.Path),
 			})
 		}
 	}
@@ -133,6 +109,9 @@ func (h *healthMonitor) evaluate(stats frigateStats, cfg frigateConfig, pollErr 
 	for _, is := range issues {
 		for _, d := range h.store.all() {
 			if !d.Health.Enabled || (is.storagePct > 0 && is.storagePct < max(1, d.Health.StoragePct)) {
+				continue
+			}
+			if h.allow != nil && !h.allow(d, is.camera) {
 				continue
 			}
 			now[is.key] = true

@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/zachadams/sightline/bridge/backend"
+	"github.com/zachadams/sightline/bridge/backend/frigate"
 )
 
 // Mirrors app/src/alerts/rules.ts. Keep the two in sync.
@@ -41,21 +43,27 @@ type device struct {
 	SystemID    string            `json:"systemId"`
 	Timezone    string            `json:"timezone"`
 	DefaultRule rule              `json:"defaultRule"`
-	Rules       map[string]rule   `json:"rules"` // keyed by Frigate camera name
+	Rules       map[string]rule   `json:"rules"` // keyed by camera ID
 	CameraNames map[string]string `json:"cameraNames"`
 	Masks       map[string][][]pt `json:"masks"`
 	DetectSizes map[string]size   `json:"detectSizes"`
 	QuietHours  quietHours        `json:"quietHours"`
 	CooldownSec int64             `json:"cooldownSec"`
-	// Recognized names (Frigate sub-labels) that never alert; unrecognized objects always do.
+	// Recognized names (sub-labels) that never alert; unrecognized objects always do.
 	QuietFor []string `json:"quietFor"`
-	// Camera name -> unix seconds until which alerts from it are muted.
+	// Camera ID -> unix seconds until which alerts from it are muted.
 	Snoozed map[string]int64 `json:"snoozed"`
 	Health  healthPrefs      `json:"health"`
 	// Home/Away (from the phone's geofence): while home, only these cameras alert.
 	AtHome        bool     `json:"atHome"`
 	AlertWhenHome []string `json:"alertWhenHome"`
 	UpdatedAt     int64    `json:"updatedAt"`
+
+	// Hub: the grant this phone registered with ("" = legacy BRIDGE_SECRET pairing, which is
+	// owner-equivalent). Alerts are limited to what the grant can see.
+	GrantID string `json:"grantId,omitempty"`
+	// Hub: per-phone key for the encrypted inline thumbnail (legacy pairings use BRIDGE_SECRET).
+	ThumbKey string `json:"thumbKey,omitempty"`
 }
 
 type healthPrefs struct {
@@ -63,49 +71,28 @@ type healthPrefs struct {
 	StoragePct int  `json:"storagePct"`
 }
 
-type reviewData struct {
-	Objects    []string `json:"objects"`
-	SubLabels  []string `json:"sub_labels"`
-	Zones      []string `json:"zones"`
-	Detections []string `json:"detections"`
-}
-
-// frigate/events message (box is in detect-resolution pixels: x1, y1, x2, y2).
-type eventMessage struct {
-	Type  string `json:"type"`
-	After struct {
-		ID     string    `json:"id"`
-		Camera string    `json:"camera"`
-		Box    []float64 `json:"box"`
-	} `json:"after"`
-}
-
-type review struct {
-	ID        string     `json:"id"`
-	Camera    string     `json:"camera"`
-	StartTime float64    `json:"start_time"`
-	Severity  string     `json:"severity"`
-	Data      reviewData `json:"data"`
-}
-
-type reviewMessage struct {
-	Type   string `json:"type"`
-	Before review `json:"before"`
-	After  review `json:"after"`
-}
+// Frigate's MQTT wire types, used by the legacy entry points below and the tests.
+type (
+	review        = frigate.Review
+	reviewData    = frigate.ReviewData
+	reviewMessage = frigate.ReviewMessage
+)
 
 type engine struct {
 	store  *store
 	pusher pusher
-	snap   *snapshotter
 	secret string
+	// snapshot fetches a camera's current frame for the inline thumbnail (nil = none).
+	snapshot func(ctx context.Context, camera string, height int) ([]byte, error)
+	// allow reports whether a device may be alerted about a camera (nil = everyone).
+	allow func(d device, camera string) bool
 
 	pointsMu sync.Mutex
-	points   map[string][][2]float64 // event id -> pixel foot positions seen so far
+	points   map[string][][2]float64 // object id -> pixel foot positions seen so far
 	seenAt   map[string]time.Time
 
 	mu       sync.Mutex
-	notified map[string]bool             // deviceID|reviewID already pushed
+	notified map[string]bool             // deviceID|eventID already pushed
 	lastCam  map[string]map[string]int64 // deviceID -> camera -> last push (unix)
 }
 
@@ -117,18 +104,31 @@ func newEngine(s *store, p pusher) *engine {
 	}
 }
 
-// handleEvent records where each tracked object's feet were, for alert masks.
+// handleEvent records an object position from a raw frigate/events message.
 func (e *engine) handleEvent(payload []byte) {
-	var m eventMessage
-	if json.Unmarshal(payload, &m) != nil || len(m.After.Box) != 4 {
+	if id, x, y, ok := frigate.ParseObjectMessage(payload); ok {
+		e.OnPosition(id, x, y)
+	}
+}
+
+// handle processes a raw frigate/reviews message.
+func (e *engine) handle(payload []byte) {
+	m, ok, err := frigate.ParseReviewMessage(payload)
+	if err != nil {
+		log.Printf("bad review message: %v", err)
 		return
 	}
-	b := m.After.Box
-	foot := [2]float64{(b[0] + b[2]) / 2, b[3]}
+	if ok {
+		e.OnEvent(m.After.Event())
+	}
+}
+
+// OnPosition records where each tracked object's feet were, for alert masks (backend.Sink).
+func (e *engine) OnPosition(id string, x, y float64) {
 	e.pointsMu.Lock()
 	defer e.pointsMu.Unlock()
-	e.points[m.After.ID] = append(e.points[m.After.ID], foot)
-	e.seenAt[m.After.ID] = time.Now()
+	e.points[id] = append(e.points[id], [2]float64{x, y})
+	e.seenAt[id] = time.Now()
 	if len(e.points) > 2000 {
 		cutoff := time.Now().Add(-15 * time.Minute)
 		for id, t := range e.seenAt {
@@ -140,8 +140,8 @@ func (e *engine) handleEvent(payload []byte) {
 	}
 }
 
-// masked reports whether every known position of the review's objects is inside a mask.
-func (e *engine) masked(d device, r review) bool {
+// masked reports whether every known position of the event's objects is inside a mask.
+func (e *engine) masked(d device, r backend.Event) bool {
 	polys := d.Masks[r.Camera]
 	sz, ok := d.DetectSizes[r.Camera]
 	if len(polys) == 0 || !ok || sz.Width == 0 || sz.Height == 0 {
@@ -150,7 +150,7 @@ func (e *engine) masked(d device, r review) bool {
 	e.pointsMu.Lock()
 	defer e.pointsMu.Unlock()
 	var pts []pt
-	for _, id := range r.Data.Detections {
+	for _, id := range r.Detections {
 		for _, p := range e.points[id] {
 			pts = append(pts, pt{p[0] / sz.Width, p[1] / sz.Height})
 		}
@@ -187,24 +187,19 @@ func pointInPolygon(p pt, poly []pt) bool {
 	return in
 }
 
-func (e *engine) handle(payload []byte) {
-	var m reviewMessage
-	if err := json.Unmarshal(payload, &m); err != nil {
-		log.Printf("bad review message: %v", err)
-		return
-	}
-	// "new" covers most cases; "update" catches detection→alert upgrades and new objects.
-	if m.Type != "new" && m.Type != "update" {
-		return
-	}
-	r := m.After
+// OnEvent applies every device's rules to a new or updated event and pushes (backend.Sink).
+func (e *engine) OnEvent(r backend.Event) {
 	now := time.Now()
 
 	var msgs []pushMessage
+	var keys []string
 	e.mu.Lock()
 	for _, d := range e.store.all() {
 		key := d.ID + "|" + r.ID
 		if e.notified[key] {
+			continue
+		}
+		if e.allow != nil && !e.allow(d, r.Camera) {
 			continue
 		}
 		if !shouldNotify(d, r, now) || e.masked(d, r) {
@@ -221,6 +216,7 @@ func (e *engine) handle(payload []byte) {
 		cams[r.Camera] = now.Unix()
 		e.notified[key] = true
 		msgs = append(msgs, buildMessage(d, r))
+		keys = append(keys, e.thumbKey(d))
 	}
 	if len(e.notified) > 10000 {
 		e.notified = map[string]bool{}
@@ -232,9 +228,14 @@ func (e *engine) handle(payload []byte) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	if thumb := e.thumbnail(ctx, r.Camera); thumb != "" {
+	if small := e.thumbnail(ctx, r.Camera, keys); small != nil {
 		for i := range msgs {
-			msgs[i].Data["thumb"] = thumb
+			if keys[i] == "" {
+				continue
+			}
+			if sealed, err := sealThumb(keys[i], small); err == nil {
+				msgs[i].Data["thumb"] = sealed
+			}
 		}
 	}
 	if err := e.pusher.send(ctx, msgs); err != nil {
@@ -242,7 +243,18 @@ func (e *engine) handle(payload []byte) {
 	}
 }
 
-func shouldNotify(d device, r review, now time.Time) bool {
+// thumbKey is the secret a device decrypts inline thumbnails with ("" = no thumbnail).
+func (e *engine) thumbKey(d device) string {
+	if d.ThumbKey != "" {
+		return d.ThumbKey
+	}
+	if d.GrantID == "" {
+		return e.secret
+	}
+	return ""
+}
+
+func shouldNotify(d device, r backend.Event, now time.Time) bool {
 	ru, ok := d.Rules[r.Camera]
 	if !ok {
 		ru = d.DefaultRule
@@ -253,10 +265,10 @@ func shouldNotify(d device, r review, now time.Time) bool {
 	if len(ru.Severities) > 0 && !contains(ru.Severities, r.Severity) {
 		return false
 	}
-	if len(ru.Objects) > 0 && !anyIn(r.Data.Objects, ru.Objects) {
+	if len(ru.Objects) > 0 && !anyIn(r.Objects, ru.Objects) {
 		return false
 	}
-	if len(ru.Zones) > 0 && !anyIn(r.Data.Zones, ru.Zones) {
+	if len(ru.Zones) > 0 && !anyIn(r.Zones, ru.Zones) {
 		return false
 	}
 	if d.Snoozed[r.Camera] > now.Unix() {
@@ -265,7 +277,7 @@ func shouldNotify(d device, r review, now time.Time) bool {
 	if d.AtHome && !contains(d.AlertWhenHome, r.Camera) {
 		return false
 	}
-	if onlyKnown(r.Data.SubLabels, d.QuietFor) {
+	if onlyKnown(r.SubLabels, d.QuietFor) {
 		return false
 	}
 	return !inQuietHours(d, now)
@@ -306,15 +318,15 @@ func inQuietHours(d device, now time.Time) bool {
 	return cur >= start || cur < end
 }
 
-func buildMessage(d device, r review) pushMessage {
+func buildMessage(d device, r backend.Event) pushMessage {
 	name := d.CameraNames[r.Camera]
 	if name == "" {
 		name = r.Camera
 	}
 	// Same as the app's titleFor: recognized names first, else object labels.
 	what := "Motion"
-	objs := uniq(r.Data.Objects)
-	if names := uniq(r.Data.SubLabels); len(names) > 0 {
+	objs := uniq(r.Objects)
+	if names := uniq(r.SubLabels); len(names) > 0 {
 		what = strings.Join(names, " & ")
 	} else if len(objs) > 0 {
 		for i, o := range objs {
@@ -323,8 +335,8 @@ func buildMessage(d device, r review) pushMessage {
 		what = strings.Join(objs, " & ")
 	}
 	body := ""
-	if len(r.Data.Zones) > 0 {
-		body = "In " + strings.ReplaceAll(strings.Join(r.Data.Zones, ", "), "_", " ")
+	if len(r.Zones) > 0 {
+		body = "In " + strings.ReplaceAll(strings.Join(r.Zones, ", "), "_", " ")
 	}
 	return pushMessage{
 		To:       d.PushToken,
@@ -336,7 +348,7 @@ func buildMessage(d device, r review) pushMessage {
 		Data: map[string]string{
 			"systemId": d.SystemID,
 			"cameraId": r.Camera,
-			"start":    fmt.Sprintf("%d", int64(r.StartTime)-5),
+			"start":    fmt.Sprintf("%d", int64(r.Start)-5),
 			"reviewId": r.ID,
 		},
 		MutableContent: true,
@@ -374,24 +386,24 @@ func uniq(in []string) []string {
 	return out
 }
 
-// thumbnail returns the encrypted inline snapshot for a push, or "" if unavailable.
-func (e *engine) thumbnail(ctx context.Context, camera string) string {
-	if e.snap == nil || e.secret == "" {
-		return ""
+// thumbnail returns the tiny JPEG for a push, or nil if no device wants one or it failed.
+func (e *engine) thumbnail(ctx context.Context, camera string, keys []string) []byte {
+	want := false
+	for _, k := range keys {
+		want = want || k != ""
 	}
-	raw, err := e.snap.fetch(ctx, camera, 360)
+	if e.snapshot == nil || !want {
+		return nil
+	}
+	raw, err := e.snapshot(ctx, camera, 360)
 	if err != nil {
 		log.Printf("snapshot for %s: %v", camera, err)
-		return ""
+		return nil
 	}
 	small, err := tinyJPEG(raw)
 	if err != nil {
 		log.Printf("thumbnail for %s: %v", camera, err)
-		return ""
+		return nil
 	}
-	sealed, err := sealThumb(e.secret, small)
-	if err != nil {
-		return ""
-	}
-	return sealed
+	return small
 }
