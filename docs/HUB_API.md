@@ -116,13 +116,23 @@ The code is case- and dash-insensitive and one-time. It expires after 7 days or 
 ### `GET /v1/cameras/{id}/snapshot.jpg?height=`
 Returns the current frame (JPEG).
 
-### `GET /v1/cameras/{id}/live?quality=main|sub` (WebSocket)
+### `GET /v1/cameras/{id}/live?quality=main|sub[&codecs=…]` (WebSocket)
 This route uses go2rtc's MSE protocol:
 1. The client sends `{"type":"mse","value":"<codecs the player supports>"}`.
-2. The Hub replies `{"type":"mse","value":"<mime>"}`, then sends binary fMP4 fragments.
-3. Errors arrive as `{"type":"error","value":"…"}`.
+2. The Hub replies `{"type":"mse","value":"<mime>"}`, then sends binary fMP4: the first binary message is the init segment, usually followed in the same message by every fragment since the camera's last keyframe (see below), then fragments as they arrive.
+3. After the first binary message the Hub sends `{"type":"hub","value":"<json>"}` with how this view started: `{"start":"gop|warm|cold|dedicated","waitMs":12,"upstream":{"connectMs":…,"codecsMs":…,"initMs":…,"keyframeMs":…}}`. go2rtc clients ignore it; the app records it in its startup timing.
+4. Errors arrive as `{"type":"error","value":"…"}`.
 
-For Frigate, the Hub pipes Frigate's internal go2rtc (`/live/mse/api/ws?src=<stream>`). For RTSP sources (NVRs and cameras of every other brand), it restreams with go2rtc's `pkg/rtsp` and `pkg/mp4`.
+**Codecs in the URL (newer apps).** `codecs=<the same list>` in the query saves a round trip: the Hub starts the camera's stream before it upgrades the connection and sends the mime, init segment and cached picture right after the upgrade, without waiting for the client's message. The client should still send the `mse` message (older Hubs need it; newer ones ignore it once they have the codecs).
+
+**Quality.** `main` or `sub`. Requests through remote access (the public Tailscale Funnel link, whose relays limit bandwidth) get `sub` unless they ask for `main` explicitly; on the home network the default is `main`. Each brand maps `sub` to its low-resolution stream: Frigate's last `live.streams` entry (else go2rtc's `<camera>_sub` stream when there is one), Hikvision channel `x02`, Dahua/Amcrest `subtype=1`, Reolink's sub stream, UniFi Protect's lowest-resolution RTSP channel, ONVIF's smallest profile, and the configured sub link for plain RTSP cameras (main when none).
+
+**Shared, warm streams.** Every viewer of a camera at one quality (phones on this route and TVs on HLS) shares one connection to the camera. The Hub keeps that stream's init segment and every fragment since its last keyframe (at most 8 MB and 20 s; past either it waits for the next keyframe), so a new viewer starts with a decodable picture instead of waiting for the camera's next keyframe. After the last viewer leaves, the stream stays connected for a grace period (60 s; `LIVE_GRACE`), so reopening or switching back is instant. A viewer that can't play the shared stream's codecs (or could get audio the shared stream left out) gets a stream of its own (`start: "dedicated"`). A viewer that falls 8 MB behind skips to the next keyframe. At most 48 camera streams run at once; idle (warm) ones are closed first to make room.
+
+For Frigate, the Hub reads Frigate's internal go2rtc MSE WebSocket (`/live/mse/api/ws?src=<stream>`) rather than its RTSP restream: it is the route that already works through Frigate's port 5000, it needs no extra port or RTSP credentials, and Frigate's go2rtc keeps doing whatever codec handling is configured there. For RTSP sources (NVRs and cameras of every other brand), it restreams with go2rtc's `pkg/rtsp` and `pkg/mp4`. Both produce the same fMP4 stream, so the sharing and keyframe cache are one code path for every brand.
+
+### `POST /v1/cameras/{id}/warm?quality=main|sub[&codecs=…]`
+The app is about to open this camera (a finger landed on its tile). The Hub starts connecting to the camera now and keeps the stream for the grace period, so the WebSocket that follows starts with a picture. It answers at once, `202 {"state":"starting|warm|busy|off","graceSeconds":60}`, and never waits for the camera. `quality` follows the live route's rules (remote requests default to `sub`); `codecs` is the player's list when the app knows it (otherwise the Hub assumes an iPhone's). Grant-checked like live view (404 for cameras outside the grant) and limited to 30 per minute per grant (429 `rate_limited`). Older Hubs answer 404/405; the app then stops asking.
 
 ### `GET /v1/cameras/{id}/live.m3u8?quality=main|sub` (HLS)
 Live view for players without Media Source Extensions (the Apple TV app uses it with AVPlayer). It returns a master playlist and starts a short-lived session for this caller:
@@ -131,7 +141,7 @@ Live view for players without Media Source Extensions (the Apple TV app uses it 
 #EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.640029,mp4a.40.2"
 hls/<session>/playlist.m3u8?token=…
 ```
-The session's files are `/v1/cameras/{id}/hls/<session>/playlist.m3u8`, `init.mp4` and `s<n>.m4s` (fMP4). Every request is grant-checked like the other camera routes, and a session only answers the grant and camera that started it. It ends about 10 seconds after the player stops asking. The source is the same fMP4 stream as the WebSocket route, so this works for every brand. Video is H.264/H.265 with AAC audio. At most 16 sessions run at once; beyond that the Hub answers 503 `busy`. If the camera can't be reached it answers 502 `upstream`.
+The session's files are `/v1/cameras/{id}/hls/<session>/playlist.m3u8`, `init.mp4` and `s<n>.m4s` (fMP4). Every request is grant-checked like the other camera routes, and a session only answers the grant and camera that started it. It ends about 10 seconds after the player stops asking. The source is the same shared fMP4 stream as the WebSocket route (with its keyframe cache, so the first segment starts with a picture), so this works for every brand. Video is H.264/H.265 with AAC audio. At most 16 sessions run at once; beyond that the Hub answers 503 `busy`. If the camera can't be reached it answers 502 `upstream`.
 
 ### `GET /v1/cameras/{id}/ptz` / `POST /v1/cameras/{id}/ptz`
 `GET` returns `{"canMove": true, "canZoom": false, "presets": ["door"]}`. `POST` takes `{"action": "MOVE_LEFT"}` and returns 204. The actions are `MOVE_UP|MOVE_DOWN|MOVE_LEFT|MOVE_RIGHT|ZOOM_IN|ZOOM_OUT|STOP|preset_<name>`. Moves continue until `STOP`.
@@ -276,6 +286,24 @@ recorded: no addresses, host names, usernames, passwords, tokens, emails or syst
 `area` is the feature (`cameras`, `live`, `snapshot`, `ptz`, `events`, `alerts`, `recordings`,
 `clips`, `playback`); `category` is one of `auth`, `auth-401`, `auth-403`, `http-<status>`,
 `timeout`, `dns`, `refused`, `unreachable`, `reset`, `tls`, `bad-reply`, `other`. Other roles get 403.
+
+`live` is live-view startup timing (newest 30 sessions, MSE and HLS), with no camera IDs:
+
+```json
+"live": {
+  "graceSeconds": 60,
+  "active": { "streams": 2, "viewers": 3 },
+  "summary": { "lan": { "count": 12, "medianFirstFrameMs": 180, "medianReadyMs": 40 },
+               "remote": { "count": 4, "medianFirstFrameMs": 900, "medianReadyMs": 600 },
+               "starts": { "gop": 10, "warm": 2, "cold": 4 } },
+  "sessions": [{ "time": 1790000000, "brand": "frigate", "via": "remote", "kind": "mse", "quality": "sub",
+                 "start": "cold", "upstream": { "connectMs": 120, "codecsMs": 160, "initMs": 170, "keyframeMs": 1900 },
+                 "codecsMs": 1, "readyMs": 175, "firstByteMs": 176, "firstFrameMs": 1905,
+                 "seconds": 42.1, "kbps": 610, "dropped": 0 }]
+}
+```
+
+`upstream` times are from when the Hub started the camera's stream (for `gop`/`warm` starts that was before this viewer); the others are from the request arriving: codecs known, stream ready (init segment available), first bytes sent and first picture (keyframe) sent. `error` (when set) is a category as above, or `upgrade`/`no-codecs`. With `LOG_LEVEL=debug` the Hub also logs each session.
 
 ## Deep links
 

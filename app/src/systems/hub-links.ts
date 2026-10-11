@@ -77,6 +77,39 @@ export function withToken(url: string, token: string | undefined): string {
   if (/[?&]token=/.test(url)) return url;
   return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
 }
+
+/**
+ * The Hub's live WebSocket takes the player's codecs in the URL, so it can send the picture
+ * right after the upgrade instead of waiting for the codecs message (one round trip less,
+ * which matters most over remote access). Other go2rtc endpoints keep the message only.
+ */
+export function acceptsCodecsInUrl(path: string): boolean {
+  return /^\/v1\/cameras\/[^/?]+\/live(\?|$)/.test(path);
+}
+
+/** POST path that asks the Hub to start a camera's stream before the player connects. */
+export function hubWarmPath(cameraId: string, quality?: 'main' | 'sub', codecs?: string): string {
+  const q = [quality && `quality=${quality}`, codecs && `codecs=${encodeURIComponent(codecs)}`].filter(Boolean).join('&');
+  return `/v1/cameras/${encodeURIComponent(cameraId)}/warm${q ? `?${q}` : ''}`;
+}
+
+/** How a Hub started a live view (its "hub" message), for the startup timing. */
+export interface HubLiveStart {
+  start: 'gop' | 'warm' | 'cold' | 'dedicated' | string;
+  waitMs?: number;
+  upstream?: { connectMs?: number; codecsMs?: number; initMs?: number; keyframeMs?: number };
+}
+
+export function parseHubLiveStart(value: unknown): HubLiveStart | undefined {
+  if (typeof value !== 'string') return undefined;
+  try {
+    const v = JSON.parse(value) as HubLiveStart;
+    return v && typeof v.start === 'string' ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export type GuestRole = Exclude<HubRole, 'owner'>;
 
 export interface HubGrant {

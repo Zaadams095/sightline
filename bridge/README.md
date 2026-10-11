@@ -80,6 +80,8 @@ All settings are optional; the setup page covers the normal path.
 | `EXPO_ACCESS_TOKEN` | | Only if enhanced push security is on for the Expo project |
 | `DATA_DIR` | `/data` | `devices.json`, `grants.json`, `settings.json`, `tailscale/` |
 | `LISTEN` | `:8086` | |
+| `LIVE_GRACE` | `60` | Seconds a camera's live stream stays connected after the last viewer leaves, so reopening it is instant. `0` turns this off. |
+| `LOG_LEVEL` | | `debug` logs each live view's startup timing |
 
 ## Security model
 

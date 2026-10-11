@@ -22,8 +22,9 @@ func fakeFrigate(t *testing.T) (*Frigate, *[]string) {
 			io.WriteString(w, `{"cameras":{
 				"front_door":{"ui":{"order":2},"detect":{"width":1280,"height":720},"zones":{"porch":{}},"objects":{"track":["person","car"]},
 					"live":{"streams":{"Main":"front_main","Sub":"front_sub"}},"onvif":{"host":"10.0.0.5"}},
-				"back":{"enabled":false,"friendly_name":"Back Yard","ui":{"order":1}}},
-				"go2rtc":{"streams":{"front_main":["rtsp://cam/main"],"front_sub":"rtsp://cam/sub"}}}`)
+				"back":{"enabled":false,"friendly_name":"Back Yard","ui":{"order":1}},
+				"garage":{"ui":{"order":3}}},
+				"go2rtc":{"streams":{"front_main":["rtsp://cam/main"],"front_sub":"rtsp://cam/sub","garage":"rtsp://g/1","garage_sub":"rtsp://g/2"}}}`)
 		case r.URL.Path == "/api/review":
 			io.WriteString(w, `[{"id":"r1","camera":"back","start_time":100.5,"end_time":null,"severity":"alert","thumb_path":"/media/frigate/clips/review/thumb-back-r1.webp","has_been_reviewed":true,"data":{"objects":["person"],"sub_labels":["","Zach"],"zones":[],"detections":["d1"]}}]`)
 		case r.URL.Path == "/api/review/r1":
@@ -52,7 +53,7 @@ func TestFrigateBackend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cams) != 2 || cams[0].ID != "back" || cams[0].Name != "Back Yard" || cams[0].Enabled {
+	if len(cams) != 3 || cams[0].ID != "back" || cams[0].Name != "Back Yard" || cams[0].Enabled {
 		t.Fatalf("cameras[0] = %+v", cams[0])
 	}
 	if c := cams[1]; c.Name != "Front Door" || !c.PTZ || c.DetectWidth != 1280 || c.Zones[0] != "porch" || c.Aspect < 1.77 {
@@ -66,6 +67,16 @@ func TestFrigateBackend(t *testing.T) {
 	}
 	if !strings.HasPrefix(live.URL, "ws://") {
 		t.Errorf("live URL scheme: %s", live.URL)
+	}
+	// Without live.streams, the sub stream is go2rtc's "<camera>_sub" when it exists.
+	if sub, _ := f.Live(ctx, "garage", "sub"); !strings.HasSuffix(sub.URL, "src=garage_sub") {
+		t.Errorf("garage sub = %+v", sub)
+	}
+	if main, _ := f.Live(ctx, "garage", "main"); !strings.HasSuffix(main.URL, "src=garage") {
+		t.Errorf("garage main = %+v", main)
+	}
+	if sub, _ := f.Live(ctx, "back", "sub"); !strings.HasSuffix(sub.URL, "src=back") {
+		t.Errorf("back sub (no sub stream) = %+v", sub)
 	}
 	if _, err := f.Live(ctx, "nope", ""); !errors.Is(err, backend.ErrNotFound) {
 		t.Errorf("unknown camera live: %v", err)

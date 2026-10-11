@@ -5,7 +5,8 @@ import { WebView } from 'react-native-webview';
 import { msePlayerHtml } from '@/components/live/mse-player-html';
 import { noteProblem } from '@/diagnostics/log';
 import { tr } from '@/i18n';
-import { useLiveStats } from '@/state/live-stats';
+import { rememberPlayerCodecs, useLiveStats } from '@/state/live-stats';
+import { acceptsCodecsInUrl, parseHubLiveStart } from '@/systems/hub-links';
 
 export type LiveState = 'connecting' | 'playing' | 'stalled' | 'error';
 
@@ -39,7 +40,10 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
 
   // Muting changes are applied in place; rebuilding the page would reconnect the stream.
   const [initialMuted] = useState(muted);
-  const html = useMemo(() => msePlayerHtml(path, { muted: initialMuted, fit }), [path, fit, initialMuted]);
+  const html = useMemo(
+    () => msePlayerHtml(path, { muted: initialMuted, fit, codecsInUrl: acceptsCodecsInUrl(path) }),
+    [path, fit, initialMuted],
+  );
 
   useEffect(() => {
     web.current?.injectJavaScript(`window.__setMuted && window.__setMuted(${muted}); true;`);
@@ -70,11 +74,21 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
         onMessage={(e) => {
           try {
             const msg = JSON.parse(e.nativeEvent.data) as { type: string; value: LiveState; detail?: string };
-            if (msg.type === ('timing' as string) && openedAt && timingLabel) {
-              const m = JSON.parse(msg.value) as Record<string, number>;
+            if (msg.type === ('codecs' as string)) {
+              rememberPlayerCodecs(msg.value);
+            } else if (msg.type === ('timing' as string) && openedAt && timingLabel) {
+              const m = JSON.parse(msg.value) as Record<string, number> & { hub?: string };
               const page = m.t0 - openedAt;
               const at = (k: string) => (m[k] != null ? page + m[k] : undefined);
-              setStats({ camera: timingLabel, page, wsOpen: at('wsOpen'), codecs: at('codecs'), firstData: at('firstData'), playing: at('playing') });
+              setStats({
+                camera: timingLabel,
+                page,
+                wsOpen: at('wsOpen'),
+                codecs: at('codecs'),
+                firstData: at('firstData'),
+                playing: at('playing'),
+                hub: parseHubLiveStart(m.hub),
+              });
             } else if (msg.type === 'state') {
               if (msg.value === 'error' && state !== 'error') noteProblem('player', msg.detail ?? 'error', { brand, feature: 'live-mse' });
               setState(msg.value);

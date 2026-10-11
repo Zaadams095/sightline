@@ -235,11 +235,20 @@ func (h *hub) handleDiagnostics(w http.ResponseWriter, _ *http.Request) {
 		_, ok := s.getStatus()
 		systems = append(systems, diagSystem{Brand: s.cfg.Kind, Connected: ok})
 	}
+	streams, viewers := h.live.counts()
+	sessions, summary := h.liveStats.snapshot()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"version": version,
 		"uptime":  int64(time.Since(h.startedAt).Seconds()),
 		"systems": systems,
 		"errors":  h.diag.list(),
+		// Live startup timing (live_stats.go): the newest sessions and medians by route.
+		"live": map[string]any{
+			"graceSeconds": int(h.live.grace.Seconds()),
+			"active":       map[string]int{"streams": streams, "viewers": viewers},
+			"summary":      summary,
+			"sessions":     sessions,
+		},
 	})
 }
 

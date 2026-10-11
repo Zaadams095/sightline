@@ -5,7 +5,7 @@ import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { SamplePill } from '@/components/demo-banner';
-import { LiveView, prefetchLiveOptions, useLive } from '@/components/live/live-view';
+import { LiveView, prefetchLiveOptions, prewarmLive, useLive } from '@/components/live/live-view';
 import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
@@ -54,9 +54,11 @@ export const CameraTile = memo(function CameraTile({
   const [tick, setTick] = useState(0);
   const [shown, setShown] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  // Start resolving the live stream as soon as a finger lands, before the screen opens.
+  // Start resolving the live stream as soon as a finger lands, before the screen opens, and
+  // let a Hub connect to the camera meanwhile.
   const prefetchLive = () => {
     if (!adapter.capabilities.live) return;
+    prewarmLive(adapter, camera.id);
     void queryClient.prefetchQuery(prefetchLiveOptions(adapter, camera.id));
   };
 

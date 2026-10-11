@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -80,6 +81,11 @@ type config struct {
 	setupHosts []string
 	// setupPassword (optional) protects the setup page with a password on the LAN.
 	setupPassword string
+	// liveGrace is how long a camera's stream stays connected after its last viewer leaves
+	// (LIVE_GRACE; 0 = the default, negative = off).
+	liveGrace time.Duration
+	// debug logs details such as each live session's timing (LOG_LEVEL=debug).
+	debug bool
 }
 
 func env(k, def string) string {
@@ -87,6 +93,26 @@ func env(k, def string) string {
 		return v
 	}
 	return def
+}
+
+// parseGrace reads LIVE_GRACE: seconds ("90") or a duration ("2m"). "0" or "off" turns
+// keeping streams warm off (-1); empty or invalid means the default (0).
+func parseGrace(v string) time.Duration {
+	v = strings.ToLower(strings.TrimSpace(v))
+	switch v {
+	case "":
+		return 0
+	case "0", "off", "0s":
+		return -1
+	}
+	if n, err := strconv.Atoi(v); err == nil && n > 0 {
+		return time.Duration(n) * time.Second
+	}
+	if d, err := time.ParseDuration(v); err == nil && d > 0 {
+		return d
+	}
+	log.Printf("LIVE_GRACE=%q isn't a number of seconds; using the default", v)
+	return 0
 }
 
 // haOptions are the Home Assistant add-on options (/data/options.json).
@@ -115,6 +141,8 @@ func loadConfig() config {
 		remote:          env("REMOTE_ACCESS", "on") != "off",
 		tsHostname:      env("TS_HOSTNAME", "sightline-hub"),
 		setupPassword:   env("SETUP_PASSWORD", ""),
+		liveGrace:       parseGrace(env("LIVE_GRACE", "")),
+		debug:           strings.EqualFold(env("LOG_LEVEL", ""), "debug"),
 	}
 	for _, h := range strings.Split(env("SETUP_HOSTS", ""), ",") {
 		if h = strings.TrimSpace(h); h != "" {

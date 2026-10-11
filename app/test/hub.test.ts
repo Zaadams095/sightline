@@ -2,15 +2,18 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  acceptsCodecsInUrl,
   endsText,
   grantSummary,
   hubAddresses,
   hubPlaybackSource,
   hubSystemCapabilities,
+  hubWarmPath,
   inviteMessage,
   looksLikePairingCode,
   normalizeHubAddress,
   parseHubLink,
+  parseHubLiveStart,
   parseLocalDateTime,
   presetWindow,
   sharedByText,
@@ -139,6 +142,22 @@ test('maps every kind of Hub playback answer to a player source', () => {
   assert.equal(withToken('https://h.ts.net/x?start=1&token=a', 'a'), 'https://h.ts.net/x?start=1&token=a');
   assert.equal(withToken('https://h.ts.net/x', 'a b'), 'https://h.ts.net/x?token=a%20b');
   assert.throws(() => hubPlaybackSource({ kind: 'stream', start: 1, end: 2 }, media), /can’t play/);
+});
+
+test('fast live start: codecs in the URL only for the Hub live route, warm-up path, start info', () => {
+  assert.equal(acceptsCodecsInUrl('/v1/cameras/front/live?quality=sub&token=t'), true);
+  assert.equal(acceptsCodecsInUrl('/v1/cameras/nvr~garage/live'), true);
+  // Recording playback streams and go2rtc behind the gateway keep the message-only handshake.
+  assert.equal(acceptsCodecsInUrl('/v1/recordings/front/playback/stream?start=1'), false);
+  assert.equal(acceptsCodecsInUrl('/live/mse/api/ws?src=front'), false);
+  assert.equal(acceptsCodecsInUrl('/v1/cameras/front/live.m3u8'), false);
+
+  assert.equal(hubWarmPath('front', 'sub'), '/v1/cameras/front/warm?quality=sub');
+  assert.equal(hubWarmPath('nvr~a b', undefined, 'avc1.640029,mp4a.40.2'), '/v1/cameras/nvr~a%20b/warm?codecs=avc1.640029%2Cmp4a.40.2');
+
+  assert.deepEqual(parseHubLiveStart('{"start":"gop","waitMs":12}'), { start: 'gop', waitMs: 12 });
+  assert.equal(parseHubLiveStart('nope'), undefined);
+  assert.equal(parseHubLiveStart(undefined), undefined);
 });
 
 test('Hub capabilities come from what the Hub reports, not from Frigate', () => {

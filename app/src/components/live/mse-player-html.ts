@@ -3,9 +3,14 @@
  * Runs inside a WKWebView whose origin is the loopback gateway, so the WebSocket is
  * same-origin and authenticated by the gateway. Uses ManagedMediaSource on iOS 17.1+.
  *
- * Posts {type:'state', value:'connecting'|'playing'|'stalled'|'error', detail?} to RN.
+ * Posts {type:'state', value:'connecting'|'playing'|'stalled'|'error', detail?} to RN, the
+ * startup timing ({type:'timing'}) and the codecs this WebView can play ({type:'codecs'}).
+ *
+ * The WebSocket opens while the MediaSource is still opening (they used to run one after the
+ * other); media that arrives first waits in the queue. With `codecsInUrl` (a Sightline Hub)
+ * the codecs also go in the URL, so the Hub sends the picture right after the upgrade.
  */
-export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'contain' | 'cover' }) {
+export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'contain' | 'cover'; codecsInUrl?: boolean }) {
   return `<!doctype html>
 <html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -39,47 +44,69 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
     return CODECS.filter(function(c){ return MS.isTypeSupported('video/mp4; codecs="' + c + '"'); }).join(',');
   }
 
+  var codecs = supported(), hubInfo = null;
+  post('codecs', codecs);
+
   function connect(){
     var gen = ++generation;
     post('state','connecting');
     queue = []; sb = null; gotData = false;
     lastProgress = Date.now();
-    var src = ms = new MS();
+    var src = ms = new MS(), opened = false, mime = null;
     if (window.ManagedMediaSource && MS === window.ManagedMediaSource) {
       video.disableRemotePlayback = true;
       video.srcObject = ms;
     } else {
       video.src = URL.createObjectURL(ms);
     }
+    // The SourceBuffer needs both the open MediaSource and the stream's mime, in either order.
+    function setup(){
+      if (sb || !opened || !mime || closed || gen !== generation) return;
+      try {
+        sb = src.addSourceBuffer(mime);
+      } catch (e) {
+        post('state','error','codec not supported: ' + mime);
+        return;
+      }
+      sb.mode = 'segments';
+      sb.addEventListener('updateend', pump);
+      pump();
+    }
     ms.addEventListener('sourceopen', function(){
       // A newer attempt (or stop) replaced this one before it opened.
       if (closed || gen !== generation) return;
-      var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + ${JSON.stringify(wsPath)};
-      var sock = ws = new WebSocket(url);
-      sock.binaryType = 'arraybuffer';
-      sock.onopen = function(){ mark('wsOpen'); sock.send(JSON.stringify({type:'mse', value: supported()})); };
-      sock.onmessage = function(ev){
-        if (sock !== ws) return;
-        if (typeof ev.data === 'string') {
-          var msg = JSON.parse(ev.data);
-          if (msg.type === 'mse') {
-            mark('codecs');
-            sb = src.addSourceBuffer(msg.value);
-            sb.mode = 'segments';
-            sb.addEventListener('updateend', pump);
-          } else if (msg.type === 'error') {
-            post('state','error', msg.value);
-          }
-          return;
-        }
-        if (!gotData) { gotData = true; retry = 0; lastProgress = Date.now(); }
-        mark('firstData');
-        queue.push(ev.data);
-        pump();
-      };
-      sock.onclose = function(){ if (!closed && sock === ws) reconnect(); };
-      sock.onerror = function(){ if (sock === ws) post('state','stalled','connection lost'); };
+      opened = true;
+      setup();
     }, {once:true});
+
+    var path = ${JSON.stringify(wsPath)};
+    if (${opts.codecsInUrl ? 'true' : 'false'}) path += (path.indexOf('?') < 0 ? '?' : '&') + 'codecs=' + encodeURIComponent(codecs);
+    var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + path;
+    var sock = ws = new WebSocket(url);
+    sock.binaryType = 'arraybuffer';
+    sock.onopen = function(){ mark('wsOpen'); sock.send(JSON.stringify({type:'mse', value: codecs})); };
+    sock.onmessage = function(ev){
+      if (sock !== ws) return;
+      if (typeof ev.data === 'string') {
+        var msg = JSON.parse(ev.data);
+        if (msg.type === 'mse') {
+          mark('codecs');
+          mime = msg.value;
+          setup();
+        } else if (msg.type === 'hub') {
+          hubInfo = msg.value; // how a Sightline Hub started this stream (timing only)
+        } else if (msg.type === 'error') {
+          post('state','error', msg.value);
+        }
+        return;
+      }
+      if (!gotData) { gotData = true; retry = 0; lastProgress = Date.now(); }
+      mark('firstData');
+      queue.push(ev.data);
+      pump();
+    };
+    sock.onclose = function(){ if (!closed && sock === ws) reconnect(); };
+    sock.onerror = function(){ if (sock === ws) post('state','stalled','connection lost'); };
   }
 
   function pump(){
@@ -132,6 +159,7 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
   video.addEventListener('playing', function(){
     mark('playing');
     marks.t0 = t0;
+    if (hubInfo) marks.hub = hubInfo;
     post('timing', JSON.stringify(marks));
     post('state','playing');
   });

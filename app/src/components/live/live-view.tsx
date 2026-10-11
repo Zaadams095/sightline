@@ -39,9 +39,23 @@ export function defaultLiveQuality(mode: LinkMode | undefined): 'main' | 'sub' {
   return mode === 'lan' ? 'main' : 'sub';
 }
 
+/** The quality the camera screen will open, so prefetching and warming match it. */
+function openingQuality(adapter: CameraSystemAdapter): 'main' | 'sub' {
+  return defaultLiveQuality(useLinks.getState().links[adapter.config.id]?.mode);
+}
+
+/**
+ * About to open a camera (finger down on its tile): systems that can (a Sightline Hub) start
+ * connecting to the camera now, so the stream is up, with a picture cached, by the time the
+ * player asks for it. Fire and forget.
+ */
+export function prewarmLive(adapter: CameraSystemAdapter, cameraId: string) {
+  adapter.prewarmLive?.(cameraId, { quality: openingQuality(adapter) });
+}
+
 export function prefetchLiveOptions(adapter: CameraSystemAdapter, cameraId: string) {
   // Same choice the camera screen makes, so the prefetched stream is the one it opens.
-  const quality = defaultLiveQuality(useLinks.getState().links[adapter.config.id]?.mode);
+  const quality = openingQuality(adapter);
   return {
     queryKey: ['live', adapter.config.id, cameraId, quality],
     queryFn: () => resolveFor(adapter, cameraId, quality),

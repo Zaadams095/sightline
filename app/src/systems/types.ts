@@ -219,6 +219,11 @@ export interface CameraSystemAdapter {
 
   snapshot(cameraId: string, opts?: { height?: number }): MediaSource;
   liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<LiveSource>;
+  /**
+   * The user is about to open this camera: start its stream on the server now (fire and
+   * forget; never throws). Systems that keep streams running anyway don't need it.
+   */
+  prewarmLive?(cameraId: string, opts?: { quality?: 'main' | 'sub' }): void;
 
   listReview?(q: {
     cameras?: string[];

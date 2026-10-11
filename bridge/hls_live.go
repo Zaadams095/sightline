@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,17 +11,12 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/AlexxIT/go2rtc/pkg/mp4"
-	"github.com/gorilla/websocket"
-
-	"github.com/zachadams/sightline/bridge/backend"
 )
 
 // Live view as HLS, for players without Media Source Extensions (Apple TV's AVPlayer, which
 // has no WebView, and anything else that only speaks HLS):
 //
-//	GET /v1/cameras/{id}/live.m3u8?quality=   → master playlist; starts a session
+//	GET /v1/cameras/{id}/live.m3u8?quality=   â†’ master playlist; starts a session
 //	GET /v1/cameras/{id}/hls/{sid}/playlist.m3u8
 //	GET /v1/cameras/{id}/hls/{sid}/init.mp4
 //	GET /v1/cameras/{id}/hls/{sid}/s{n}.m4s
@@ -177,71 +171,51 @@ func (hs *hlsSessions) count() int {
 	return len(hs.m)
 }
 
-// runHLSSource feeds a session from the backend's live source until ctx ends.
-func runHLSSource(ctx context.Context, s *hlsSession, src backend.LiveSource) {
-	switch src.Kind {
-	case backend.LiveRTSP:
-		cons, prod, err := startMSE(src.URL, "")
-		if err != nil {
-			s.markReady(err)
-			return
-		}
-		s.mu.Lock()
-		s.codecs = mp4.MimeCodecs(cons.Codecs())
-		s.mu.Unlock()
-		go func() {
-			<-ctx.Done()
-			_ = prod.Stop()
-		}()
-		go func() { _ = prod.Start() }()
-		_, _ = cons.WriteTo(s)
-		s.markReady(errors.New("the camera's stream ended"))
-	case backend.LiveMSE:
-		d := websocket.Dialer{HandshakeTimeout: 10 * time.Second, ReadBufferSize: 64 << 10, WriteBufferSize: 1024}
-		up, _, err := d.DialContext(ctx, src.URL, nil)
-		if err != nil {
-			s.markReady(errors.New("could not reach the camera's live stream"))
-			return
-		}
-		go func() {
-			<-ctx.Done()
-			_ = up.Close()
-		}()
-		defer up.Close()
-		if err := up.WriteJSON(wsMessage{Type: "mse", Value: hlsCodecs}); err != nil {
-			s.markReady(err)
-			return
-		}
-		for {
-			mt, b, err := up.ReadMessage()
-			if err != nil {
-				s.markReady(errors.New("the camera's stream ended"))
-				return
-			}
-			if mt == websocket.TextMessage {
-				var m wsMessage
-				_ = json.Unmarshal(b, &m)
-				switch m.Type {
-				case "mse":
-					s.mu.Lock()
-					s.codecs = codecsFromMime(m.Value)
-					s.mu.Unlock()
-				case "error":
-					s.markReady(errors.New(m.Value))
-					return
-				}
-				continue
-			}
-			_, _ = s.Write(b)
-		}
-	default:
-		s.markReady(errors.New("unsupported live source"))
+// runHLSSource feeds a session from the camera's shared live stream (live_shared.go) until ctx
+// ends: the init segment, the cached GOP (so the first segment starts with a keyframe at
+// once), then every fragment.
+func (h *hub) runHLSSource(ctx context.Context, s *hlsSession, sys *system, native, quality string, stat *liveSessionStat) {
+	t0 := time.Now()
+	p, v, j, start, err := h.joinLive(ctx, sys, native, quality, hlsCodecs, false)
+	if err != nil {
+		stat.Error = errCategory(err)
+		h.liveStats.add(*stat)
+		s.markReady(err)
+		return
 	}
+	defer p.release(v)
+	stat.Start, stat.Upstream, stat.ReadyMs = start, upstreamTimes(j.times), sinceMs(t0)
+	s.mu.Lock()
+	s.codecs = codecsFromMime(j.mime)
+	s.mu.Unlock()
+	var sent int64
+	_, _ = s.Write(j.init) // the first write is the init segment: the session is ready
+	if len(j.gop) > 0 {
+		_, _ = s.Write(j.gop)
+		sent += int64(len(j.gop))
+		stat.FirstFrameMs = sinceMs(t0)
+	}
+	err = v.run(ctx, func(q [][]byte) error {
+		for _, b := range q {
+			_, _ = s.Write(b)
+			sent += int64(len(b))
+		}
+		if stat.FirstFrameMs == 0 {
+			stat.FirstFrameMs = sinceMs(t0)
+		}
+		return nil
+	})
+	stat.Seconds = time.Since(t0).Seconds()
+	if stat.Seconds > 0 {
+		stat.Kbps = int64(float64(sent*8) / stat.Seconds / 1000)
+	}
+	h.liveStats.add(*stat)
+	s.markReady(errStreamEnded) // only matters if nothing ever arrived
 }
 
 var mimeCodecs = regexp.MustCompile(`codecs="([^"]*)"`)
 
-// codecsFromMime: `video/mp4; codecs="avc1.640029,mp4a.40.2"` → `avc1.640029,mp4a.40.2`.
+// codecsFromMime: `video/mp4; codecs="avc1.640029,mp4a.40.2"` â†’ `avc1.640029,mp4a.40.2`.
 func codecsFromMime(mime string) string {
 	if m := mimeCodecs.FindStringSubmatch(mime); m != nil {
 		return m[1]
@@ -249,7 +223,7 @@ func codecsFromMime(mime string) string {
 	return ""
 }
 
-// hlsCodecsAttr is safe to put inside CODECS="…".
+// hlsCodecsAttr is safe to put inside CODECS="â€¦".
 func hlsCodecsAttr(c string) string {
 	return strings.Map(func(r rune) rune {
 		if r == '"' || r == '\n' || r == '\r' {
@@ -269,11 +243,8 @@ func (h *hub) handleLiveHLS(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusServiceUnavailable, "busy", errHLSBusy.Error())
 		return
 	}
-	src, err := sys.b.Live(r.Context(), native, r.URL.Query().Get("quality"))
-	if err != nil {
-		backendError(w, err)
-		return
-	}
+	quality := liveQuality(r)
+	stat := &liveSessionStat{Time: time.Now().Unix(), Brand: sys.cfg.Kind, Via: via(r), Kind: "hls", Quality: quality}
 	base := h.ctx
 	if base == nil {
 		base = context.Background()
@@ -285,7 +256,7 @@ func (h *hub) handleLiveHLS(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusServiceUnavailable, "busy", err.Error())
 		return
 	}
-	go runHLSSource(ctx, s, src)
+	go h.runHLSSource(ctx, s, sys, native, quality, stat)
 
 	select {
 	case <-s.ready:
@@ -300,7 +271,11 @@ func (h *hub) handleLiveHLS(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	if failed != nil {
 		h.hls.remove(s.id)
-		apiError(w, http.StatusBadGateway, "upstream", failed.Error())
+		if errors.Is(failed, errLiveBusy) {
+			apiError(w, http.StatusServiceUnavailable, "busy", failed.Error())
+			return
+		}
+		backendError(w, failed)
 		return
 	}
 	attr := ""

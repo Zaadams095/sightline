@@ -40,6 +40,10 @@ type hub struct {
 
 	playbacks playbackCache
 	hls       hlsSessions
+	// live shares each camera's stream among its viewers (live_shared.go).
+	live      *liveManager
+	liveStats liveStatsLog
+	warmLimit *limiter
 	talks     talkProbeCache
 	// diag keeps recent backend errors for GET /v1/diagnostics (diagnostics.go).
 	diag     *diagLog
@@ -81,7 +85,16 @@ func newHub(cfg config, s *store, e *engine, p pusher) (*hub, error) {
 		redeemLimit: newLimiter(10, time.Minute, 60, 10*time.Minute),
 		startedAt:   time.Now(),
 		diag:        newDiagLog(),
+		warmLimit:   newLimiter(30, time.Minute, 600, time.Minute),
 	}
+	grace := cfg.liveGrace
+	switch {
+	case grace == 0:
+		grace = liveDefaultGrace
+	case grace < 0:
+		grace = 0
+	}
+	h.live = newLiveManager(grace)
 	if b, err := os.ReadFile(h.settingsPath()); err == nil {
 		if err := json.Unmarshal(b, &h.settings); err != nil {
 			return nil, fmt.Errorf("settings.json: %w", err)
@@ -129,6 +142,7 @@ func (h *hub) remoteWanted() bool {
 
 func (h *hub) start(ctx context.Context) {
 	h.ctx = ctx
+	h.live.base = ctx
 	h.reloadSystems()
 	if code := h.pairing.current(); code != "" {
 		log.Printf("Pairing code: %s (also shown on the setup page)", code)
@@ -199,6 +213,10 @@ func (h *hub) reloadSystems() {
 		if s.cancel != nil {
 			s.cancel()
 		}
+	}
+	if len(old) > 0 {
+		// Streams opened with the old settings (addresses, passwords) must not be reused.
+		h.live.closeAll()
 	}
 	for _, s := range cur {
 		ctx, cancel := context.WithCancel(h.ctx)

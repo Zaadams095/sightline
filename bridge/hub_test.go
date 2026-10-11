@@ -66,7 +66,8 @@ func (f *fakeBackend) Snapshot(_ context.Context, cam string, _ int) ([]byte, st
 	}
 	return []byte("jpeg:" + cam), "image/jpeg", nil
 }
-func (f *fakeBackend) Live(_ context.Context, cam, _ string) (backend.LiveSource, error) {
+func (f *fakeBackend) Live(_ context.Context, cam, quality string) (backend.LiveSource, error) {
+	f.record("live " + cam + " " + quality)
 	return backend.LiveSource{Kind: backend.LiveMSE, URL: f.liveURL + "?src=" + cam}, nil
 }
 func (f *fakeBackend) Events(_ context.Context, q backend.EventQuery) ([]backend.Event, error) {

@@ -1,12 +1,14 @@
 import type { ZoneSupport } from '@/alerts/zones';
 import type { SystemLink } from '@/net/connection';
 import { noteRequestProblem } from '@/diagnostics/log';
+import { knownPlayerCodecs } from '@/state/live-stats';
 import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
 import {
   hubAddresses,
   hubPlaybackSource,
   hubSystemCapabilities,
+  hubWarmPath,
   withToken,
   type GuestRole,
   type HubCapabilities,
@@ -166,6 +168,9 @@ function query(q?: Record<string, string | number | undefined>): string {
 
 const enc = encodeURIComponent;
 
+/** The Hub keeps a warmed stream for a minute; asking again sooner adds nothing. */
+const WARM_EVERY_MS = 20_000;
+
 export class HubAdapter implements CameraSystemAdapter {
   info: HubInfo | null = null;
 
@@ -262,6 +267,37 @@ export class HubAdapter implements CameraSystemAdapter {
     await hubToken(this.config.id);
     const url = this.mediaUrl(`/v1/cameras/${enc(cameraId)}/live`, { quality: opts?.quality });
     return { kind: 'mse', wsUrl: url.replace(/^http/, 'ws') };
+  }
+
+  private warmedAt = new Map<string, number>();
+  private warmUnsupported = false;
+
+  /**
+   * A finger landed on this camera's tile: ask the Hub to connect to the camera now, so the
+   * live view that follows starts with a picture (docs/HUB_API.md, POST …/warm). Fire and
+   * forget; at most once per camera every WARM_EVERY_MS, and never again once an older Hub
+   * says it doesn't know the route.
+   */
+  prewarmLive(cameraId: string, opts?: { quality?: 'main' | 'sub' }): void {
+    if (this.warmUnsupported || !this.capabilities.live) return;
+    const token = tokens.get(this.config.id);
+    if (!token) return;
+    const key = `${cameraId}|${opts?.quality ?? ''}`;
+    const now = Date.now();
+    if (now - (this.warmedAt.get(key) ?? 0) < WARM_EVERY_MS) return;
+    this.warmedAt.set(key, now);
+    fetchWithTimeout(
+      `${this.baseUrl}${hubWarmPath(cameraId, opts?.quality, knownPlayerCodecs() || undefined)}`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+      4000,
+    )
+      .then((res) => {
+        if (res.status === 404 || res.status === 405) {
+          // 404 with a JSON body is "no such camera"; a bare one is a Hub without the route.
+          if (!(res.headers.get('content-type') ?? '').includes('json')) this.warmUnsupported = true;
+        }
+      })
+      .catch(() => {});
   }
 
   async listReview(q: { cameras?: string[]; after?: number; before?: number; severity?: Severity; limit?: number }): Promise<ReviewItem[]> {

@@ -219,15 +219,26 @@ func (f *Frigate) streamName(ctx context.Context, camera, quality string) (strin
 	if !ok {
 		return "", backend.ErrNotFound
 	}
-	if len(c.Live.Streams) == 0 {
-		return camera, nil
+	main := camera
+	streams := c.Live.Streams
+	if len(streams) > 0 {
+		main = streams[0].Name
+	}
+	if quality != "sub" {
+		return main, nil
 	}
 	// Same choice as the app: the first entry is main, the last is sub.
-	streams := c.Live.Streams
-	if quality == "sub" && len(streams) > 1 {
+	if len(streams) > 1 {
 		return streams[len(streams)-1].Name, nil
 	}
-	return streams[0].Name, nil
+	// No sub stream listed for live view: use go2rtc's usual "<name>_sub" restream when there
+	// is one (Frigate's docs set cameras up that way), so viewing away from home stays light.
+	for _, name := range []string{main + "_sub", camera + "_sub"} {
+		if _, ok := cfg.Go2RTC.Streams[name]; ok {
+			return name, nil
+		}
+	}
+	return main, nil
 }
 
 // go2rtcRTSPPort is where Frigate's go2rtc serves its streams over RTSP.
