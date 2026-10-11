@@ -232,6 +232,53 @@ type Capabilities struct {
 	PTZ bool `json:"ptz"`
 	// Alerts: Watch delivers real-time events, so Instant Alerts work.
 	Alerts bool `json:"alerts"`
+	// Talk: the backend implements Talker (some cameras may still have no speaker; the Hub
+	// asks each camera before the app shows a Talk button).
+	Talk bool `json:"talk"`
+	// Deter: the backend implements Deterrer (DeterInfo says which cameras have a light/siren).
+	Deter bool `json:"deter"`
+}
+
+// Talker is optional: systems whose cameras can play the app's voice ("two-way audio").
+// The Hub opens the target with the shared talk package (backend/talk), so backends only say
+// where the camera's speaker is. Return ErrUnsupported for cameras that have none.
+type Talker interface {
+	Talk(ctx context.Context, camera string) (TalkTarget, error)
+}
+
+// TalkTarget is where a camera takes audio. Kind is talk.KindRTSP (URL: the camera's RTSP
+// stream, which must offer the ONVIF backchannel) or talk.KindISAPI (URL: Hikvision's
+// http://user:pass@host:port).
+type TalkTarget struct {
+	Kind string
+	URL  string
+}
+
+// Deterrence actions.
+const (
+	DeterLightOn  = "light-on"
+	DeterLightOff = "light-off"
+	DeterSiren    = "siren"
+)
+
+// DeterInfo says what a camera can do to scare someone off.
+type DeterInfo struct {
+	// Light: a white spotlight the app can turn on and off.
+	Light bool `json:"light"`
+	// Siren: a siren the app can sound once (it stops by itself).
+	Siren bool `json:"siren"`
+	// LightAutoOffSec is how long the light stays on by itself (0 = until turned off).
+	LightAutoOffSec int `json:"lightAutoOffSec,omitempty"`
+	// SirenSec is roughly how long one siren lasts (0 = unknown).
+	SirenSec int `json:"sirenSec,omitempty"`
+}
+
+// Deterrer is optional: systems with cameras that have a spotlight or siren. DeterInfo must
+// answer from the device's own capability flags; Deter returns ErrUnsupported for an action
+// the camera can't do.
+type Deterrer interface {
+	DeterInfo(ctx context.Context, camera string) (DeterInfo, error)
+	Deter(ctx context.Context, camera, action string) error
 }
 
 // Player is optional. Backends whose recorder can't serve HLS VOD (most NVRs replay as an RTSP

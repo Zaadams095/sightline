@@ -143,8 +143,12 @@ test('maps every kind of Hub playback answer to a player source', () => {
 
 test('Hub capabilities come from what the Hub reports, not from Frigate', () => {
   const none = { live: true, snapshots: true, events: false, recordings: false, clips: false, ptz: false, push: true, sharing: true };
-  assert.deepEqual(hubSystemCapabilities(none), { live: true, snapshots: true, review: false, events: false, ptz: false, twoWayAudio: false });
+  assert.deepEqual(hubSystemCapabilities(none), { live: true, snapshots: true, review: false, events: false, ptz: false, twoWayAudio: false, deter: false });
   assert.equal(hubSystemCapabilities({ ...none, events: true, ptz: true }).review, true);
   assert.equal(hubSystemCapabilities({ ...none, snapshots: false }).snapshots, false);
-  assert.deepEqual(hubSystemCapabilities(undefined), { live: true, snapshots: true, review: false, events: false, ptz: false, twoWayAudio: false });
+  assert.deepEqual(hubSystemCapabilities(undefined), { live: true, snapshots: true, review: false, events: false, ptz: false, twoWayAudio: false, deter: false });
+  // Talk and deterrence only when the Hub says so (it already left them out for guests).
+  const talky = hubSystemCapabilities({ ...none, talk: true, deter: true });
+  assert.equal(talky.twoWayAudio, true);
+  assert.equal(talky.deter, true);
 });

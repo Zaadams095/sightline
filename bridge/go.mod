@@ -33,7 +33,7 @@ require (
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/rtcp v1.2.16 // indirect
-	github.com/pion/rtp v1.10.0 // indirect
+	github.com/pion/rtp v1.10.0
 	github.com/pion/sdp/v3 v3.0.17 // indirect
 	github.com/pires/go-proxyproto v0.15.0 // indirect
 	github.com/safchain/ethtool v0.7.0 // indirect

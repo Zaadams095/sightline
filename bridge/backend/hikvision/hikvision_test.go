@@ -304,6 +304,19 @@ func TestCamerasLiveSnapshotDigest(t *testing.T) {
 	if !caps.Snapshots || !caps.Events || !caps.Recordings || caps.Clips || !caps.PTZ || !caps.Alerts {
 		t.Errorf("capabilities = %+v", caps)
 	}
+
+	// Talk: a recorder's two-way audio isn't a camera's speaker; a lone camera's is (ISAPI).
+	if _, err := h.Talk(ctx, "1"); !errors.Is(err, backend.ErrUnsupported) {
+		t.Errorf("talk on a 2-channel device: %v", err)
+	}
+	h.mu.Lock()
+	h.info.channels = h.info.channels[:1]
+	h.info.channels[0].Proxied = false // now a lone camera
+	h.mu.Unlock()
+	tt, err := h.Talk(ctx, "1")
+	if err != nil || tt.Kind != "isapi" || tt.URL != "http://admin:Pa$$%3Aword%401@"+host {
+		t.Errorf("talk = %+v, %v", tt, err)
+	}
 }
 
 func TestEventsSegmentsPlayback(t *testing.T) {

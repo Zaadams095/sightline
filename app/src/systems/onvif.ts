@@ -37,6 +37,7 @@ import type {
   PtzInfo,
   SystemCapabilities,
   SystemConfig,
+  TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 import { WgTunnel } from '@modules/wg-tunnel';
@@ -85,7 +86,9 @@ export class OnvifAdapter implements CameraSystemAdapter {
     review: false,
     events: false,
     ptz: false,
-    twoWayAudio: false,
+    // ONVIF Profile T cameras: the RTSP backchannel (the talk layer asks the camera first).
+    twoWayAudio: true,
+    deter: false,
   };
 
   private state: State | null = null;
@@ -290,6 +293,12 @@ export class OnvifAdapter implements CameraSystemAdapter {
   snapshot(cameraId: string): MediaSource {
     const uri = this.state?.snapshots.get(cameraId);
     return { uri: uri && this.baseUrl ? snapshotUrl(uri, this.baseUrl, this.host, this.port) : '' };
+  }
+
+  /** Profile T cameras take audio on their stream's RTSP backchannel. */
+  async talkTarget(cameraId: string): Promise<TalkTarget | null> {
+    const live = await this.liveStream(cameraId, { quality: 'main' });
+    return live.kind === 'rtsp' ? { kind: 'rtsp', url: live.url } : null;
   }
 
   async liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<LiveSource> {

@@ -62,6 +62,7 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
     events: true,
     ptz: true,
     twoWayAudio: false,
+    deter: false,
   };
 
   private csrf = '';

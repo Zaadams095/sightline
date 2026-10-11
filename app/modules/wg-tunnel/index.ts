@@ -40,6 +40,15 @@ interface NativeWgTunnel {
   addRTSPSource(url: string, viaTunnel: boolean): Promise<number>;
   setRTSPViaTunnel(port: number, viaTunnel: boolean): void;
   removeRTSPSource(port: number): void;
+  /**
+   * Two-way audio (builds from the talk release on; absent in older binaries, so optional).
+   * addTalk returns a loopback port whose /api/talk WebSocket takes 16-bit mono PCM at 8 kHz.
+   * kind: 'rtsp' (ONVIF backchannel), 'isapi' (Hikvision) or 'ws' (a Hub's talk WebSocket).
+   */
+  addTalk?(kind: string, url: string, viaTunnel: boolean): Promise<number>;
+  removeTalk?(port: number): void;
+  /** The camera speaker's codec (e.g. "PCMU/8000"), or '' when it can't take audio. */
+  probeTalk?(kind: string, url: string, viaTunnel: boolean, timeoutMs: number): Promise<string>;
   setShared(name: string, value: string): void;
   removeShared(name: string): void;
 }

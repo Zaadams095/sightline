@@ -322,6 +322,25 @@ export function ptzBody(channel: number, op: string, extra: { id?: number; speed
   return [{ cmd: 'PtzCtrl', action: 0, param }];
 }
 
+/**
+ * Spotlight and siren from GetAbility, as reolink_aio reads them: a spotlight (WhiteLed) when
+ * `floodLight` or `supportFLswitch` is set, a siren when `alarmAudio` or `supportAudioAlarm` is.
+ */
+export function deterSupport(ability: any, channel: number): { light: boolean; siren: boolean } {
+  const v = (k: string) => abilityVer(ability, channel, k) > 0;
+  return { light: v('floodLight') || v('supportFLswitch'), siren: v('alarmAudio') || v('supportAudioAlarm') };
+}
+
+/** SetWhiteLed: turn the spotlight on (state 1) or off (state 0). */
+export function whiteLedBody(channel: number, on: boolean) {
+  return [{ cmd: 'SetWhiteLed', action: 0, param: { WhiteLed: { channel, state: on ? 1 : 0 } } }];
+}
+
+/** AudioAlarmPlay once: the siren sounds for a few seconds and stops by itself. */
+export function sirenBody(channel: number) {
+  return [{ cmd: 'AudioAlarmPlay', action: 0, param: { alarm_mode: 'times', times: 1, channel } }];
+}
+
 /** GetPtzPreset → enabled presets as name → id. */
 export function parsePresets(value: any): Map<string, number> {
   const out = new Map<string, number>();

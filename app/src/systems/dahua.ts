@@ -1,6 +1,8 @@
 import { useLinks } from '@/net/connection';
 import { secrets, SECRET } from '@/state/secrets';
 import {
+  coaxControlPath,
+  coaxStatusPath,
   dahuaHttpMessage,
   dahuaNetworkMessage,
   dayRanges,
@@ -14,6 +16,7 @@ import {
   isErrorBody,
   livePath,
   parseChannels,
+  parseCoaxStatus,
   parseEventChannels,
   parseFindNext,
   parseFinderId,
@@ -24,6 +27,7 @@ import {
   playbackPath,
   ptzCode,
   rtspUrl,
+  talkPath,
   toDeviceTime,
   type DahuaChannel,
   type DahuaFile,
@@ -32,6 +36,8 @@ import {
 import type {
   Camera,
   CameraSystemAdapter,
+  DeterAction,
+  DeterInfo,
   HealthReport,
   LiveSource,
   MediaSource,
@@ -43,6 +49,7 @@ import type {
   Severity,
   SystemCapabilities,
   SystemConfig,
+  TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 
@@ -89,7 +96,8 @@ export class DahuaAdapter implements CameraSystemAdapter {
     review: true,
     events: true,
     ptz: true,
-    twoWayAudio: false,
+    twoWayAudio: true,
+    deter: true,
   };
 
   private channels: DahuaChannel[] | null = null;
@@ -451,6 +459,37 @@ export class DahuaAdapter implements CameraSystemAdapter {
     this.lastMove.set(cameraId, code);
     // arg2 is the speed (1–8) for pan/tilt.
     await this.cgi(`ptz.cgi?action=start&channel=${ch}&code=${code}&arg1=0&arg2=4&arg3=0`);
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Talk and deterrence (see dahua-format.ts for the endpoints)
+
+  async talkTarget(cameraId: string): Promise<TalkTarget | null> {
+    return { kind: 'rtsp', url: await this.rtsp(talkPath(Number(cameraId))) };
+  }
+
+  private deterCache = new Map<string, DeterInfo>();
+
+  async deterInfo(cameraId: string): Promise<DeterInfo> {
+    const known = this.deterCache.get(cameraId);
+    if (known) return known;
+    let info: DeterInfo;
+    try {
+      info = parseCoaxStatus(await this.cgi(coaxStatusPath(Number(cameraId))));
+    } catch (e) {
+      // Cameras without deterrence answer 400/404: nothing to show. Network trouble is retried.
+      if (e instanceof Error && /reach|in time/i.test(e.message)) throw e;
+      info = { light: false, siren: false };
+    }
+    this.deterCache.set(cameraId, info);
+    return info;
+  }
+
+  async deter(cameraId: string, action: DeterAction): Promise<void> {
+    const info = await this.deterInfo(cameraId);
+    if (action === 'siren' ? !info.siren : !info.light) throw new Error('This camera doesn’t have that.');
+    const body = await this.cgi(coaxControlPath(Number(cameraId), action));
+    if (isErrorBody(body)) throw new Error('The camera didn’t accept that. Try again in a moment.');
   }
 
   dispose() {}

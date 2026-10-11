@@ -128,7 +128,7 @@ func (d *Dahua) Capabilities() backend.Capabilities {
 		ptz = ptz || c[0] || c[1]
 	}
 	d.mu.Unlock()
-	return backend.Capabilities{Snapshots: true, Events: true, Recordings: true, Clips: false, PTZ: ptz, Alerts: true}
+	return backend.Capabilities{Snapshots: true, Events: true, Recordings: true, Clips: false, PTZ: ptz, Alerts: true, Talk: true, Deter: true}
 }
 
 // ---- HTTP ----

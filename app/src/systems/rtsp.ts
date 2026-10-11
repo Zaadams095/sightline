@@ -5,6 +5,7 @@ import type {
   MediaSource,
   SystemCapabilities,
   SystemConfig,
+  TalkTarget,
 } from '@/systems/types';
 import { WgTunnel } from '@modules/wg-tunnel';
 
@@ -19,7 +20,9 @@ export class RtspAdapter implements CameraSystemAdapter {
     review: false,
     events: false,
     ptz: false,
-    twoWayAudio: false,
+    // When the camera offers the ONVIF RTSP backchannel (the talk layer asks it first).
+    twoWayAudio: true,
+    deter: false,
   };
 
   constructor(readonly config: SystemConfig) {}
@@ -49,6 +52,11 @@ export class RtspAdapter implements CameraSystemAdapter {
     const cam = this.config.manualCameras?.find((c) => c.id === cameraId);
     if (!cam) throw new Error('Camera not found');
     return { kind: 'rtsp', url: cam.rtspUrl };
+  }
+
+  async talkTarget(cameraId: string): Promise<TalkTarget | null> {
+    const cam = this.config.manualCameras?.find((c) => c.id === cameraId);
+    return cam && /^rtsps?:\/\//i.test(cam.rtspUrl) ? { kind: 'rtsp', url: cam.rtspUrl } : null;
   }
 
   dispose() {}

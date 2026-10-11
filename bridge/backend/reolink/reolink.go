@@ -125,7 +125,7 @@ func (r *Reolink) Label() string { return "Reolink" }
 
 // Capabilities: Reolink can't cut clips (whole recording files only) and has no HLS.
 func (r *Reolink) Capabilities() backend.Capabilities {
-	return backend.Capabilities{Snapshots: true, Events: true, Recordings: true, Clips: false, PTZ: true, Alerts: true}
+	return backend.Capabilities{Snapshots: true, Events: true, Recordings: true, Clips: false, PTZ: true, Alerts: true, Talk: true, Deter: true}
 }
 
 // Probe signs in with a fresh session (proving the password), checks it's a Reolink device and

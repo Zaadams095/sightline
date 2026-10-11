@@ -11,6 +11,9 @@ import { LiveView, useLive } from '@/components/live/live-view';
 import { useLinks } from '@/net/connection';
 import { nextTimeOfDay } from '@/alerts/rules';
 import { PtzPad } from '@/components/ptz-pad';
+import { DeterControls } from '@/components/talk/deter-controls';
+import { TalkButton } from '@/components/talk/talk-button';
+import { useTalkRoute } from '@/talk/talk';
 import { T } from '@/components/ui/primitives';
 import { useApp } from '@/state/store';
 import { useAdapter } from '@/systems/registry';
@@ -58,6 +61,7 @@ export default function CameraScreen() {
   const camera = cameras.data?.find((c) => c.id === cameraId);
 
   const live = useLive(adapter, cameraId);
+  const talkRoute = useTalkRoute(adapter, systemId, cameraId);
 
   const recent = useQuery({
     queryKey: ['review', systemId, cameraId],
@@ -197,6 +201,13 @@ export default function CameraScreen() {
               onPress={toggleSnooze}
             />
           </View>
+
+          {(talkRoute || adapter.capabilities.deter) && (
+            <View style={{ paddingHorizontal: space.lg, gap: 10 }}>
+              {talkRoute && <TalkButton route={talkRoute} />}
+              <DeterControls adapter={adapter} systemId={systemId} cameraId={cameraId} />
+            </View>
+          )}
 
           {showPtz && camera?.ptz ? (
             <PtzPad adapter={adapter} cameraId={cameraId} />

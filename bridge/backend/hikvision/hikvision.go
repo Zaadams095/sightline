@@ -133,7 +133,37 @@ func (h *Hikvision) Capabilities() backend.Capabilities {
 	h.mu.Unlock()
 	// Events: the timeline and review list work; EventThumbnail doesn't (the recorder keeps no
 	// per-event picture we can fetch reliably), and the app falls back to video.
-	return backend.Capabilities{Snapshots: true, Events: true, Recordings: true, Clips: false, PTZ: ptz, Alerts: true}
+	return backend.Capabilities{Snapshots: true, Events: true, Recordings: true, Clips: false, PTZ: ptz, Alerts: true, Talk: true}
+}
+
+// Talk uses ISAPI two-way audio (/ISAPI/System/TwoWayAudio), which Hikvision cameras offer
+// instead of the ONVIF RTSP backchannel. Only a camera on its own: a recorder's two-way audio
+// is the recorder's own audio out, not the camera's speaker. ISAPI audio runs over plain HTTP.
+func (h *Hikvision) Talk(ctx context.Context, camera string) (backend.TalkTarget, error) {
+	ch, err := channelOf(camera)
+	if err != nil {
+		return backend.TalkTarget{}, err
+	}
+	st, err := h.state(ctx, false)
+	if err != nil {
+		return backend.TalkTarget{}, err
+	}
+	c, ok := st.channel(ch)
+	if !ok {
+		return backend.TalkTarget{}, backend.ErrNotFound
+	}
+	u, err := url.Parse(strings.TrimSpace(h.cfg.URL))
+	if err != nil || c.Proxied || len(st.channels) != 1 {
+		return backend.TalkTarget{}, backend.ErrUnsupported
+	}
+	if u.Scheme == "" {
+		u, _ = url.Parse("http://" + strings.TrimSpace(h.cfg.URL))
+	}
+	if u == nil || u.Scheme != "http" {
+		return backend.TalkTarget{}, backend.ErrUnsupported
+	}
+	t := url.URL{Scheme: "http", Host: u.Host, User: url.UserPassword(h.cfg.Username, h.cfg.Password)}
+	return backend.TalkTarget{Kind: "isapi", URL: t.String()}, nil
 }
 
 // ---------------------------------------------------------------------------------------------

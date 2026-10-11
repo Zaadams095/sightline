@@ -521,6 +521,41 @@ export function livePath(channel: number, quality: 'main' | 'sub'): string {
   return `/cam/realmonitor?channel=${channel}&subtype=${quality === 'sub' ? 1 : 0}`;
 }
 
+/**
+ * The stream whose RTSP session accepts the ONVIF backchannel (two-way audio): Dahua only
+ * offers it on the ONVIF-flavored URL (`unicast=true&proto=Onvif`, as go2rtc documents).
+ * The sub stream: only the audio direction is set up, so the choice costs nothing.
+ */
+export function talkPath(channel: number): string {
+  return `${livePath(channel, 'sub')}&unicast=true&proto=Onvif`;
+}
+
+/**
+ * Active deterrence (white light / siren) through coaxialControlIO.cgi, as Home Assistant's
+ * rroller/dahua does: getStatus lists `status.status.WhiteLight` and `status.status.Speaker`
+ * only on cameras that have them. Control: Type 1 = white light, 2 = siren; IO 1 = on, 2 = off.
+ * The siren sounds for about ten seconds and stops by itself.
+ */
+export const DAHUA_SIREN_SEC = 10;
+
+export function coaxStatusPath(channel: number): string {
+  return `coaxialControlIO.cgi?action=getStatus&channel=${channel}`;
+}
+
+export function parseCoaxStatus(body: string): { light: boolean; siren: boolean; sirenSec?: number } {
+  if (isErrorBody(body)) return { light: false, siren: false };
+  const keys = Object.keys(parseKv(body)).map((k) => k.toLowerCase());
+  const light = keys.includes('status.status.whitelight');
+  const siren = keys.includes('status.status.speaker');
+  return siren ? { light, siren, sirenSec: DAHUA_SIREN_SEC } : { light, siren };
+}
+
+export function coaxControlPath(channel: number, action: 'light-on' | 'light-off' | 'siren'): string {
+  const type = action === 'siren' ? 2 : 1;
+  const io = action === 'light-off' ? 2 : 1;
+  return `coaxialControlIO.cgi?action=control&channel=${channel}&info[0].Type=${type}&info[0].IO=${io}`;
+}
+
 /** Playback: `/cam/playback?channel=N&starttime=YYYY_MM_DD_HH_MM_SS&endtime=…` in device-local time. */
 export function playbackPath(channel: number, start: number, end: number, clock: ClockArg): string {
   return `/cam/playback?channel=${channel}&starttime=${toPlaybackTime(start, clock)}&endtime=${toPlaybackTime(end, clock)}`;

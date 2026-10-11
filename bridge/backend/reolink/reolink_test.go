@@ -177,7 +177,7 @@ func (d *fakeDevice) answer(cmd string, ch int, param json.RawMessage) (string, 
 			{"channel":2,"name":"","online":0,"typeInfo":""},
 			{"channel":3,"name":"Garage","online":%d,"typeInfo":"RLC-510A"}]}`, map[bool]int{true: 1}[d.ch3Online]), true
 	case "GetAbility":
-		return `{"Ability":{"abilityChn":[{"ptzType":{"ver":0}},{"ptzType":{"ver":2},"ptzPreset":{"ver":1}},{},{}]}}`, true
+		return `{"Ability":{"abilityChn":[{"ptzType":{"ver":0},"floodLight":{"ver":1},"supportAudioAlarm":{"ver":1}},{"ptzType":{"ver":2},"ptzPreset":{"ver":1}},{},{}]}}`, true
 	case "GetNetPort":
 		return fmt.Sprintf(`{"NetPort":{"httpPort":80,"httpsPort":443,"onvifEnable":0,"rtspEnable":%d,"rtspPort":8554}}`, d.rtspEnable), true
 	case "SetNetPort":
@@ -200,7 +200,7 @@ func (d *fakeDevice) answer(cmd string, ch int, param json.RawMessage) (string, 
 		return `{"fileList":[{"fileName":"01_small.mp4","fileSize":"10"},{"fileName":"01_big.mp4","fileSize":"5000"}]}`, true
 	case "GetPtzPreset":
 		return `{"PtzPreset":[{"enable":1,"id":0,"name":"Gate"},{"enable":0,"id":1,"name":"pos1"},{"enable":1,"id":2,"name":"Garage"}]}`, true
-	case "PtzCtrl", "Logout":
+	case "PtzCtrl", "Logout", "SetWhiteLed", "AudioAlarmPlay":
 		return `{"rspCode":200}`, true
 	case "GetHddInfo":
 		return `{"HddInfo":[{"capacity":1907729,"format":1,"mount":1,"number":1,"size":476932,"storageType":1}]}`, true
@@ -496,6 +496,33 @@ func TestPTZ(t *testing.T) {
 	}
 	if err := r.PTZ(ctx, "1", "DANCE"); err == nil {
 		t.Fatal("unknown action accepted")
+	}
+}
+
+func TestDeterAndTalk(t *testing.T) {
+	d, r := newFake(t, true)
+	ctx := context.Background()
+	if info, err := r.DeterInfo(ctx, "0"); err != nil || !info.Light || !info.Siren {
+		t.Fatalf("doorbell deter = %+v %v", info, err)
+	}
+	if info, _ := r.DeterInfo(ctx, "1"); info.Light || info.Siren {
+		t.Fatalf("plain camera deter = %+v", info)
+	}
+	if err := r.Deter(ctx, "0", backend.DeterLightOn); err != nil || d.lastParam("SetWhiteLed") != `{"WhiteLed":{"channel":0,"state":1}}` {
+		t.Fatalf("light on = %s %v", d.lastParam("SetWhiteLed"), err)
+	}
+	if err := r.Deter(ctx, "0", backend.DeterLightOff); err != nil || d.lastParam("SetWhiteLed") != `{"WhiteLed":{"channel":0,"state":0}}` {
+		t.Fatalf("light off = %s %v", d.lastParam("SetWhiteLed"), err)
+	}
+	if err := r.Deter(ctx, "0", backend.DeterSiren); err != nil || d.lastParam("AudioAlarmPlay") != `{"alarm_mode":"times","channel":0,"times":1}` {
+		t.Fatalf("siren = %s %v", d.lastParam("AudioAlarmPlay"), err)
+	}
+	if err := r.Deter(ctx, "1", backend.DeterSiren); !errors.Is(err, backend.ErrUnsupported) {
+		t.Fatalf("siren without one: %v", err)
+	}
+	tt, err := r.Talk(ctx, "1")
+	if err != nil || tt.Kind != "rtsp" || !strings.HasPrefix(tt.URL, "rtsp://") {
+		t.Fatalf("talk = %+v %v", tt, err)
 	}
 }
 

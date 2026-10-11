@@ -267,6 +267,18 @@ var (
 		}
 		return nil
 	}
+	needTalk = func(g *grant) error {
+		if !g.canTalk() {
+			return errors.New("this access can't talk through cameras")
+		}
+		return nil
+	}
+	needDeter = func(g *grant) error {
+		if !g.canDeter() {
+			return errors.New("this access can't turn on lights or sirens")
+		}
+		return nil
+	}
 	needPush = func(g *grant) error {
 		if !g.canPush() {
 			return errors.New("this access doesn't include alerts")

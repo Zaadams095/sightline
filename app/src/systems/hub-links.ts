@@ -21,6 +21,10 @@ export interface HubCapabilities {
   alerts?: boolean;
   push: boolean;
   sharing: boolean;
+  /** Some camera may take the caller's voice (newer Hubs; never for temporary/live guests). */
+  talk?: boolean;
+  /** Some camera has a spotlight or siren (newer Hubs; never for temporary/live guests). */
+  deter?: boolean;
 }
 
 /**
@@ -34,7 +38,8 @@ export function hubSystemCapabilities(c: HubCapabilities | undefined): SystemCap
     review: !!c?.events,
     events: !!c?.events,
     ptz: !!c?.ptz,
-    twoWayAudio: false,
+    twoWayAudio: !!c?.talk,
+    deter: !!c?.deter,
   };
 }
 

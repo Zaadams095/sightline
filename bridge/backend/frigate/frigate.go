@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -74,7 +75,7 @@ func (f *Frigate) Label() string { return "Frigate" }
 func (f *Frigate) Capabilities() backend.Capabilities {
 	return backend.Capabilities{
 		Snapshots: true, Events: true, Recordings: true, Clips: true, PTZ: true,
-		Alerts: f.cfg.MQTTURL != "",
+		Alerts: f.cfg.MQTTURL != "", Talk: true,
 	}
 }
 
@@ -227,6 +228,35 @@ func (f *Frigate) streamName(ctx context.Context, camera, quality string) (strin
 		return streams[len(streams)-1].Name, nil
 	}
 	return streams[0].Name, nil
+}
+
+// go2rtcRTSPPort is where Frigate's go2rtc serves its streams over RTSP.
+const go2rtcRTSPPort = "8554"
+
+// Talk sends the app's voice through Frigate's go2rtc: its RTSP server passes the ONVIF
+// backchannel on to the camera when the camera has one (the Hub checks before offering it).
+// Cameras without a go2rtc stream have no way to take audio.
+func (f *Frigate) Talk(ctx context.Context, camera string) (backend.TalkTarget, error) {
+	cfg, err := f.config(ctx)
+	if err != nil {
+		return backend.TalkTarget{}, err
+	}
+	src, err := f.streamName(ctx, camera, "main")
+	if err != nil {
+		return backend.TalkTarget{}, err
+	}
+	if _, ok := cfg.Go2RTC.Streams[src]; !ok {
+		return backend.TalkTarget{}, backend.ErrUnsupported
+	}
+	base, err := url.Parse(f.base)
+	if err != nil || base.Hostname() == "" {
+		return backend.TalkTarget{}, backend.ErrUnsupported
+	}
+	u := url.URL{Scheme: "rtsp", Host: net.JoinHostPort(base.Hostname(), go2rtcRTSPPort), Path: "/" + src}
+	if cfg.Go2RTC.RTSP.Username != "" {
+		u.User = url.UserPassword(cfg.Go2RTC.RTSP.Username, cfg.Go2RTC.RTSP.Password)
+	}
+	return backend.TalkTarget{Kind: "rtsp", URL: u.String()}, nil
 }
 
 func (f *Frigate) Live(ctx context.Context, camera, quality string) (backend.LiveSource, error) {

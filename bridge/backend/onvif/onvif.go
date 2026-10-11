@@ -124,7 +124,7 @@ func (o *Onvif) Capabilities() backend.Capabilities {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.st == nil {
-		return backend.Capabilities{Snapshots: true, Alerts: true}
+		return backend.Capabilities{Snapshots: true, Alerts: true, Talk: true}
 	}
 	ptz := false
 	if o.st.ptz != "" {
@@ -136,7 +136,18 @@ func (o *Onvif) Capabilities() backend.Capabilities {
 		Snapshots: len(o.st.snapshots) > 0,
 		PTZ:       ptz,
 		Alerts:    o.st.events != "" && !o.noPull,
+		Talk:      true,
 	}
+}
+
+// Talk: ONVIF Profile T cameras take audio on the RTSP backchannel of their stream. Whether
+// this one does is only known by asking it (the Hub probes before offering it).
+func (o *Onvif) Talk(ctx context.Context, camera string) (backend.TalkTarget, error) {
+	live, err := o.Live(ctx, camera, "main")
+	if err != nil {
+		return backend.TalkTarget{}, err
+	}
+	return backend.TalkTarget{Kind: "rtsp", URL: live.URL}, nil
 }
 
 func (o *Onvif) call(ctx context.Context, path, body string) (*node, error) {

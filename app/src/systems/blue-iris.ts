@@ -56,6 +56,7 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
     events: true,
     ptz: true,
     twoWayAudio: false,
+    deter: false,
   };
 
   private session = '';
