@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import {
   authQuery,
+  eventCacheCovers,
   eventsPath,
   frameAt,
   notesObjects,
@@ -46,6 +47,21 @@ test('monitors (1.36 Function and 1.37 Capturing)', () => {
   assert.equal(mons[0].offline, true);
   assert.equal(mons[1].ptz, true);
   assert.equal(mons[2].enabled, false);
+});
+
+test('events still recording are found by start time; caches cut at a limit aren’t reused for more', () => {
+  // EndTime is NULL while an event records, so this variant filters on StartTime.
+  assert.equal(
+    eventsPath('/zm/api', { monitorId: '2', after: '2024-05-01 10:00:00', before: '2024-05-01 12:00:00', startedAfter: true }),
+    '/zm/api/events/index/MonitorId:2/StartTime%20%3E%3D:2024-05-01%2010:00:00/StartTime%20%3C%3D:2024-05-01%2012:00:00.json',
+  );
+  const ev = (start: number) => ({ start });
+  const truncated = { after: 0, before: 1000, complete: false, events: [ev(900), ev(800)] };
+  assert.equal(eventCacheCovers(truncated, 850, 1000), true); // everything after 800 is there
+  assert.equal(eventCacheCovers(truncated, 100, 1000), false); // older events were cut off
+  assert.equal(eventCacheCovers({ ...truncated, complete: true }, 100, 1000), true);
+  assert.equal(eventCacheCovers({ ...truncated, complete: true }, 100, 2000), false);
+  assert.equal(eventCacheCovers(undefined, 0, 1), false);
 });
 
 test('events path, notes and times', () => {

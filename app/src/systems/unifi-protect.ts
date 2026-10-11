@@ -65,6 +65,8 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
   };
 
   private csrf = '';
+  /** True once this adapter has signed in itself (so its CSRF token matches the session). */
+  private signedIn = false;
   private loggingIn: Promise<void> | null = null;
   private boot: { data: ProtectBootstrap; at: number } | null = null;
   private presets = new Map<string, { name: string; slot: number }[]>();
@@ -86,16 +88,28 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
   // -------------------------------------------------------------------------------------------
   // Session
 
+  /** fetch whose network failures become plain-language errors (never a loopback port). */
+  private async send(url: string, init: RequestInit, timeoutMs = 10_000): Promise<Response> {
+    try {
+      return await fetchWithTimeout(url, init, timeoutMs);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.startsWith('No response')) throw new Error('UniFi Protect didn’t answer in time. Check that the console is on and reachable.');
+      throw new Error('Couldn’t reach the UniFi console. Check the address and that your phone is on the same network.');
+    }
+  }
+
   private login(): Promise<void> {
     this.loggingIn ??= (async () => {
       const password = (await secrets.get(this.config.id, SECRET.password)) ?? '';
-      const res = await fetchWithTimeout(`${this.base}/api/auth/login`, {
+      const res = await this.send(`${this.base}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ username: this.config.username ?? '', password, token: '', rememberMe: true }),
       });
       if (!res.ok) throw new Error(protectLoginMessage(res.status, await res.text().catch(() => '')));
       this.csrf = res.headers.get('x-csrf-token') ?? this.csrf;
+      this.signedIn = true;
     })().finally(() => {
       this.loggingIn = null;
     });
@@ -103,25 +117,43 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
   }
 
   private async request(path: string, init: RequestInit = {}, timeoutMs = 10_000): Promise<Response> {
-    const send = () => {
+    const isWrite = !!init.method && init.method !== 'GET';
+    // Reads ride on the gateway's session cookie, but writes also need the CSRF token that
+    // only a sign-in hands out. A recreated adapter has none yet, so sign in before its first write.
+    if (isWrite && !this.csrf) await this.login();
+    const attempt = () => {
       const headers: Record<string, string> = { Accept: 'application/json', ...(init.headers as Record<string, string>) };
-      if (init.method && init.method !== 'GET' && this.csrf) headers['X-CSRF-Token'] = this.csrf;
-      return fetchWithTimeout(`${this.base}${path}`, { ...init, headers }, timeoutMs);
+      if (isWrite && this.csrf) headers['X-CSRF-Token'] = this.csrf;
+      return this.send(`${this.base}${path}`, { ...init, headers }, timeoutMs);
     };
-    let res = await send();
-    if (res.status === 401) {
+    const rotate = (r: Response) => {
+      // UniFi OS rotates the CSRF token on some responses.
+      const rotated = r.headers.get('x-updated-csrf-token') ?? r.headers.get('x-csrf-token');
+      if (rotated) this.csrf = rotated;
+    };
+    let res = await attempt();
+    rotate(res);
+    // 401: the session expired. 403 on a write before we signed in ourselves: the CSRF token
+    // doesn't belong to the gateway's session. Either way, sign in again and retry once.
+    if (res.status === 401 || (isWrite && res.status === 403 && !this.signedIn)) {
       await this.login();
-      res = await send();
+      res = await attempt();
+      rotate(res);
     }
-    // UniFi OS rotates the CSRF token on some responses.
-    const rotated = res.headers.get('x-updated-csrf-token') ?? res.headers.get('x-csrf-token');
-    if (rotated) this.csrf = rotated;
     if (!res.ok) throw new Error(protectHttpMessage(res.status));
     return res;
   }
 
+  private parse<T>(text: string): T {
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new Error('The UniFi console sent an unexpected reply. Check that the address points to your UniFi console.');
+    }
+  }
+
   private async json<T>(path: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
-    return (await (await this.request(path, init, timeoutMs)).json()) as T;
+    return this.parse<T>(await (await this.request(path, init, timeoutMs)).text());
   }
 
   private async write<T>(method: 'POST' | 'PATCH', path: string, body?: unknown): Promise<T | null> {
@@ -131,7 +163,7 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await res.text();
-    return text ? (JSON.parse(text) as T) : null;
+    return text ? this.parse<T>(text) : null;
   }
 
   private async bootstrap(force = false): Promise<ProtectBootstrap> {

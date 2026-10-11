@@ -125,6 +125,15 @@ export function isLoginExpired(item: ReolinkItem | undefined): boolean {
   return item.error?.rspCode === -6 || /please login first/i.test(item.error?.detail ?? '');
 }
 
+/**
+ * After the device rejected token `used` ("please login first"): can the current token be
+ * used instead of signing in again? Yes when another request already replaced `used` with a
+ * token that's still within its lease; signing in again would only open another session.
+ */
+export function canReuseAfterRejection(current: { token: string; expires: number }, used: string, nowMs: number): boolean {
+  return current.token !== used && current.expires > nowMs;
+}
+
 /** Plain-language message for a failed command. */
 export function errorMessage(item: ReolinkItem | undefined): string {
   const detail = (item?.error?.detail ?? '').toLowerCase();
@@ -449,6 +458,47 @@ export function mergeSegments(files: { start: number; end: number }[], tolerance
     else spans.push({ start: f.start, end: f.end });
   }
   return spans;
+}
+
+/** The files from one search of a camera, and what that search covered. */
+export interface FileCache {
+  /** Searched span, unix seconds. */
+  after: number;
+  before: number;
+  /** When the search ran (unix seconds): later recordings can't be in it. */
+  at: number;
+  files: VodFile[];
+}
+
+/**
+ * Whether a cached search can say which file plays at `start` (for a window up to `end`): a
+ * cached file contains `start`, or the search covered the whole window (and had already
+ * happened by `end`). Otherwise the device must be searched again, or a stale list could
+ * open the wrong recording (say 09:58 for a seek to 09:30).
+ */
+export function fileCacheCovers(c: FileCache | undefined, start: number, end: number): boolean {
+  if (!c) return false;
+  if (c.files.some((f) => f.start <= start && start < f.end)) return true;
+  return c.after <= start && Math.min(c.before, c.at) >= end;
+}
+
+/**
+ * `cmd=Snap` URL. With a session token when there is one; before the first sign-in, with the
+ * username and password instead (the API accepts both), so pictures don't wait for a login.
+ */
+export function snapUrl(o: {
+  base: string;
+  channel: number;
+  token?: string;
+  user?: string;
+  password?: string;
+  sub?: { width: number; height: number };
+}): string {
+  const size = o.sub ? `&snapType=sub&width=${o.sub.width}&height=${o.sub.height}` : '';
+  const auth = o.token
+    ? `&token=${encodeURIComponent(o.token)}`
+    : `&user=${encodeURIComponent(o.user ?? '')}&password=${encodeURIComponent(o.password ?? '')}`;
+  return `${o.base}/cgi-bin/api.cgi?cmd=Snap&channel=${o.channel}&rs=sightline${size}${auth}`;
 }
 
 /** The file to play for a moment: the one containing `t`, else the next one before `until`. */

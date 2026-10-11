@@ -76,7 +76,7 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
       throw new Error(
         /authori/i.test(fail)
           ? 'Shinobi didn’t accept the API key and group key. Check both, and that the key’s “Allowed IPs” is 0.0.0.0.'
-          : `Shinobi said: ${fail}`,
+          : `Shinobi couldn’t do that (${fail}).`,
       );
     }
     return body;
@@ -142,14 +142,16 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
     const after = q.after ?? Date.now() / 1000 - 86400;
     const before = q.before ?? Date.now() / 1000 + 60;
     const ids = q.cameras?.length ? q.cameras : (await this.cameras()).map((c) => c.id);
-    const rows = await Promise.all(
+    const results = await Promise.allSettled(
       ids.map((mid) =>
-        this.api<{ events?: ShinobiEvent[] }>('events', [mid], { ...this.range(after, before), limit: 1000 })
-          .then((b) => b.events ?? [])
-          .catch(() => [] as ShinobiEvent[]),
+        this.api<{ events?: ShinobiEvent[] }>('events', [mid], { ...this.range(after, before), limit: 1000 }).then((b) => b.events ?? []),
       ),
     );
-    const items = groupEvents(rows.flat(), (s) => parseLocalDateTime(s))
+    // One camera failing shouldn't hide the others, but if all fail, say why instead of "no events".
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failed && results.every((r) => r.status === 'rejected')) throw failed.reason;
+    const rows = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : ([] as ShinobiEvent[])));
+    const items = groupEvents(rows, (s) => parseLocalDateTime(s))
       .map<ReviewItem>((g) => ({
         id: `${g.cameraId}|${Math.floor(g.start)}`,
         systemId: this.config.id,

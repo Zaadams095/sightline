@@ -146,8 +146,14 @@ export class OnvifAdapter implements CameraSystemAdapter {
         opts.timeoutMs ?? 10000,
       );
     } catch (e) {
-      const detail = e instanceof Error && e.message.startsWith('No response') ? ` ${e.message}.` : '';
-      throw new OnvifError(`Couldn’t reach the camera.${detail} Is the phone on the same network?`, 'network');
+      // Never pass the raw message on: it names the app's loopback port ("No response from 127.0.0.1:53817…").
+      const timedOut = e instanceof Error && e.message.startsWith('No response');
+      throw new OnvifError(
+        timedOut
+          ? 'The camera didn’t answer in time. Check that it’s on and that the phone is on the same network.'
+          : 'Couldn’t reach the camera. Is the phone on the same network?',
+        'network',
+      );
     }
     const xml = await res.text().catch(() => '');
     const fault = parseFault(xml);
@@ -303,13 +309,14 @@ export class OnvifAdapter implements CameraSystemAdapter {
     const { s, cam } = await this.camera(cameraId);
     if (!s.ptzPath || !cam.ptzProfile) return { presets: [], canMove: false, canZoom: false };
     const ptzPath = s.ptzPath;
-    if (!this.nodes) {
-      this.nodes = await this.call(ptzPath, body.getNodes())
-        .then(parsePtzNodes)
-        .catch(() => []);
-    }
+    // Remember the nodes only once the camera has listed them; a timeout is retried next time.
+    const nodes =
+      this.nodes ??
+      (await this.call(ptzPath, body.getNodes())
+        .then((xml) => (this.nodes = parsePtzNodes(xml)))
+        .catch(() => [] as PtzNode[]));
     const nodeToken = cam.ptzProfile.ptz?.nodeToken;
-    const node = this.nodes.find((n) => n.token === nodeToken) ?? this.nodes[0];
+    const node = nodes.find((n) => n.token === nodeToken) ?? nodes[0];
     const presets = await this.loadPresets(ptzPath, cam.ptzProfile.token).catch(() => []);
     return {
       presets: presets.map((p) => p.name),

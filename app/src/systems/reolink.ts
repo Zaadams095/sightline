@@ -3,7 +3,9 @@ import { secrets, SECRET } from '@/state/secrets';
 import {
   abilityVer,
   buildRtspUrl,
+  canReuseAfterRejection,
   clockFromDeviceNow,
+  fileCacheCovers,
   dayChunks,
   dayKey,
   defaultRtspPath,
@@ -32,11 +34,13 @@ import {
   ptzSupport,
   ReolinkError,
   searchBody,
+  snapUrl,
   unixToWall,
   vodFileUrl,
   type ChannelInfo,
   type DevInfo,
   type DeviceClock,
+  type FileCache,
   type NetPort,
   type ReolinkItem,
   type StreamInfo,
@@ -98,17 +102,28 @@ export class ReolinkAdapter implements CameraSystemAdapter {
   private channels: ChannelInfo[] = [];
   private ability: any = null;
   private net: NetPort | null = null;
+  /** Turning RTSP on (SetNetPort) is tried at most once per adapter. */
+  private rtspSetup: Promise<NetPort> | null = null;
   private clock: DeviceClock = PHONE_CLOCK;
   private extras = new Map<number, ChannelExtras>();
   private presets = new Map<number, Map<string, number>>();
-  /** Last searched files per camera; clip() is synchronous and reuses them. */
-  private files = new Map<string, VodFile[]>();
+  /** Last search per camera (files and the span searched); clip() is synchronous and reuses it. */
+  private files = new Map<string, FileCache>();
   private loaded: Promise<void> | null = null;
+  /** Kept in memory once read, so snapshot() (synchronous) can work before the first sign-in. */
+  private password: string | null = null;
 
   constructor(
     readonly config: SystemConfig,
     private initialBase: string,
-  ) {}
+  ) {
+    void secrets
+      .get(config.id, SECRET.password)
+      .then((p) => {
+        this.password ??= p ?? '';
+      })
+      .catch(() => {});
+  }
 
   /** Current route (LAN or VPN); the gateway port can change after the adapter is created. */
   private get base(): string {
@@ -151,19 +166,57 @@ export class ReolinkAdapter implements CameraSystemAdapter {
 
   private async login(): Promise<Token> {
     const password = (await secrets.get(this.config.id, SECRET.password)) ?? '';
+    this.password = password;
     const items = await this.post('Login', loginBody(this.config.username ?? 'admin', password), 'null');
     const { token, leaseSec } = parseLogin(items);
     this.tok = { token, expires: Date.now() + leaseSec * 1000 };
     return this.tok;
   }
 
-  private token(force = false): Promise<Token> {
-    if (!force && this.tok && this.tok.expires - Date.now() > RENEW_MARGIN_MS) return Promise.resolve(this.tok);
-    if (force) this.tok = null;
-    this.loggingIn ??= this.login().finally(() => {
+  /**
+   * Signs in, once at a time: concurrent callers share one sign-in, so a burst of requests
+   * never opens several sessions (Reolink devices allow only a few). With `logoutOld`, the
+   * session being replaced is closed so it doesn't hold a slot until its lease runs out.
+   * Plain renewals don't close it: the old token stays valid for its last few minutes, which
+   * keeps a recording that's already playing with it from breaking.
+   */
+  private signIn(logoutOld: boolean): Promise<Token> {
+    this.loggingIn ??= (async () => {
+      const old = this.tok;
+      const fresh = await this.login();
+      if (logoutOld && old && old.token !== fresh.token) this.logout(old.token);
+      return fresh;
+    })().finally(() => {
       this.loggingIn = null;
     });
     return this.loggingIn;
+  }
+
+  /** A valid token: the current one, or a new sign-in when it's missing or about to expire. */
+  private token(): Promise<Token> {
+    if (this.tok && this.tok.expires - Date.now() > RENEW_MARGIN_MS) return Promise.resolve(this.tok);
+    return this.signIn(false);
+  }
+
+  /**
+   * The device rejected `used` ("please login first"). Sign in again only if `used` is still
+   * the current token; if another request already replaced it, reuse that new one.
+   */
+  private relogin(used: string): Promise<Token> {
+    if (this.loggingIn) return this.loggingIn;
+    if (this.tok && canReuseAfterRejection(this.tok, used, Date.now())) return Promise.resolve(this.tok);
+    return this.signIn(false);
+  }
+
+  /** Ends a session (best effort) so it doesn't keep one of the device's few session slots. */
+  private logout(token: string) {
+    const base = this.baseOrEmpty();
+    if (!base) return;
+    void fetchWithTimeout(
+      `${base}/cgi-bin/api.cgi?cmd=Logout&token=${encodeURIComponent(token)}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([{ cmd: 'Logout', action: 0, param: {} }]) },
+      3000,
+    ).catch(() => {});
   }
 
   /**
@@ -172,9 +225,10 @@ export class ReolinkAdapter implements CameraSystemAdapter {
    */
   private async api(cmds: { cmd: string; action?: number; param?: unknown }[], timeoutMs?: number): Promise<ReolinkItem[]> {
     const body = cmds.map((c) => ({ action: 0, param: {}, ...c }));
-    let items = await this.post(cmds[0].cmd, body, (await this.token()).token, timeoutMs);
+    const used = (await this.token()).token;
+    let items = await this.post(cmds[0].cmd, body, used, timeoutMs);
     if (items.some(isLoginExpired)) {
-      items = await this.post(cmds[0].cmd, body, (await this.token(true)).token, timeoutMs);
+      items = await this.post(cmds[0].cmd, body, (await this.relogin(used)).token, timeoutMs);
     }
     return items;
   }
@@ -190,7 +244,8 @@ export class ReolinkAdapter implements CameraSystemAdapter {
   // Setup
 
   async connect(): Promise<void> {
-    await this.token(true);
+    // A fresh session proves the password; the one it replaces is closed.
+    await this.signIn(true);
     this.loaded = null;
     await this.load();
   }
@@ -266,39 +321,67 @@ export class ReolinkAdapter implements CameraSystemAdapter {
   // Snapshots and live
 
   /**
-   * `cmd=Snap` needs the session token in the URL. Callers re-request the URL on every refresh,
+   * `cmd=Snap` with the session token in the URL. Callers re-request the URL on every refresh,
    * so a renewed token is picked up automatically; renewal starts in the background shortly
-   * before the lease ends.
+   * before the lease ends. Before the first sign-in, the URL carries the username and password
+   * instead (the Snap command accepts either), so tiles show pictures right away. That URL only
+   * ever goes to the app's own loopback gateway.
    */
   snapshot(cameraId: string, opts?: { height?: number }): MediaSource {
     const base = this.baseOrEmpty();
     const tok = this.tok;
     if (!tok || tok.expires - Date.now() < RENEW_MARGIN_MS) void this.token().catch(() => {});
-    if (!base || !tok || tok.expires < Date.now()) return { uri: '' };
+    if (!base) return { uri: '' };
+    const valid = tok && tok.expires > Date.now() ? tok.token : undefined;
+    if (!valid && this.password == null) return { uri: '' };
     const ch = Number(cameraId);
-    let size = '';
     // Small tiles: the sub stream's frame (reolink_aio passes snapType=sub with its exact size).
     const sub = this.extras.get(ch)?.enc?.sub;
-    if (opts?.height && opts.height <= 480 && sub?.width && sub?.height) {
-      size = `&snapType=sub&width=${sub.width}&height=${sub.height}`;
-    }
-    return { uri: `${base}/cgi-bin/api.cgi?cmd=Snap&channel=${ch}&rs=sightline${size}&token=${encodeURIComponent(tok.token)}` };
+    const small = opts?.height && opts.height <= 480 && sub?.width && sub?.height ? { width: sub.width, height: sub.height } : undefined;
+    return {
+      uri: snapUrl({
+        base,
+        channel: ch,
+        sub: small,
+        token: valid,
+        user: this.config.username ?? 'admin',
+        password: this.password ?? '',
+      }),
+    };
   }
 
-  /** RTSP must be on for live video. It's off by default on newer models; turn it on once. */
-  private async ensureRtsp(): Promise<NetPort> {
-    if (!this.net) this.net = parseNetPort(await this.one('GetNetPort'));
-    if (this.net.rtspEnabled) return this.net;
-    const [item] = await this.api(enableRtspBody(this.net));
-    if (!item || item.code !== 0) {
-      throw new ReolinkError(
-        'Live video is turned off on this Reolink device. In the Reolink app, open the device’s settings → Network → Advanced → Port Settings, and turn on RTSP.',
-      );
-    }
-    // Changing port settings ends the session (reolink_aio expires its token here too).
-    this.tok = null;
-    this.net = { ...this.net, rtspEnabled: true };
-    return this.net;
+  /**
+   * RTSP must be on for live video. It's off by default on newer models; turn it on, at most
+   * once per adapter (concurrent callers share the attempt, and a refusal isn't retried).
+   */
+  private ensureRtsp(): Promise<NetPort> {
+    if (this.net?.rtspEnabled) return Promise.resolve(this.net);
+    this.rtspSetup ??= (async () => {
+      let sent = false;
+      try {
+        if (!this.net) this.net = parseNetPort(await this.one('GetNetPort'));
+        if (this.net.rtspEnabled) return this.net;
+        sent = true;
+        const [item] = await this.api(enableRtspBody(this.net));
+        if (!item || item.code !== 0) {
+          throw new ReolinkError(
+            'Live video is turned off on this Reolink device. In the Reolink app, open the device’s settings → Network → Advanced → Port Settings, and turn on RTSP.',
+          );
+        }
+        // Changing port settings ends the session (reolink_aio expires its token here too);
+        // close it explicitly in case the firmware doesn't, so it doesn't hold a slot.
+        const old = this.tok;
+        this.tok = null;
+        if (old) this.logout(old.token);
+        this.net = { ...this.net, rtspEnabled: true };
+        return this.net;
+      } catch (e) {
+        // Couldn't even ask (network, sign-in): allow another try later. A sent request isn't repeated.
+        if (!sent) this.rtspSetup = null;
+        throw e;
+      }
+    })();
+    return this.rtspSetup;
   }
 
   async liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<LiveSource> {
@@ -343,8 +426,9 @@ export class ReolinkAdapter implements CameraSystemAdapter {
   }
 
   async recordingSegments(cameraId: string, after: number, before: number): Promise<RecordingSegment[]> {
+    const at = Date.now() / 1000;
     const files = await this.searchFiles(this.channelOf(cameraId), after, before);
-    this.files.set(cameraId, files);
+    this.files.set(cameraId, { after, before, at, files });
     return mergeSegments(files);
   }
 
@@ -411,14 +495,18 @@ export class ReolinkAdapter implements CameraSystemAdapter {
    */
   async playback(cameraId: string, start: number, end: number): Promise<PlaybackSource> {
     const ch = this.channelOf(cameraId);
-    let files = this.files.get(cameraId) ?? [];
-    let f = fileAt(files, start, end);
-    if (!f) {
-      files = await this.searchFiles(ch, start - 3600, Math.max(end, start + 60));
-      this.files.set(cameraId, files);
-      f = fileAt(files, start, end);
+    let cache: FileCache | undefined = this.files.get(cameraId);
+    if (!fileCacheCovers(cache, start, end)) {
+      // Files are a few minutes to an hour long: look back far enough to find the one playing at `start`.
+      const after = start - 3600;
+      const before = Math.max(end, start + 60);
+      const at = Date.now() / 1000;
+      cache = { after, before, at, files: await this.searchFiles(ch, after, before) };
+      this.files.set(cameraId, cache);
     }
+    const f = fileAt(cache!.files, start, end);
     if (!f) throw new ReolinkError('There’s no recording at this time.');
+    // The file plays from its own beginning; startTime lets the player seek to `start`.
     return { kind: 'stream', source: { kind: 'file', uri: await this.fileUrl(ch, f), startTime: f.start } };
   }
 
@@ -428,7 +516,8 @@ export class ReolinkAdapter implements CameraSystemAdapter {
    * preparation step can't be exported this way.
    */
   clip(cameraId: string, start: number, end: number): MediaSource {
-    const f = fileAt(this.files.get(cameraId) ?? [], start, end);
+    const cache = this.files.get(cameraId);
+    const f = fileCacheCovers(cache, start, end) ? fileAt(cache!.files, start, end) : undefined;
     const nvrNeedsPrep = !!this.dev?.isNvr && !this.dev.isHub && !(f?.name && /\.(mp4|vref)$/i.test(f.name));
     const base = this.baseOrEmpty();
     if (!f?.name || nvrNeedsPrep || !this.tok || !base) return { uri: '' };
@@ -472,14 +561,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
   dispose() {
     // Free the session slot; Reolink devices allow only a few at once.
     const tok = this.tok;
-    const base = this.baseOrEmpty();
     this.tok = null;
-    if (tok && base) {
-      void fetchWithTimeout(`${base}/cgi-bin/api.cgi?cmd=Logout&token=${encodeURIComponent(tok.token)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([{ cmd: 'Logout', action: 0, param: {} }]),
-      }, 3000).catch(() => {});
-    }
+    if (tok) this.logout(tok.token);
   }
 }

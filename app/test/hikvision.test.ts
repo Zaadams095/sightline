@@ -5,7 +5,10 @@ import {
   buildChannels,
   classifyRecordType,
   dailyDistributionXml,
+  dayRanges,
   errorFor,
+  HikvisionError,
+  isDefinitiveNo,
   liveUrl,
   matchesToReview,
   mergeSegments,
@@ -275,4 +278,26 @@ test('errors are plain language', () => {
   const notSupported = errorFor(400, '<ResponseStatus><statusCode>4</statusCode><statusString>Invalid Operation</statusString><subStatusCode>notSupport</subStatusCode></ResponseStatus>');
   assert.equal(notSupported.notSupported, true);
   assert.match(errorFor(502, 'gateway: dial tcp: i/o timeout').message, /Couldn’t reach/);
+});
+
+test('PTZ "unsupported" is only definitive when the device says so', () => {
+  assert.equal(isDefinitiveNo(errorFor(404, '')), true);
+  assert.equal(isDefinitiveNo(errorFor(403, '')), true);
+  assert.equal(isDefinitiveNo(errorFor(200, '<ResponseStatus><statusCode>4</statusCode><subStatusCode>notSupport</subStatusCode></ResponseStatus>')), true);
+  // Timeouts, gateway errors and a busy device are worth asking again.
+  assert.equal(isDefinitiveNo(new HikvisionError('Couldn’t reach the Hikvision device.')), false);
+  assert.equal(isDefinitiveNo(errorFor(502, '')), false);
+  assert.equal(isDefinitiveNo(errorFor(503, '<ResponseStatus><statusCode>2</statusCode><subStatusCode>deviceBusy</subStatusCode></ResponseStatus>')), false);
+  assert.equal(isDefinitiveNo(new Error('network')), false);
+});
+
+test('searches walk device-local days, newest first', () => {
+  const at = (d: number, h: number) => Date.UTC(2024, 4, d, h) / 1000;
+  // CEST (UTC+2): device midnight is 22:00 UTC the day before.
+  assert.deepEqual(dayRanges(at(1, 12), at(3, 9), CEST), [
+    [at(2, 22), at(3, 9)],
+    [at(1, 22), at(2, 22)],
+    [at(1, 12), at(1, 22)],
+  ]);
+  assert.deepEqual(dayRanges(at(3, 9), at(3, 9), CEST), []);
 });

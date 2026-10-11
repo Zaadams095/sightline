@@ -98,10 +98,13 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
   /** A command with the session; logs in (again) when the session is missing or expired. */
   private async cmd<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
     if (!this.session) await this.login();
-    let r = await this.post<BiReply<T>>({ cmd, session: this.session, ...args });
+    const used = this.session;
+    let r = await this.post<BiReply<T>>({ cmd, session: used, ...args });
     if (r.result === 'fail') {
-      // BI 5.8.1+ says "Invalid session"; older versions just fail. Re-login once, like HA does.
-      await this.login();
+      // BI 5.8.1+ says "Invalid session"; older versions just fail. Re-login once, like HA does,
+      // unless another request already did (a burst of failures must not open a session each).
+      if (this.loggingIn) await this.loggingIn;
+      else if (this.session === used) await this.login();
       r = await this.post<BiReply<T>>({ cmd, session: this.session, ...args });
       if (r.result === 'fail') {
         const why = failReason(r);
@@ -112,8 +115,11 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
   }
 
   async connect(): Promise<void> {
+    // Sign in afresh and close the session being replaced, so it doesn't linger on the server.
+    const old = this.session;
     this.session = '';
     await this.login();
+    if (old && old !== this.session) void this.post({ cmd: 'logout', session: old }).catch(() => {});
     this.cams = null;
   }
 

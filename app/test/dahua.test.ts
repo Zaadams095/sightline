@@ -3,6 +3,9 @@ import { test } from 'node:test';
 
 import {
   classifyEvents,
+  dahuaNetworkMessage,
+  dayRanges,
+  deviceClock,
   deviceOffset,
   filesToDays,
   filesToReview,
@@ -147,7 +150,7 @@ test('recordings merge into spans; days are device-local, newest first', () => {
 
 test('event recordings become review items with picture thumbnails', () => {
   const { files } = parseFindNext(FIND_NEXT);
-  const items = filesToReview(files, { systemId: 'sys', offsetSec: 0, thumbUrl: (p) => `http://gw/cgi-bin/RPC_Loadfile${p}` });
+  const items = filesToReview(files, { systemId: 'sys', clock: 0, thumbUrl: (p) => `http://gw/cgi-bin/RPC_Loadfile${p}` });
   assert.equal(items.length, 2);
   const [late, person] = items; // newest first
   assert.deepEqual(late.objects, ['motion']);
@@ -214,4 +217,83 @@ test('RTSP live and playback URLs', () => {
     playbackPath(1, start, start + 600, -6 * 3600),
     '/cam/playback?channel=1&starttime=2026_10_10_12_30_05&endtime=2026_10_10_12_40_05',
   );
+});
+
+/** Runs `fn` with the process (phone) time zone set to `tz`. */
+function inZone(tz: string, fn: () => void) {
+  const prev = process.env.TZ;
+  process.env.TZ = tz;
+  try {
+    fn();
+  } finally {
+    if (prev === undefined) delete process.env.TZ;
+    else process.env.TZ = prev;
+  }
+}
+
+test('device in the phone’s zone: times before a DST change keep their hour', () => {
+  inZone('America/Denver', () => {
+    // October (MDT, UTC−6): the device reads 21:02:32 when UTC is 03:02:30 next day (2 s fast).
+    const phone = Date.UTC(2026, 9, 11, 3, 2, 30);
+    const clock = deviceClock('result=2026-10-10 21:02:32\r\n', phone, -new Date(phone).getTimezoneOffset());
+    assert.deepEqual(clock, { offsetSec: -6 * 3600 + 2, phoneZone: true, driftSec: 2 });
+    // A July recording (also MDT) and a January one (MST, UTC−7) both map with the right offset.
+    assert.equal(fromDeviceTime('2026-07-01 12:00:00', clock), Date.UTC(2026, 6, 1, 18) / 1000 - 2);
+    assert.equal(fromDeviceTime('2026-01-15 12:00:00', clock), Date.UTC(2026, 0, 15, 19) / 1000 - 2);
+    assert.equal(toDeviceTime(Date.UTC(2026, 0, 15, 19) / 1000 - 2, clock), '2026-01-15 12:00:00');
+    assert.equal(toPlaybackTime(Date.UTC(2026, 0, 15, 19) / 1000 - 2, clock), '2026_01_15_12_00_00');
+    // The old fixed-offset conversion would have been an hour off for January.
+    assert.equal(fromDeviceTime('2026-01-15 12:00:00', clock.offsetSec), Date.UTC(2026, 0, 15, 18) / 1000 - 2);
+  });
+});
+
+test('device in another zone keeps a fixed offset', () => {
+  inZone('America/Denver', () => {
+    // Device on UTC+2 while the phone is on UTC−6.
+    const phone = Date.UTC(2026, 9, 10, 12, 0, 0);
+    const clock = deviceClock('result=2026-10-10 14:00:00\r\n', phone, -new Date(phone).getTimezoneOffset());
+    assert.deepEqual(clock, { offsetSec: 7200, phoneZone: false, driftSec: 0 });
+    assert.equal(fromDeviceTime('2026-01-15 12:00:00', clock), Date.UTC(2026, 0, 15, 10) / 1000);
+  });
+});
+
+test('searches walk device-local days, newest first, without gaps', () => {
+  const at = (d: number, h: number, m = 0) => Date.UTC(2026, 9, d, h, m) / 1000;
+  // Fixed offset UTC−6: device midnight is 06:00 UTC.
+  const days = dayRanges(at(8, 3), at(10, 15, 30), -6 * 3600);
+  assert.deepEqual(days, [
+    [at(10, 6), at(10, 15, 30)],
+    [at(9, 6), at(10, 6)],
+    [at(8, 6), at(9, 6)],
+    [at(8, 3), at(8, 6)],
+  ]);
+  // Exactly at midnight: the day before, not an empty chunk.
+  assert.deepEqual(dayRanges(at(9, 6), at(10, 6), -6 * 3600), [[at(9, 6), at(10, 6)]]);
+  assert.deepEqual(dayRanges(at(10, 6), at(10, 6), -6 * 3600), []);
+  inZone('America/Denver', () => {
+    // Across the November DST change the local day is 25 hours long.
+    const clock = { offsetSec: -7 * 3600, phoneZone: true, driftSec: 0 };
+    const [[from, to]] = dayRanges(Date.UTC(2026, 10, 1) / 1000, Date.UTC(2026, 10, 2, 7) / 1000, clock);
+    assert.equal(to - from, 25 * 3600);
+  });
+});
+
+test('event search filters: video only, event-flagged, main stream', () => {
+  const q = findFileQuery({
+    objectId: '1',
+    channel: 1,
+    start: '2026-10-10 00:00:00',
+    end: '2026-10-11 00:00:00',
+    types: ['dav', 'mp4'],
+    flags: ['Event'],
+    videoStream: 'Main',
+  });
+  assert.match(q, /&condition\.Types\[0\]=dav&condition\.Types\[1\]=mp4&condition\.Flag\[0\]=Event&condition\.VideoStream=Main$/);
+});
+
+test('network failures read as plain language, without the loopback port', () => {
+  const slow = dahuaNetworkMessage(new Error('No response from 127.0.0.1:53817 after 10s'));
+  assert.equal(slow, 'The recorder didn’t answer in time. Check that it’s on and reachable.');
+  const down = dahuaNetworkMessage(new TypeError('Network request failed'));
+  assert.doesNotMatch(down, /127\.0\.0\.1|Network request failed/);
 });

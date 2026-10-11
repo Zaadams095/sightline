@@ -106,14 +106,31 @@ export function parseMonitors(rows: ZmMonitorRow[]): ZmMonitor[] {
  * Event filter path: `/events/index/MonitorId:N/EndTime >=:A/StartTime <=:B.json` (zmNinja).
  * Spaces are %20, the operator's `:` stays literal, comparison signs are percent-encoded.
  */
-export function eventsPath(api: string, opts: { monitorId?: string; after: string; before: string }): string {
+export function eventsPath(api: string, opts: { monitorId?: string; after: string; before: string; startedAfter?: boolean }): string {
   const enc = (s: string) => encodeURIComponent(s).replace(/%3A/gi, ':');
   const parts = [
     opts.monitorId ? `MonitorId:${enc(opts.monitorId)}` : null,
-    `EndTime${enc(' >=')}:${enc(opts.after)}`,
+    // An event still recording has no EndTime yet (NULL), so `EndTime >=` never matches it;
+    // `startedAfter` filters on StartTime instead to find those.
+    `${opts.startedAfter ? 'StartTime' : 'EndTime'}${enc(' >=')}:${enc(opts.after)}`,
     `StartTime${enc(' <=')}:${enc(opts.before)}`,
   ].filter(Boolean);
   return `${api}/events/index/${parts.join('/')}.json`;
+}
+
+/**
+ * Whether a cached events query can answer [after, before]: the cache spans it, and either it
+ * holds every match or (results being newest first and cut at a limit) its oldest event is
+ * already at or before `after`.
+ */
+export function eventCacheCovers(
+  hit: { after: number; before: number; complete: boolean; events: { start: number }[] } | undefined,
+  after: number,
+  before: number,
+): boolean {
+  if (!hit || hit.after > after || hit.before < before) return false;
+  if (hit.complete) return true;
+  return hit.events.length > 0 && Math.min(...hit.events.map((e) => e.start)) <= after;
 }
 
 export interface ZmEventRow {
