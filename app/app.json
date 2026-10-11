@@ -35,7 +35,7 @@
         },
         "SightlineAppGroup": "group.com.zachadams.sightline",
         "NSSupportsLiveActivities": true,
-        "ITSAppUsesNonExemptEncryption": false,
+        "ITSAppUsesNonExemptEncryption": true,
         "CFBundleAllowMixedLocalizations": true
       },
       "entitlements": {
