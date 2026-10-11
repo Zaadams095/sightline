@@ -4,7 +4,6 @@ import { WebView } from 'react-native-webview';
 
 import { msePlayerHtml } from '@/components/live/mse-player-html';
 import { useLiveStats } from '@/state/live-stats';
-import { usePalette } from '@/theme/use-palette';
 
 export type LiveState = 'connecting' | 'playing' | 'stalled' | 'error';
 
@@ -24,7 +23,6 @@ interface Props {
 /** Low-latency live view via go2rtc MSE in a WKWebView. */
 export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onState, timingLabel, openedAt }: Props) {
   const setStats = useLiveStats((s) => s.set);
-  const palette = usePalette();
   const web = useRef<WebView>(null);
   const [state, setState] = useState<LiveState>('connecting');
   const [detail, setDetail] = useState<string>();
@@ -86,7 +84,7 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
           {poster}
           <View style={styles.overlay}>
             {state === 'error' ? (
-              <Text style={[styles.msg, { color: palette.text }]}>{detail ?? 'Stream unavailable'}</Text>
+              <Text style={styles.msg}>{liveErrorText(detail)}</Text>
             ) : (
               <ActivityIndicator color="#fff" />
             )}
@@ -97,9 +95,18 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
   );
 }
 
+/** The player's raw failure (go2rtc, WebKit) as something anyone can act on. */
+export function liveErrorText(detail: string | undefined): string {
+  const d = detail ?? '';
+  if (/401|unauthori|wrong user|pass/i.test(d)) return 'The camera didn’t accept its password.';
+  if (/codec|not supported|MSE/i.test(d)) return 'This phone can’t play this camera’s video format. Try the other quality.';
+  if (/timeout|refused|no route|unreachable|EOF|closed/i.test(d)) return 'Can’t reach this camera right now.';
+  return 'Video isn’t available right now.';
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
   web: { flex: 1, backgroundColor: '#000' },
   overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
-  msg: { fontSize: 13, fontWeight: '600', paddingHorizontal: 16, textAlign: 'center' },
+  msg: { color: '#fff', fontSize: 13, fontWeight: '600', paddingHorizontal: 16, textAlign: 'center' },
 });
