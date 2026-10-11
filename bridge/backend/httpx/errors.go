@@ -18,6 +18,10 @@ var (
 	ErrAuth = errors.New("the username or password is wrong")
 	// ErrBadAnswer: the device answered with something we couldn't read.
 	ErrBadAnswer = errors.New("the device answered, but not in a way the Hub understands (is this the right kind of device?)")
+	// ErrWrongService: something answered at this port, but not the service the brand needs
+	// (a camera's web page where its ONVIF service was expected). Like a network failure, it
+	// makes the setup page try the brand's next default port. Wrap it in a plain explanation.
+	ErrWrongService = errors.New("something else answered at that port")
 )
 
 const httpsAdvice = "that port expects a secure connection. Type the address with https:// instead"
@@ -131,6 +135,9 @@ func isCertError(err error) bool {
 func Unreachable(err error) bool {
 	if err == nil {
 		return false
+	}
+	if errors.Is(err, ErrWrongService) {
+		return true
 	}
 	var se *StatusError
 	if errors.As(err, &se) || errors.Is(err, ErrAuth) || errors.Is(err, ErrBadAnswer) {
