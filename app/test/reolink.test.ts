@@ -273,3 +273,13 @@ test('recording URLs: Playback on cameras, Download on recorders, token included
     '01_big.mp4',
   );
 });
+
+test('doorbells are marked from the model, whatever the camera is named', () => {
+  const cam = parseChannels(parseDevInfo({ DevInfo: { name: 'Front', model: 'Reolink Video Doorbell PoE', type: 'IPC' } }), undefined);
+  assert.equal(cam[0].doorbell, true);
+  const nvr = parseChannels(parseDevInfo({ DevInfo: { type: 'NVR', channelNum: 2 } }), {
+    status: [{ channel: 0, name: 'Porch', online: 1, typeInfo: 'Reolink Video Doorbell WiFi' }, { channel: 1, name: 'Yard', online: 1, typeInfo: 'RLC-810A' }],
+  });
+  assert.deepEqual(nvr.map((c) => !!c.doorbell), [true, false]);
+  assert.equal(parseChannels(parseDevInfo({ DevInfo: { model: 'D340P' } }), undefined)[0].doorbell, true);
+});

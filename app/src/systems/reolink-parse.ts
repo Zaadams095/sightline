@@ -198,14 +198,19 @@ export interface ChannelInfo {
   channel: number;
   name: string;
   online: boolean;
+  /** A video doorbell (from the model / typeInfo), so ring alerts work whatever it's named. */
+  doorbell?: boolean;
 }
+
+/** Reolink doorbells: "Reolink Video Doorbell …" or model D340P/D340W. */
+export const isReolinkDoorbellModel = (model: unknown): boolean => /doorbell|^D3\d\d/i.test(String(model ?? '').trim());
 
 /**
  * Cameras of a device. NVR/Hub: online channels from GetChannelstatus (empty slots report
  * online 0; reolink_aio skips them too). A single camera is channel 0.
  */
 export function parseChannels(dev: DevInfo, channelStatus: any | undefined): ChannelInfo[] {
-  if (!dev.isNvr) return [{ channel: 0, name: dev.name, online: true }];
+  if (!dev.isNvr) return [{ channel: 0, name: dev.name, online: true, ...(isReolinkDoorbellModel(dev.model) && { doorbell: true }) }];
   const status: any[] = Array.isArray(channelStatus?.status) ? channelStatus.status : [];
   if (status.length) {
     return status
@@ -214,6 +219,7 @@ export function parseChannels(dev: DevInfo, channelStatus: any | undefined): Cha
         channel: Number(s.channel),
         name: String(s.name ?? '').trim() || `Camera ${Number(s.channel) + 1}`,
         online: true,
+        ...(isReolinkDoorbellModel(s.typeInfo) && { doorbell: true }),
       }))
       .sort((a, b) => a.channel - b.channel);
   }

@@ -304,7 +304,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
         name: c.name,
         enabled: c.online,
         zones: [],
-        objects: ['person', 'vehicle', 'animal'],
+        objects: c.doorbell ? ['person', 'vehicle', 'animal', 'doorbell'] : ['person', 'vehicle', 'animal'],
         ptz: ptz.canMove || ptz.canZoom,
         aspect: main?.width && main?.height ? main.width / main.height : 16 / 9,
       };
