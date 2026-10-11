@@ -10,7 +10,7 @@ struct SightlineActivityAttributes: ActivityAttributes {
   struct ContentState: Codable, Hashable {
     /// "Someone's at the door", "Person", …
     var headline: String
-    /// Small JPEG, relative to the App Group container.
+    /// Small JPEG, relative to the App Group container (see saveImage).
     var image: String?
     /// Unix seconds when the ring / event began; drives the elapsed timer.
     var since: Double
