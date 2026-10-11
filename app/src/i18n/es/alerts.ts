@@ -59,16 +59,16 @@ const alerts: typeof en = {
     notImportant: 'No es importante',
     alwaysTell: 'Avisarme siempre de esto',
     undo: 'Deshacer',
-    stopAlerting: 'Dejar de avisar de estos',
+    stopAlerting: 'Dejar de avisar de esto',
     keepAlerting: 'Seguir avisando',
-    askTitle: '¿Dejar de avisar de estos?',
-    learnedTitle: 'Sightline ha aprendido algo',
+    askTitle: '¿Dejar de avisar de esto?',
+    learnedTitle: 'Sightline aprendió algo',
     thing: (o: string, n: number) => {
       const f = THINGS[o];
       return f ? p(n, { one: f[0], other: f[1] }) : o.replace(/_/g, ' ');
     },
-    motionAlerts: (n: number) => p(n, { one: 'aviso de movimiento', other: 'avisos de movimiento' }),
-    comboAlerts: (things: string, n: number) => p(n, { one: `aviso de ${things}`, other: `avisos de ${things}` }),
+    motionAlerts: (n: number) => p(n, { one: 'alerta de movimiento', other: 'alertas de movimiento' }),
+    comboAlerts: (things: string, n: number) => p(n, { one: `alerta de ${things}`, other: `alertas de ${things}` }),
     atNight: ' de noche',
     duringDay: ' de día',
     inZones: (zones: string) => ` en ${zones}`,
@@ -77,8 +77,8 @@ const alerts: typeof en = {
     always: (what: string, camera: string) => `Pediste que te avisemos siempre de ${what} en ${camera}. Nunca se silenciarán.`,
     counted: (n: number, what: string, camera: string, extra: string) => `${n} ${what} en ${camera}${extra}`,
     askPeople: (what: string) =>
-      `Marcaste ${what} como no importantes. Sightline nunca silencia a personas por su cuenta: ¿dejar de avisar de estos?`,
-    willStop: (what: string) => `Marcaste ${what} como no importantes: Sightline dejará de avisarte de ellos.`,
+      `Marcaste ${what} como no importantes. Sightline nunca silencia a personas por su cuenta: ¿dejar de avisarte de esto?`,
+    willStop: (what: string) => `Marcaste ${what} como no importantes: Sightline dejará de avisarte de esto.`,
   },
   checkins: {
     placeOf: (who: string) => `casa de ${who}`,
@@ -107,7 +107,7 @@ const alerts: typeof en = {
     call: (who: string) => `Llamar a ${who}`,
     unconfirmedTitle: (place: string) => `Aún no se ha podido confirmar actividad en ${place}`,
     unconfirmedBody: (place: string, time: string) =>
-      `Sightline no pudo conectar con las cámaras de ${place} para comprobarlo antes de las ${time}. Toca para mirar. Sin un Sightline Hub, los avisos de la familia pueden llegar tarde.`,
+      `Sightline no pudo conectar con las cámaras de ${place} para comprobarlo antes de las ${time}. Toca para mirar. Sin un Sightline Hub, los avisos familiares pueden llegar tarde.`,
     today: (time: string) => `hoy a las ${time}`,
     yesterday: (time: string) => `ayer a las ${time}`,
     onDay: (day: string, time: string) => `el ${day} a las ${time}`,
@@ -147,9 +147,9 @@ const alerts: typeof en = {
     waitingKey: 'Esperando tu clave de Alertas instantáneas desde el Llavero de iCloud. Vuelve a intentarlo en unos minutos.',
     noPush: 'Las notificaciones push no están configuradas en esta versión (falta el ID de proyecto de EAS).',
     notPaired: 'Las Alertas instantáneas aún no están vinculadas.',
-    unreachable: 'No se pudo conectar con el bridge',
-    badSecret: 'El bridge rechazó la clave secreta. Vuelve a copiar el fragmento y reinicia el contenedor.',
-    httpError: (status: number, text: string) => `El bridge respondió HTTP ${status}: ${text}`,
+    unreachable: 'No se pudo conectar con el puente',
+    badSecret: 'El puente rechazó la clave secreta. Vuelve a copiar el fragmento y reinicia el contenedor.',
+    httpError: (status: number, text: string) => `El puente respondió HTTP ${status}: ${text}`,
     addFrigate: 'Primero añade un sistema Frigate.',
   },
   presence: {
@@ -160,7 +160,7 @@ const alerts: typeof en = {
     refused: (name: string) =>
       `${name} está en la red, pero no aceptó la conexión en esa dirección. Revisa la dirección (y el puerto) en su app o en el propio aparato.`,
     noSuchHost: 'No se encontró ninguna dirección con ese nombre. Revisa que esté bien escrita.',
-    notFound: (name: string) => `No se encontró ${name} en esta red. Asegúrate de que tu teléfono está en el wifi de casa y de que ${name} está encendido.`,
+    notFound: (name: string) => `No se encontró ${name} en esta red. Asegúrate de que tu teléfono está en el Wi-Fi de casa y de que ${name} está encendido.`,
     tls: (name: string) => `${name} respondió, pero no se pudo establecer la conexión segura. Prueba la dirección con http:// delante.`,
     noAway: 'Estás fuera de casa y aún no has configurado la conexión para fuera de casa (Ajustes → Fuera de casa).',
     generic: (name: string) => `No se pudo conectar con ${name}.`,

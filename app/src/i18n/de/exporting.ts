@@ -120,7 +120,7 @@ Der Fingerabdruck dieses Berichts steht in manifest.json.`,
     files: 'Dateien und Fingerabdrücke',
     colFile: 'Datei',
     colSize: 'Größe',
-    phoneZone: 'der Zeitzone des Telefons',
+    phoneZone: 'der Zeitzone des Handys',
     timesShown: (zone, offset) =>
       `Zeiten sind in ${zone} angegeben (${offset}). Die Uhren der Kameras können um einige Sekunden von der genauen Zeit abweichen.`,
   },

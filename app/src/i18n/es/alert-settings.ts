@@ -115,7 +115,7 @@ const alertSettings: typeof en = {
     summaryExample: (title, time) => `Por ejemplo: «${title}: primera actividad a las ${time} · 23 momentos hoy».`,
     summary: 'Resumen diario «Todo normal»',
     sendAt: 'Enviar a las',
-    ignoresFooter: 'Los avisos familiares ignoran Casa y fuera y las cámaras silenciadas: tratan de su casa, no de la tuya.',
+    ignoresFooter: 'Los avisos familiares ignoran En casa y fuera y las cámaras silenciadas: tratan de su casa, no de la tuya.',
     duringQuiet: 'Avisar durante mis horas de silencio',
     duringQuietOn: 'Con sonido normal, aunque Concentración esté activado.',
     duringQuietOff: 'Espera a que acaben tus horas de silencio.',
@@ -123,11 +123,11 @@ const alertSettings: typeof en = {
     myTime: 'Mi hora',
     hubNote:
       'Tu Sightline Hub vigila a todas horas, aunque tu teléfono esté apagado, y lo comprueba con el grabador antes de decir que no ha habido actividad.',
-    noHubNote: 'Sin un Sightline Hub, el iPhone decide cuándo puede comprobar Sightline, así que un aviso puede llegar tarde.',
+    noHubNote: 'Sin un Sightline Hub, el iPhone decide cuándo puede comprobar Sightline, así que un aviso familiar puede llegar tarde.',
     couldntCheck: (time) => `Si Sightline no pudo comprobarlo antes de las ${time}, te recordará que mires.`,
-    isOn: 'Aviso activado',
-    delete: 'Eliminar aviso',
-    deleteConfirm: '¿Eliminar este aviso?',
+    isOn: 'Aviso familiar activado',
+    delete: 'Eliminar aviso familiar',
+    deleteConfirm: '¿Eliminar este aviso familiar?',
   },
 
   checkins: {
@@ -137,11 +137,11 @@ const alertSettings: typeof en = {
       'Elige las cámaras que muestran la vida diaria en casa de un ser querido, como la cocina o el pasillo. Sightline te avisa con suavidad si no hay actividad a la hora que elijas, o durante un largo rato del día, y puede enviarte cada día una nota de «Todo normal».',
     footer: 'Los avisos familiares solo usan cámaras que puedes ver.',
     off: (place) => `${place} (desactivado)`,
-    add: 'Añadir un aviso',
+    add: 'Añadir un aviso familiar',
   },
 
   learned: {
-    title: 'Lo que aprendió Sightline',
+    title: 'Lo que Sightline aprendió',
     forgetTitle: '¿Olvidar esto?',
     forgetBody: 'Sightline volverá a avisarte de esto y olvidará las valoraciones que lo causaron.',
     forget: 'Olvidar',
@@ -159,7 +159,7 @@ const alertSettings: typeof en = {
   },
 
   homeAway: {
-    title: 'Casa y fuera',
+    title: 'En casa y fuera',
     intro:
       'Cuando estás en casa, Sightline silencia las alertas salvo las de las cámaras que elijas abajo (como el timbre). Tu ubicación se queda en tu teléfono; solo se comparte «en casa» o «fuera» con tu puente de Alertas instantáneas.',
     gettingLocation: 'Obteniendo ubicación…',
@@ -175,7 +175,7 @@ const alertSettings: typeof en = {
     switchHome: 'Cambiar a En casa por ahora',
     switchDetail: 'Vuelve a cambiar solo la próxima vez que llegues o te vayas.',
     moveHome: 'Mover la casa a mi ubicación actual',
-    turnOff: 'Desactivar Casa y fuera',
+    turnOff: 'Desactivar En casa y fuera',
     keepAlerting: 'Seguir avisando cuando estoy en casa',
     keepFooter: 'Las cámaras sin marcar no avisan mientras estás en casa.',
     noCameras: 'Aún no hay cámaras',
@@ -223,8 +223,8 @@ const alertSettings: typeof en = {
 
   extras: {
     lockFooter: 'Si no aparece nada, comprueba en la app Ajustes del iPhone que Sightline tiene permitidas las Actividades en directo.',
-    lockLabel: 'Mostrar en la pantalla bloqueada',
-    lockDetail: 'Cuando suena el timbre o una cámara ve algo, lo muestra en tu pantalla bloqueada unos minutos, con la imagen más reciente.',
+    lockLabel: 'Mostrar en la pantalla de bloqueo',
+    lockDetail: 'Cuando suena el timbre o una cámara ve algo, lo muestra en tu pantalla de bloqueo unos minutos, con la imagen más reciente.',
     knownTitle: 'Personas y coches conocidos',
     knownFooterSome: 'Los nombres elegidos nunca activan alertas. Cualquiera que tu sistema no reconozca sigue avisando.',
     knownFooterNone:
@@ -269,12 +269,12 @@ const alertSettings: typeof en = {
       'Mantén pulsada una alerta y elige «No es importante» (o usa los pulgares en Grabaciones). Tras varias del mismo tipo, Sightline deja de avisarte de ellas. El timbre siempre avisa, y las personas solo se silencian si tú lo dices.',
     ignoreWeather: 'Ignorar posible lluvia, viento y faros',
     ignoreWeatherDetail: 'Movimiento sin nada detectado que afecta a varias cámaras a la vez, o un destello de noche. Personas, coches y animales siguen avisando.',
-    learned: 'Lo que aprendió Sightline',
+    learned: 'Lo que Sightline aprendió',
     nothingYet: 'Nada todavía',
     items: (n) => p(n, { one: `${n} elemento`, other: `${n} elementos` }),
     itemsWaiting: (n, waiting) => `${p(n, { one: `${n} elemento`, other: `${n} elementos` })} · ${waiting} pendientes de ti`,
     checkins: 'Avisos familiares',
-    checkinCount: (n) => p(n, { one: `${n} aviso`, other: `${n} avisos` }),
+    checkinCount: (n) => p(n, { one: `${n} aviso familiar`, other: `${n} avisos familiares` }),
     checkinEmpty: 'Entérate si no hay actividad en casa de un ser querido',
   },
 };

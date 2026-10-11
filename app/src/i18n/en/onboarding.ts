@@ -151,7 +151,7 @@ const onboarding = {
     title: 'Keep your cameras private',
     body: (method: string) => `Use ${method} to open Sightline, so anyone borrowing your phone can’t look at your cameras. No account or password to remember.`,
     turnOn: (method: string) => `Turn on ${method}`,
-    changeLater: 'You can change this any time in Settings → Security.',
+    changeLater: 'You can change this any time in Settings → Privacy & lock.',
   },
   // onboarding/move.tsx
   move: {

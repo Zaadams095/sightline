@@ -49,7 +49,7 @@ const settings: typeof en = {
 
   backupMsg: {
     systems: (n) => p(n, { one: `${n} système`, other: `${n} systèmes` }),
-    checkins: (n) => p(n, { one: `${n} veille familiale`, other: `${n} veilles familiales` }),
+    checkins: (n) => p(n, { one: `${n} veille`, other: `${n} veilles` }),
     tooBig:
       'Vos réglages sont trop volumineux pour être sauvegardés en entier dans iCloud. Utilisez « Exporter un fichier de sauvegarde » pour garder une copie complète.',
     refusedTooBig: 'iCloud a refusé la sauvegarde car elle est trop volumineuse. Utilisez plutôt « Exporter un fichier de sauvegarde ».',
@@ -160,7 +160,7 @@ const settings: typeof en = {
     imported: (n) => p(n, { one: `${n} groupe importé.`, other: `${n} groupes importés.` }),
     noneFound: 'Aucun groupe de caméras trouvé sur votre enregistreur.',
     groupName: 'Nom du groupe',
-    placeholder: 'Devant la maison',
+    placeholder: 'Devant',
     camerasN: (n) => `Caméras (${n})`,
     saveGroup: 'Enregistrer le groupe',
     intro:
@@ -244,7 +244,7 @@ const settings: typeof en = {
   sharing: {
     needsHub: 'Le partage nécessite un Sightline Hub',
     hubAbout:
-      'Un Sightline Hub est une petite app gratuite qui tourne sur un ordinateur toujours allumé à la maison. Il permet de partager des caméras avec la famille et les amis, et vous choisissez quelles caméras et pour combien de temps. Il envoie aussi des alertes instantanées et vous permet de regarder hors de chez vous sans VPN.',
+      'Un Sightline Hub est une petite app gratuite qui tourne sur un ordinateur toujours allumé à la maison. Il permet de partager des caméras avec la famille et les amis, et vous choisissez quelles caméras et pour combien de temps. Il envoie aussi des Alertes instantanées et vous permet de regarder hors de chez vous sans VPN.',
     whereTitle: 'Où l’installer',
     haDetail: 'Ajoutez le module Sightline Hub. L’option la plus simple.',
     nas: 'Synology, Unraid ou un autre NAS',
@@ -312,7 +312,7 @@ const settings: typeof en = {
     removeTitle: (name) => `Retirer ${name} ?`,
     removeBody:
       'Ses caméras disparaîtront de cette app. Rien n’est modifié sur l’enregistreur ou les caméras, et vous pourrez le rajouter plus tard.',
-    demo: 'Vidéo d’exemple intégrée, pas une vraie caméra',
+    demo: 'Vidéo de démo intégrée, pas une vraie caméra',
     connectedHome: 'Connecté à la maison',
     connectedAway: 'Connecté hors de chez vous',
     notConnected: 'Non connecté',
@@ -320,7 +320,7 @@ const settings: typeof en = {
     unchanged: 'Inchangé',
     hubAwayOn: 'Hors de chez vous : activé (via votre Hub).',
     hubAwayOff: 'Hors de chez vous : désactivé. Activez l’accès à distance sur la page de configuration du Hub.',
-    reachAway: 'Y accéder quand je suis absent',
+    reachAway: 'Y accéder hors de chez moi',
     saveReconnect: 'Enregistrer et reconnecter',
     removeFrom: 'Retirer de Sightline',
     removingNote:
@@ -334,7 +334,7 @@ const settings: typeof en = {
     hubAbout: 'Une petite app gratuite pour un ordinateur toujours allumé à la maison. Aucun réglage du routeur nécessaire.',
     awayOn: 'Hors de chez vous : activé',
     awayOff: 'Hors de chez vous : désactivé',
-    setUpHub: 'Installer un Sightline Hub',
+    setUpHub: 'Configurer un Sightline Hub',
     connectHub: 'J’ai un Hub : le connecter',
     removeTitle: 'Supprimer votre VPN ?',
     removeBody: 'Sightline ne passera plus par lui pour joindre vos caméras quand vous êtes absent.',

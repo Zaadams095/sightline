@@ -76,7 +76,7 @@ const alertSettings: typeof en = {
     copied: 'Kopiert',
     copy: 'Ausschnitt kopieren',
     step1Help: 'Füge ihn unter services: ein, setze MQTT_URL auf den Broker aus deiner Frigate-Konfiguration und führe dann docker compose up -d aus.',
-    step2: '2. Dieses iPhone koppeln',
+    step2: '2. Dieses Handy koppeln',
     address: 'Container-Adresse',
     paired: 'Gekoppelt! Eine Testmitteilung ist unterwegs.',
     repair: 'Neu koppeln & testen',
@@ -112,7 +112,7 @@ const alertSettings: typeof en = {
     quietLong: 'es tagsüber lange ruhig ist',
     dayStarts: 'Tag beginnt',
     dayEnds: 'Tag endet',
-    summaryExample: (title, time) => `Zum Beispiel: „${title}: erste Aktivität ${time} · heute 23 Momente.“`,
+    summaryExample: (title, time) => `Zum Beispiel: „${title}: erste Aktivität ${time} · heute 23 Ereignisse.“`,
     summary: 'Tägliche Zusammenfassung „Alles normal“',
     sendAt: 'Senden um',
     ignoresFooter: 'Check-ins ignorieren Zuhause & Unterwegs und stummgeschaltete Kameras: Es geht um ihr Zuhause, nicht um deins.',
@@ -122,7 +122,7 @@ const alertSettings: typeof en = {
     theirTime: (zone) => `Ihre Uhrzeit (${zone})`,
     myTime: 'Meine Uhrzeit',
     hubNote:
-      'Dein Sightline Hub passt rund um die Uhr auf, auch wenn dein iPhone aus ist, und fragt beim Rekorder nach, bevor er meldet, dass es keine Aktivität gab.',
+      'Dein Sightline Hub passt rund um die Uhr auf, auch wenn dein Handy aus ist, und fragt beim Rekorder nach, bevor er meldet, dass es keine Aktivität gab.',
     noHubNote: 'Ohne Sightline Hub entscheidet das iPhone, wann Sightline prüfen kann, daher kann ein Check-in später kommen.',
     couldntCheck: (time) => `Konnte Sightline bis ${time} nicht prüfen, erinnert es dich, selbst nachzusehen.`,
     isOn: 'Check-in ist an',
@@ -147,7 +147,7 @@ const alertSettings: typeof en = {
     forget: 'Vergessen',
     emptyTitle: 'Noch nichts gelernt',
     emptyBody:
-      'Wenn eine Meldung unwichtig ist, drücke länger darauf und wähle „Nicht wichtig“ oder tippe in Aufnahmen auf den Daumen nach unten. Nach ein paar gleichen auf derselben Kamera meldet Sightline so etwas nicht mehr und zeigt es hier an, damit du es jederzeit rückgängig machen kannst.',
+      'Wenn eine Meldung unwichtig ist, drücke länger darauf und wähle „Nicht wichtig“ oder tippe im Tab „Aufnahmen“ auf den Daumen nach unten. Nach ein paar gleichen auf derselben Kamera meldet Sightline so etwas nicht mehr und zeigt es hier an, damit du es jederzeit rückgängig machen kannst.',
     waiting: 'Wartet auf dich',
     waitingFooter: 'Bei Personen hört Sightline nie von selbst auf zu melden.',
     stop: 'Nicht mehr melden',
@@ -161,7 +161,7 @@ const alertSettings: typeof en = {
   homeAway: {
     title: 'Zuhause & Unterwegs',
     intro:
-      'Wenn du zu Hause bist, schaltet Sightline Meldungen stumm – außer von den Kameras, die du unten auswählst (z. B. die Türklingel). Dein Standort bleibt auf deinem iPhone; nur „zu Hause“ oder „unterwegs“ wird mit deiner Sofort-Meldungen-Bridge geteilt.',
+      'Wenn du zu Hause bist, schaltet Sightline Meldungen stumm – außer von den Kameras, die du unten auswählst (z. B. die Türklingel). Dein Standort bleibt auf deinem Handy; nur „zu Hause“ oder „unterwegs“ wird mit deiner Sofort-Meldungen-Bridge geteilt.',
     gettingLocation: 'Standort wird ermittelt …',
     setHome: 'Ich bin zu Hause: als Zuhause festlegen',
     status: 'Status',
@@ -266,7 +266,7 @@ const alertSettings: typeof en = {
   smart: {
     title: 'Weniger Fehlalarme',
     footer:
-      'Drücke länger auf eine Meldung und wähle „Nicht wichtig“ (oder nutze die Daumen in Aufnahmen). Nach ein paar gleichen meldet Sightline so etwas nicht mehr. Die Türklingel kommt immer durch, und Personen werden nur stummgeschaltet, wenn du es sagst.',
+      'Drücke länger auf eine Meldung und wähle „Nicht wichtig“ (oder nutze die Daumen im Tab „Aufnahmen“). Nach ein paar gleichen meldet Sightline so etwas nicht mehr. Die Türklingel kommt immer durch, und Personen werden nur stummgeschaltet, wenn du es sagst.',
     ignoreWeather: 'Wahrscheinlich Regen, Wind und Scheinwerfer ignorieren',
     ignoreWeatherDetail: 'Bewegung ohne erkanntes Objekt, die mehrere Kameras gleichzeitig trifft oder nachts kurz aufblitzt. Personen, Autos und Tiere werden weiterhin gemeldet.',
     learned: 'Was Sightline gelernt hat',

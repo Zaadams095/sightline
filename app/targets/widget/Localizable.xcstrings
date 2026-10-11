@@ -314,25 +314,25 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Imágenes recientes de tus cámaras. Toca una para verla en directo."
+            "value": "Instantáneas recientes de tus cámaras. Toca una para verla en directo."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Images récentes de vos caméras. Touchez-en une pour la voir en direct."
+            "value": "Photos récentes de vos caméras. Touchez-en une pour la voir en direct."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aktuelle Bilder deiner Kameras. Tippe auf eins, um live zuzusehen."
+            "value": "Aktuelle Schnappschüsse deiner Kameras. Tippe auf einen, um live zuzusehen."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Imagens recentes das suas câmeras. Toque em uma para ver ao vivo."
+            "value": "Fotos recentes das suas câmeras. Toque em uma para ver ao vivo."
           }
         }
       }

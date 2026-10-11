@@ -191,7 +191,7 @@ const systems: typeof en = {
       },
       household: {
         label: 'Haushalt',
-        description: 'Live-Bild, Aufnahmen und Hinweise für die Kameras, die du auswählst. Für Familie, die bei dir wohnt.',
+        description: 'Live-Bild, Aufnahmen und Meldungen für die Kameras, die du auswählst. Für Familie, die bei dir wohnt.',
       },
       temporary: {
         label: 'Vorübergehend',
@@ -248,7 +248,7 @@ const systems: typeof en = {
       Street: 'Straße',
       'Front lawn': 'Vorgarten',
     } as Record<string, string>,
-    sampleAlertBody: 'Beispiel-Hinweis. So sehen die Hinweise deiner eigenen Kameras aus. Tippe, um die Aufnahme anzusehen.',
+    sampleAlertBody: 'Beispielmeldung. So sehen die Meldungen deiner eigenen Kameras aus. Tippe, um die Aufnahme anzusehen.',
   },
 };
 

@@ -115,7 +115,7 @@ const alertSettings: typeof en = {
     summaryExample: (title, time) => `Por exemplo: “${title}: primeira atividade às ${time} · 23 momentos hoje.”`,
     summary: 'Resumo diário “Tudo normal”',
     sendAt: 'Enviar às',
-    ignoresFooter: 'O acompanhamento ignora Em casa e Fora e as câmeras silenciadas: é sobre a casa da pessoa, não a sua.',
+    ignoresFooter: 'O acompanhamento ignora Em casa e fora e as câmeras silenciadas: é sobre a casa da pessoa, não a sua.',
     duringQuiet: 'Avisar durante meu horário de silêncio',
     duringQuietOn: 'Com som normal, mesmo com um Foco ativado.',
     duringQuietOff: 'Espera o fim do seu horário de silêncio.',
@@ -159,7 +159,7 @@ const alertSettings: typeof en = {
   },
 
   homeAway: {
-    title: 'Em casa e Fora',
+    title: 'Em casa e fora',
     intro:
       'Quando você está em casa, o Sightline silencia os alertas, exceto os das câmeras que você escolher abaixo (como a campainha). Sua localização fica no seu celular; só “em casa” ou “fora” é compartilhado com sua ponte de Alertas instantâneos.',
     gettingLocation: 'Obtendo localização…',
@@ -175,7 +175,7 @@ const alertSettings: typeof en = {
     switchHome: 'Mudar para Em casa por enquanto',
     switchDetail: 'Volta sozinho na próxima vez que você chegar ou sair.',
     moveHome: 'Mudar a casa para minha localização atual',
-    turnOff: 'Desativar Em casa e Fora',
+    turnOff: 'Desativar Em casa e fora',
     keepAlerting: 'Continuar avisando quando eu estiver em casa',
     keepFooter: 'Câmeras não marcadas ficam em silêncio enquanto você está em casa.',
     noCameras: 'Nenhuma câmera ainda',

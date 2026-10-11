@@ -16,7 +16,7 @@ const settings: typeof en = {
     deleteBody:
       'Damit werden deine Sightline-Einstellungen und Kamera-Passwörter aus iCloud gelöscht und das Backup ausgeschaltet. Auf diesem Handy bleibt alles erhalten.',
     icloudFooter:
-      'Deine Rekorder, die Kamera-Reihenfolge, Gruppen, Layouts und Mitteilungseinstellungen werden in deiner eigenen iCloud gespeichert, Kamera-Passwörter im iCloud-Schlüsselbund. Ein neues iPhone mit deinem Apple Account richtet sich damit von selbst ein. Videos werden nie hochgeladen, und Sightline hat keine eigenen Server.',
+      'Deine Rekorder, die Kamera-Reihenfolge, Gruppen, Layouts und Meldungseinstellungen werden in deiner eigenen iCloud gespeichert, Kamera-Passwörter im iCloud-Schlüsselbund. Ein neues iPhone mit deinem Apple Account richtet sich damit von selbst ein. Videos werden nie hochgeladen, und Sightline hat keine eigenen Server.',
     backUpToICloud: 'Backup in iCloud',
     backUpNow: 'Jetzt sichern',
     deleteBackup: 'iCloud-Backup löschen',
@@ -87,7 +87,7 @@ const settings: typeof en = {
   },
 
   cameras: {
-    footer: 'Ausgeblendete Kameras nehmen weiter auf und können weiterhin Mitteilungen senden.',
+    footer: 'Ausgeblendete Kameras nehmen weiter auf und können weiterhin Meldungen senden.',
     showOnLive: (name) => `${name} im Tab „Live“ zeigen`,
   },
 
@@ -240,7 +240,7 @@ const settings: typeof en = {
   sharing: {
     needsHub: 'Zum Teilen brauchst du einen Sightline Hub',
     hubAbout:
-      'Ein Sightline Hub ist eine kleine kostenlose App, die auf einem Computer läuft, der zu Hause immer an ist. Damit teilst du Kameras mit Familie und Freunden und bestimmst selbst, welche Kameras und wie lange. Er schickt außerdem sofortige Mitteilungen und lässt dich unterwegs ohne VPN zusehen.',
+      'Ein Sightline Hub ist eine kleine kostenlose App, die auf einem Computer läuft, der zu Hause immer an ist. Damit teilst du Kameras mit Familie und Freunden und bestimmst selbst, welche Kameras und wie lange. Er schickt außerdem Sofort-Meldungen und lässt dich unterwegs ohne VPN zusehen.',
     whereTitle: 'Wo du ihn installierst',
     haDetail: 'Füge das Sightline Hub Add-on hinzu. Die einfachste Möglichkeit.',
     nas: 'Synology, Unraid oder ein anderes NAS',

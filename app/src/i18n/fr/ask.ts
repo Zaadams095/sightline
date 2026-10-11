@@ -28,7 +28,7 @@ const ask: typeof en = {
       backyard: 'Quelqu’un était-il dans le jardin cette nuit ?',
       kids: 'À quelle heure les enfants sont-ils rentrés ?',
       cars: 'Combien de voitures sont passées cette semaine ?',
-      delivery: 'Montre-moi le livreur',
+      delivery: 'Montrez-moi le livreur',
       door: 'Qui est venu à la porte aujourd’hui ?',
     },
     rowLabel: (subject, camera, when) => `${subject} sur ${camera}, ${when}. Lire.`,

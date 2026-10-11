@@ -26,7 +26,7 @@ const onboarding: typeof en = {
   },
   alerts: {
     title: 'Meldungen',
-    intro: 'Wähle, wie Meldungen dich erreichen. Welche Kameras und welche Aktivität dich benachrichtigen, kannst du jederzeit in den Einstellungen festlegen.',
+    intro: 'Wähle, wie Meldungen dich erreichen. Welche Kameras und welche Aktivität dir gemeldet werden, kannst du jederzeit in den Einstellungen festlegen.',
     builtIn: 'Integriert',
     noSetup: 'Ohne Einrichtung',
     builtInBody:
@@ -80,7 +80,7 @@ const onboarding: typeof en = {
   discover: {
     title: 'Kameras werden gesucht',
     starting: 'Wird gestartet …',
-    allowHint: 'Wenn dein iPhone fragt, ob es Geräte im lokalen Netzwerk suchen darf, tippe auf „Erlauben“.',
+    allowHint: 'Wenn dein Handy fragt, ob es Geräte im lokalen Netzwerk suchen darf, tippe auf „Erlauben“.',
     nothingFound: 'Nichts gefunden. Achte darauf, dass du im WLAN zu Hause bist, oder wähle deine Marke auf dem vorherigen Bildschirm.',
     cantConnectYet: 'Mit diesem Gerät kann sich Sightline noch nicht verbinden.',
     unknownBrand: (address) => `${address} · Marke unbekannt. Tippe, um es mit dem Passwort zu versuchen.`,
@@ -102,7 +102,7 @@ const onboarding: typeof en = {
     sticker: 'Aufkleber ansehen',
     stickerStep1: 'Die meisten Kameras haben einen Aufkleber unten, hinten oder im Batteriefach. Rekorder haben ihn auf der Unterseite.',
     stickerStep2: 'Darauf stehen Marke und Modell und oft ein Code oder Passwort, das du später brauchen könntest.',
-    stickerStep3: 'Mach mit der Kamera-App deines iPhones ein Foto davon, dann hast du die Codes griffbereit.',
+    stickerStep3: 'Mach mit der Kamera-App deines Handys ein Foto davon, dann hast du die Codes griffbereit.',
     noSticker: 'Kein Aufkleber? Die Marke steht meist vorne auf der Kamera oder auf der Verpackung.',
     whichApp: 'Mit welcher App schaust du?',
     whichAppBody: 'Die App auf deinem Handy verrät die Marke. Tippe auf deine.',
@@ -116,7 +116,7 @@ const onboarding: typeof en = {
     seeCameras: 'Kameras ansehen',
     titlePair: 'Mit deinem Hub verbinden',
     titleShared: 'Geteilte Kameras',
-    pairWith: (name) => `Dieses iPhone mit ${name} koppeln.`,
+    pairWith: (name) => `Dieses Handy mit ${name} koppeln.`,
     yourHub: 'deinem Sightline Hub',
     sharedBy: (name) => `${name} hat Kameras mit dir geteilt. Tippe auf „Beitreten“, um loszulegen.`,
     someone: 'Jemand',
@@ -140,9 +140,9 @@ const onboarding: typeof en = {
     didntWork: (method) => `${method} hat nicht geklappt. Versuch es noch einmal oder tippe auf „Nicht jetzt“.`,
     title: 'Halte deine Kameras privat',
     body: (method) =>
-      `Öffne Sightline mit ${method}, damit niemand, der sich dein iPhone leiht, deine Kameras sehen kann. Kein Konto und kein Passwort zum Merken.`,
+      `Öffne Sightline mit ${method}, damit niemand, der sich dein Handy leiht, deine Kameras sehen kann. Kein Konto und kein Passwort zum Merken.`,
     turnOn: (method) => `${method} einschalten`,
-    changeLater: 'Du kannst das jederzeit in Einstellungen → Sicherheit ändern.',
+    changeLater: 'Du kannst das jederzeit in Einstellungen → Datenschutz & Sperre ändern.',
   },
   move: {
     cameraNeeded: 'Zum Scannen braucht Sightline Zugriff auf die Kamera. Du kannst auch eine Backup-Datei verwenden.',
@@ -152,11 +152,11 @@ const onboarding: typeof en = {
     setUpMany: (n) => `Deine ${n} Rekorder und Kameras sind eingerichtet.`,
     setUpManyFrom: (n, phone) => `Deine ${n} Rekorder und Kameras sind eingerichtet, genau wie auf ${phone}.`,
     seeMyCameras: 'Meine Kameras ansehen',
-    title: 'Neues iPhone?',
+    title: 'Umzug von einem anderen Handy?',
     intro: 'Hol deine Kameras, Passwörter und Einstellungen in einer Minute rüber. Nichts muss neu eingetippt werden.',
-    oldPhoneNearby: 'Mit deinem alten iPhone in der Nähe',
+    oldPhoneNearby: 'Mit deinem alten Handy in der Nähe',
     oldPhoneBody:
-      'Öffne auf dem alten iPhone Sightline, dann Einstellungen → Backup & neues iPhone → Auf anderes iPhone übertragen. Lass beide im selben WLAN und scanne dann den angezeigten Code.',
+      'Öffne auf dem alten Handy Sightline, dann Einstellungen → Backup & neues Handy → Auf ein anderes Handy übertragen. Lass beide Handys im selben WLAN und scanne dann den angezeigten Code.',
     scanCode: 'Code scannen',
     withBackup: 'Mit einer Backup-Datei',
     withBackupBody: 'Wenn du eine Sightline-Backup-Datei gespeichert hast (AirDrop, Dateien oder iCloud Drive), öffne sie hier und gib den gewählten Code ein.',
@@ -165,7 +165,7 @@ const onboarding: typeof en = {
     restore: 'Wiederherstellen',
     differentFile: 'Andere Datei wählen',
     openBackup: 'Backup-Datei öffnen',
-    pointOldPhone: 'Richte die Kamera auf den Code auf deinem alten iPhone',
+    pointOldPhone: 'Richte die Kamera auf den Code auf deinem alten Handy',
   },
   rtsp: {
     notLink: 'Das sieht nicht wie ein Stream-Link aus. Er sollte mit rtsp:// beginnen',

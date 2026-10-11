@@ -21,7 +21,7 @@ const systems: typeof en = {
   http: {
     stillConnecting: (label: string) => `Ainda conectando a ${label}. Tente de novo em instantes.`,
     noAnswer: (label: string) => `${label} não respondeu a tempo. Verifique se está ligado e acessível.`,
-    cantReach: (label: string) => `Não foi possível acessar ${label}. Verifique o endereço e se o seu telefone está na mesma rede.`,
+    cantReach: (label: string) => `Não foi possível acessar ${label}. Verifique o endereço e se o seu celular está na mesma rede.`,
     unexpectedReply: (label: string) => `${label} enviou uma resposta inesperada. Verifique se o endereço leva ao ${label}.`,
     unexpectedReplyShort: (label: string) => `${label} enviou uma resposta inesperada.`,
     badLogin: (label: string) => `${label} não aceitou o usuário ou a senha. Confira e tente de novo.`,
@@ -79,7 +79,7 @@ const systems: typeof en = {
   },
   dahua: {
     noAnswer: 'O gravador não respondeu a tempo. Verifique se está ligado e acessível.',
-    cantReach: 'Não foi possível acessar o gravador. Verifique o endereço e se o seu telefone está na mesma rede.',
+    cantReach: 'Não foi possível acessar o gravador. Verifique o endereço e se o seu celular está na mesma rede.',
     locked: 'O gravador bloqueou esta conta depois de muitas senhas erradas. Espere 30 minutos ou desbloqueie pela tela do gravador.',
     badLogin:
       'O gravador não aceitou esse usuário e senha. Confira e tente de novo (são os que você usa na tela do gravador ou no app dele).',
@@ -115,7 +115,7 @@ const systems: typeof en = {
   shinobi: {
     needsKeys: 'O Shinobi precisa de uma chave de API e de uma chave de grupo. Edite este sistema e adicione as duas.',
     badKeys:
-      'O Shinobi não aceitou a chave de API e a chave de grupo. Confira as duas e se os “Allowed IPs” da chave incluem o endereço deste telefone.',
+      'O Shinobi não aceitou a chave de API e a chave de grupo. Confira as duas e se os “Allowed IPs” da chave incluem o endereço deste celular.',
     cameraNotFound: 'Câmera não encontrada no Shinobi.',
     streamType: (type: string) =>
       `Esta câmera transmite como “${type}”, que o iPhone não consegue reproduzir. No Shinobi, abra os ajustes da câmera → Stream → Stream Type, escolha HLS e salve.`,
@@ -130,8 +130,8 @@ const systems: typeof en = {
   },
   onvif: {
     notConnected: 'Ainda não conectado à câmera.',
-    noAnswer: 'A câmera não respondeu a tempo. Verifique se está ligada e se o telefone está na mesma rede.',
-    cantReach: 'Não foi possível acessar a câmera. O telefone está na mesma rede?',
+    noAnswer: 'A câmera não respondeu a tempo. Verifique se está ligada e se o celular está na mesma rede.',
+    cantReach: 'Não foi possível acessar a câmera. O celular está na mesma rede?',
     httpError: (status: number) => `A câmera retornou um erro (HTTP ${status}).`,
     noStreams: 'A câmera não tem nenhuma transmissão de vídeo configurada. Confira os ajustes de vídeo dela.',
     cameraGone: 'Esta câmera não está mais disponível. Tente removê-la e adicioná-la de novo.',
@@ -161,7 +161,7 @@ const systems: typeof en = {
     unreachable: 'Não foi possível acessar o UniFi Protect. Verifique se o console está ligado e se o Protect terminou de iniciar.',
     httpError: (status: number) => `O UniFi Protect respondeu com um erro (HTTP ${status}). Tente de novo em instantes.`,
     noAnswer: 'O UniFi Protect não respondeu a tempo. Verifique se o console está ligado e acessível.',
-    cantReach: 'Não foi possível acessar o console UniFi. Verifique o endereço e se o seu telefone está na mesma rede.',
+    cantReach: 'Não foi possível acessar o console UniFi. Verifique o endereço e se o seu celular está na mesma rede.',
     unexpectedReply: 'O console UniFi enviou uma resposta inesperada. Verifique se o endereço leva ao seu console UniFi.',
     cameraGone: 'Essa câmera não está mais no UniFi Protect.',
     notInstalled: 'Login feito, mas o UniFi Protect não está instalado ou não está rodando neste console.',
@@ -172,21 +172,21 @@ const systems: typeof en = {
     theHub: 'o Hub',
     revoked: (hub: string) => `Seu acesso a ${hub} foi removido.`,
     expired: (hub: string) => `Seu acesso a ${hub} terminou.`,
-    unpaired: (hub: string) => `Este telefone não está mais pareado com ${hub}. Remova-o e pareie de novo.`,
+    unpaired: (hub: string) => `Este celular não está mais pareado com ${hub}. Remova-o e pareie de novo.`,
     httpError: (status: number) => `O Hub retornou HTTP ${status}`,
     notAHub: 'Esse endereço não é um Sightline Hub.',
-    notPaired: 'Este telefone não está pareado com o Hub.',
+    notPaired: 'Este celular não está pareado com o Hub.',
     cantReachBoth: (home: string, away: string) => `Não foi possível acessar o Hub em casa (${home}) nem fora (${away}).`,
     cantReachAt: (address: string) =>
       `Não foi possível acessar o Hub em ${address}. Fora de casa, o Hub precisa do acesso remoto ativado (na página de configuração dele).`,
-    cantReachWifi: (address: string) => `Não foi possível acessar o Hub em ${address}. Verifique se este telefone está no mesmo Wi‑Fi que o Hub.`,
+    cantReachWifi: (address: string) => `Não foi possível acessar o Hub em ${address}. Verifique se este celular está no mesmo Wi‑Fi que o Hub.`,
     cantReach: (detail: string) => `Não foi possível acessar o Hub. ${detail}`.trim(),
     unsupportedPlayback: 'O Hub enviou uma gravação que esta versão do Sightline não consegue reproduzir. Atualize o app.',
     owner: 'Proprietário',
     roles: {
       full: {
         label: 'Acesso total',
-        description: 'Tudo o que você pode fazer, inclusive compartilhar com outras pessoas. Para seu par ou seu outro telefone.',
+        description: 'Tudo o que você pode fazer, inclusive compartilhar com outras pessoas. Para seu par ou seu outro celular.',
       },
       household: {
         label: 'Casa',

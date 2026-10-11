@@ -151,7 +151,7 @@ const home = {
     pullToRetry: 'Pull down to try again.',
     noCamerasBody: 'Add your recorder or cameras to see what happened.',
     unreachableTitle: 'Can’t reach your cameras right now',
-    unreachableBody: 'Pull down to try again, or check Settings → Diagnostics.',
+    unreachableBody: 'Pull down to try again, or check Settings → Connection check.',
     liveOnlyTitle: 'Live view only',
     liveOnlyBody:
       'Your cameras are connected for live view. To look back at what happened, add the recorder or software that records them.',

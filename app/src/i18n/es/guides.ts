@@ -10,7 +10,7 @@ const guides: typeof en = {
   alt: {
     pickAnother: 'Elegir otra marca',
     findOnWifi: 'Buscar cámaras en mi Wi-Fi',
-    haveLink: 'Tengo un enlace de video (rtsp://…)',
+    haveLink: 'Tengo un enlace de vídeo (rtsp://…)',
     seeWorking: 'Ver cámaras que funcionan con Sightline',
   },
   groups: {
@@ -29,7 +29,7 @@ const guides: typeof en = {
       steps: [
         'Abre la app Tapo y toca tu cámara.',
         'Toca el engranaje arriba a la derecha y luego Advanced Settings → Camera Account.',
-        'Toca “Understand and Agree to Use”. Crea un usuario y una contraseña (de 6 a 32 caracteres cada uno) y anótalos. Son solo para la cámara, no tu cuenta de Tapo.',
+        'Toca «Understand and Agree to Use». Crea un usuario y una contraseña (de 6 a 32 caracteres cada uno) y anótalos. Son solo para la cámara, no tu cuenta de Tapo.',
       ],
       usernameLabel: 'Usuario de la cuenta de la cámara',
       usernameHint: 'El usuario que acabas de crear en la app Tapo.',
@@ -40,7 +40,7 @@ const guides: typeof en = {
     battery: {
       title: 'Cámara de batería o timbre',
       detail: 'Como la C400, C420, C425 o un timbre de batería',
-      why: 'Las cámaras Tapo de batería duermen entre grabaciones para ahorrar energía, así que solo envían video a la app Tapo. Sightline no puede mostrarlas, pero sí funciona con las cámaras Tapo que se enchufan a la pared.',
+      why: 'Las cámaras Tapo de batería duermen entre grabaciones para ahorrar energía, así que solo envían vídeo a la app Tapo. Sightline no puede mostrarlas, pero sí funciona con las cámaras Tapo que se enchufan a la pared.',
       usePlugin: 'Configurar una cámara Tapo enchufada',
     },
   },
@@ -61,17 +61,17 @@ const guides: typeof en = {
     },
     other: {
       title: 'Wyze Cam v4, OG, timbre o cámara de batería',
-      why: 'Por ahora, estas cámaras Wyze solo envían video a la app Wyze. Wyze ha dicho que llegará una opción de video para la Cam v4, pero aún no está disponible. Cuando llegue, vuelve y elige “Wyze Cam v3 o Pan v3”: los pasos son los mismos.',
+      why: 'Por ahora, estas cámaras Wyze solo envían vídeo a la app Wyze. Wyze ha dicho que llegará una opción de vídeo para la Cam v4, pero aún no está disponible. Cuando llegue, vuelve y elige «Wyze Cam v3 o Pan v3»: los pasos son los mismos.',
     },
   },
   eufy: {
     rtsp: {
-      title: 'Cámara con “NAS (RTSP)”',
+      title: 'Cámara con «NAS (RTSP)»',
       detail: 'La mayoría de las cámaras eufy enchufadas',
       steps: [
         'Abre la app eufy Security, toca tu cámara y luego el engranaje para ver sus ajustes.',
-        'Busca Storage → NAS (RTSP) y actívalo. Si no lo ves, esta cámara no puede compartir video (mira “Otras cámaras eufy”).',
-        'Elige “Continuous” para que siempre haya video, crea un usuario y una contraseña, y copia el enlace que aparece.',
+        'Busca Storage → NAS (RTSP) y actívalo. Si no lo ves, esta cámara no puede compartir vídeo (mira «Otras cámaras eufy»).',
+        'Elige «Continuous» para que siempre haya vídeo, crea un usuario y una contraseña, y copia el enlace que aparece.',
       ],
       usernameLabel: 'Usuario RTSP',
       usernameHint: 'El usuario de la pantalla NAS (RTSP) en la app eufy.',
@@ -80,9 +80,9 @@ const guides: typeof en = {
     },
     other: {
       title: 'Otras cámaras eufy',
-      detail: 'Sin “NAS (RTSP)” en la app',
-      why: 'Algunas cámaras eufy, sobre todo las de batería, solo envían video a la app eufy. Si la app no tiene el ajuste “NAS (RTSP)” para la cámara, Sightline no puede mostrarla.',
-      checkAgain: 'Volver a buscar “NAS (RTSP)”',
+      detail: 'Sin «NAS (RTSP)» en la app',
+      why: 'Algunas cámaras eufy, sobre todo las de batería, solo envían vídeo a la app eufy. Si la app no tiene el ajuste «NAS (RTSP)» para la cámara, Sightline no puede mostrarla.',
+      checkAgain: 'Volver a buscar «NAS (RTSP)»',
     },
   },
   imou: {
@@ -90,10 +90,10 @@ const guides: typeof en = {
       title: 'Cámara Imou',
       detail: 'La mayoría de los modelos enchufados',
       steps: [
-        'Busca la etiqueta de la cámara (suele estar debajo). Busca “Safety code” o “SC”, un código corto de letras y números.',
-        'Tómale una foto o anótalo tal cual. Las mayúsculas importan.',
+        'Busca la etiqueta de la cámara (suele estar debajo). Busca «Safety code» o «SC», un código corto de letras y números.',
+        'Hazle una foto o anótalo tal cual. Las mayúsculas importan.',
       ],
-      usernameHint: 'Las cámaras Imou usan “admin”.',
+      usernameHint: 'Las cámaras Imou usan «admin».',
       passwordLabel: 'Código de seguridad',
       passwordHint: 'El código de la etiqueta, aunque hayas cambiado la contraseña en la app Imou.',
       cameraName: 'Cámara Imou',
@@ -104,11 +104,11 @@ const guides: typeof en = {
       title: 'Cámara EZVIZ',
       detail: 'Muchos modelos enchufados',
       steps: [
-        'Busca la etiqueta de la cámara y anota el “Verification code” de 6 letras. Las mayúsculas importan.',
+        'Busca la etiqueta de la cámara y anota el «Verification code» de 6 letras. Las mayúsculas importan.',
         'En la app EZVIZ, toca tu perfil → Settings → LAN Live View → Start Scanning, y elige tu cámara.',
-        'Toca el engranaje → Local Server Settings y activa RTSP. Si no hay interruptor de RTSP, esta cámara no puede compartir video.',
+        'Toca el engranaje → Local Server Settings y activa RTSP. Si no hay interruptor de RTSP, esta cámara no puede compartir vídeo.',
       ],
-      usernameHint: 'Las cámaras EZVIZ usan “admin”.',
+      usernameHint: 'Las cámaras EZVIZ usan «admin».',
       passwordLabel: 'Código de verificación',
       passwordHint: 'El código de la etiqueta de la cámara.',
       cameraName: 'Cámara EZVIZ',
@@ -117,7 +117,7 @@ const guides: typeof en = {
   kasa: {
     all: {
       title: 'Cámara Kasa',
-      why: 'Las cámaras Kasa solo envían video a la app Kasa, así que Sightline no puede mostrarlas. Las cámaras Tapo de TP-Link (la misma empresa) sí funcionan con Sightline.',
+      why: 'Las cámaras Kasa solo envían vídeo a la app Kasa, así que Sightline no puede mostrarlas. Las cámaras Tapo de TP-Link (la misma empresa) sí funcionan con Sightline.',
       useTapo: 'Configurar una cámara Tapo',
     },
   },
@@ -162,7 +162,7 @@ const guides: typeof en = {
     wifi: {
       title: 'Cámara Wi-Fi o de batería sin grabador',
       detail: 'Configurada solo en la app Lorex Home',
-      why: 'La mayoría de las cámaras Lorex Wi-Fi y de batería sin grabador solo envían video a la app Lorex. Si la tuya está conectada a un grabador Lorex, añade el grabador y aparecerá.',
+      why: 'La mayoría de las cámaras Lorex Wi-Fi y de batería sin grabador solo envían vídeo a la app Lorex. Si la tuya está conectada a un grabador Lorex, añade el grabador y aparecerá.',
       onRecorder: 'Está en un grabador Lorex',
     },
   },
@@ -177,7 +177,7 @@ const guides: typeof en = {
     },
     wifi: {
       title: 'Cámara Wi-Fi o de batería sin grabador',
-      why: 'Las cámaras Wi-Fi y de batería de Swann solo envían video a la app Swann Security, así que Sightline no puede mostrarlas.',
+      why: 'Las cámaras Wi-Fi y de batería de Swann solo envían vídeo a la app Swann Security, así que Sightline no puede mostrarlas.',
       haveRecorder: 'Tengo un grabador Swann',
     },
   },
@@ -207,17 +207,17 @@ const guides: typeof en = {
     all: {
       steps: [
         'En un ordenador, abre tu consola UniFi y ve a Admins & Users → añade un nuevo admin.',
-        'Elige “Restrict to local access only”, dale acceso a Protect y crea un usuario y una contraseña.',
+        'Elige «Restrict to local access only», dale acceso a Protect y crea un usuario y una contraseña.',
       ],
     },
   },
   cloudWhy: {
-    ring: 'Las cámaras Ring envían video solo a la nube de Ring, y Ring no deja que otras apps las vean. Es decisión de Ring, no un problema de tu cámara. Sigue usando la app Ring para estas.',
-    nest: 'Las cámaras Nest envían video solo a la nube de Google. Google no ofrece una forma para que apps como Sightline las muestren en tu red de casa. Sigue usando la app Google Home para estas.',
-    arlo: 'Las cámaras Arlo envían video solo a la nube de Arlo, así que Sightline no puede mostrarlas. Sigue usando la app Arlo para estas.',
-    blink: 'Las cámaras Blink envían video solo a la nube de Blink, así que Sightline no puede mostrarlas. Sigue usando la app Blink para estas.',
+    ring: 'Las cámaras Ring envían vídeo solo a la nube de Ring, y Ring no deja que otras apps las vean. Es decisión de Ring, no un problema de tu cámara. Sigue usando la app Ring para estas.',
+    nest: 'Las cámaras Nest envían vídeo solo a la nube de Google. Google no ofrece una forma para que apps como Sightline las muestren en tu red de casa. Sigue usando la app Google Home para estas.',
+    arlo: 'Las cámaras Arlo envían vídeo solo a la nube de Arlo, así que Sightline no puede mostrarlas. Sigue usando la app Arlo para estas.',
+    blink: 'Las cámaras Blink envían vídeo solo a la nube de Blink, así que Sightline no puede mostrarlas. Sigue usando la app Blink para estas.',
     simplisafe:
-      'Las cámaras SimpliSafe son parte del sistema propio de SimpliSafe y no comparten video con otras apps. Sigue usando la app SimpliSafe para estas.',
+      'Las cámaras SimpliSafe son parte del sistema propio de SimpliSafe y no comparten vídeo con otras apps. Sigue usando la app SimpliSafe para estas.',
   },
 
   parts: {
@@ -273,7 +273,7 @@ const guides: typeof en = {
     password: 'Contraseña',
     name: 'Nombre',
     namePlaceholder: 'Puerta principal',
-    away: 'Verla cuando no esté en casa',
+    away: 'Conectar cuando esté fuera',
     awayDetail: 'Usa tu propia VPN, si configuraste una (Ajustes → Fuera de casa).',
     showLink: 'Ver el enlace que usará Sightline',
     addAnyway: 'Añadirla de todos modos',

@@ -273,7 +273,7 @@ const guides: typeof en = {
     password: 'Mot de passe',
     name: 'Nom',
     namePlaceholder: 'Porte d’entrée',
-    away: 'La voir quand je suis absent',
+    away: 'Y accéder hors de chez moi',
     awayDetail: 'Utilise votre propre VPN, si vous en avez configuré un (Réglages → Hors de chez vous).',
     showLink: 'Voir le lien qu’utilisera Sightline',
     addAnyway: 'L’ajouter quand même',

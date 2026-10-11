@@ -142,7 +142,7 @@ const onboarding: typeof en = {
     body: (method) =>
       `Use o ${method} para abrir o Sightline, assim ninguém que pegar seu celular emprestado vê suas câmeras. Sem conta nem senha para lembrar.`,
     turnOn: (method) => `Ativar ${method}`,
-    changeLater: 'Você pode mudar isso a qualquer momento em Ajustes → Segurança.',
+    changeLater: 'Você pode mudar isso a qualquer momento em Ajustes → Privacidade e bloqueio.',
   },
   move: {
     cameraNeeded: 'É preciso acesso à câmera para escanear o código. Você também pode usar um arquivo de backup.',
@@ -156,7 +156,7 @@ const onboarding: typeof en = {
     intro: 'Traga suas câmeras, senhas e ajustes em um minuto. Nada precisa ser digitado de novo.',
     oldPhoneNearby: 'Com o celular antigo por perto',
     oldPhoneBody:
-      'No celular antigo, abra o Sightline e vá em Ajustes → Backup e novo celular → Transferir para outro celular. Deixe os dois no mesmo Wi-Fi de casa e escaneie o código que aparecer.',
+      'No celular antigo, abra o Sightline e vá em Ajustes → Backup e celular novo → Transferir para outro celular. Deixe os dois no mesmo Wi-Fi de casa e escaneie o código que aparecer.',
     scanCode: 'Escanear o código',
     withBackup: 'Com um arquivo de backup',
     withBackupBody: 'Se você salvou um backup do Sightline (AirDrop, Arquivos ou iCloud Drive), abra-o aqui e digite o código que você escolheu.',

@@ -15,7 +15,7 @@ const systems: typeof en = {
     presetGone: 'Esa posición guardada ya no existe en la cámara.',
     cameraLacksThat: 'Esta cámara no tiene eso.',
     notSupported: (kind: string) => `${kind} aún no es compatible`,
-    needsFullApp: 'Para ver esta cámara en vivo necesitas la app completa (no Expo Go).',
+    needsFullApp: 'Para ver esta cámara en directo necesitas la app completa (no Expo Go).',
     notReachableHere: 'No se puede llegar a esta cámara desde esta red.',
   },
   http: {
@@ -66,7 +66,7 @@ const systems: typeof en = {
       animal: 'animales',
     } as Record<string, string>,
     rtspOff:
-      'El vídeo en vivo está desactivado en este dispositivo Reolink. En la app de Reolink, abre los ajustes del dispositivo → Red → Avanzado → Configuración de puertos y activa RTSP.',
+      'El vídeo en directo está desactivado en este dispositivo Reolink. En la app de Reolink, abre los ajustes del dispositivo → Red → Avanzado → Configuración de puertos y activa RTSP.',
     vodPrepFailed: 'El grabador Reolink no pudo preparar esta grabación para reproducirla.',
     vodUnnamed: 'El dispositivo Reolink no le dio nombre a esta grabación, así que no se puede reproducir.',
   },
@@ -166,7 +166,7 @@ const systems: typeof en = {
     cameraGone: 'Esa cámara ya no está en UniFi Protect.',
     notInstalled: 'Sesión iniciada, pero UniFi Protect no está instalado o no se está ejecutando en esta consola.',
     rtspOff:
-      'El vídeo en vivo necesita que la transmisión RTSP de esta cámara esté activada. En UniFi Protect, abre la cámara → Settings → Advanced y activa una transmisión RTSP (cualquier calidad). O inicia sesión aquí con una cuenta de administrador y Sightline la activará por ti.',
+      'El vídeo en directo necesita que la transmisión RTSP de esta cámara esté activada. En UniFi Protect, abre la cámara → Settings → Advanced y activa una transmisión RTSP (cualquier calidad). O inicia sesión aquí con una cuenta de administrador y Sightline la activará por ti.',
   },
   hub: {
     theHub: 'el Hub',
@@ -179,7 +179,7 @@ const systems: typeof en = {
     cantReachBoth: (home: string, away: string) => `No se pudo conectar con el Hub en casa (${home}) ni fuera (${away}).`,
     cantReachAt: (address: string) =>
       `No se pudo conectar con el Hub en ${address}. Fuera de casa, el Hub necesita el acceso remoto activado (en su página de configuración).`,
-    cantReachWifi: (address: string) => `No se pudo conectar con el Hub en ${address}. Asegúrate de que este teléfono esté en la misma Wi‑Fi que el Hub.`,
+    cantReachWifi: (address: string) => `No se pudo conectar con el Hub en ${address}. Asegúrate de que este teléfono esté en el mismo Wi-Fi que el Hub.`,
     cantReach: (detail: string) => `No se pudo conectar con el Hub. ${detail}`.trim(),
     unsupportedPlayback: 'El Hub envió una grabación que esta versión de Sightline no puede reproducir. Actualiza la app.',
     owner: 'Propietario',
@@ -190,15 +190,15 @@ const systems: typeof en = {
       },
       household: {
         label: 'Hogar',
-        description: 'Vista en vivo, grabaciones y alertas de las cámaras que elijas. Para la familia que vive contigo.',
+        description: 'Vista en directo, grabaciones y alertas de las cámaras que elijas. Para la familia que vive contigo.',
       },
       temporary: {
         label: 'Temporal',
-        description: 'Vista en vivo y grabaciones durante un tiempo, y luego termina solo. Para quien cuida tu mascota o tu casa.',
+        description: 'Vista en directo y grabaciones durante un tiempo, y luego termina solo. Para quien cuida tu mascota o tu casa.',
       },
       live: {
-        label: 'Solo en vivo',
-        description: 'Solo vídeo en vivo, sin grabaciones. Para un vecino que echa un ojo.',
+        label: 'Solo en directo',
+        description: 'Solo vídeo en directo, sin grabaciones. Para un vecino que echa un ojo.',
       },
     } as Record<string, { label: string; description: string }>,
     ends: (date: string) => `termina el ${date}`,
@@ -208,11 +208,11 @@ const systems: typeof en = {
     allCameras: 'Todas las cámaras',
     noCameras: 'Ninguna cámara',
     twoCameras: (a: string, b: string) => `${a} y ${b}`,
-    liveOnly: 'solo en vivo',
+    liveOnly: 'solo en directo',
     recordingsRange: (from: string, to: string) => `grabaciones ${from} – ${to}`,
     inviteNotUsed: 'invitación aún sin usar',
     notJoined: 'no se ha unido',
-    inviteLive: (hub: string) => `Te comparto acceso para que veas mis cámaras en vivo (${hub}) en la app Sightline.`,
+    inviteLive: (hub: string) => `Te comparto acceso para que veas mis cámaras en directo (${hub}) en la app Sightline.`,
     inviteSee: (hub: string) => `Te comparto acceso para que veas mis cámaras (${hub}) en la app Sightline.`,
     inviteWeb: (link: string) => `Ábrelo en tu iPhone: ${link}`,
     inviteApp: (link: string) => `Si ya tienes Sightline: ${link}`,

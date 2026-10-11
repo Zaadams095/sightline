@@ -11,10 +11,10 @@ const ask: typeof en = {
     questionLabel: 'Deine Frage',
     stopListening: 'Zuhören beenden',
     speak: 'Frage sprechen',
-    privacy: 'Beantwortet auf deinem iPhone. Nichts verlässt dein Telefon.',
+    privacy: 'Beantwortet auf deinem iPhone. Nichts verlässt dein Handy.',
     noSystems: 'Füge zuerst deine Kameras hinzu und frag dann, was sie gesehen haben.',
     liveOnly:
-      'Deine Kameras sind gerade nur für die Live-Ansicht verbunden. Um zu fragen, was passiert ist, braucht Sightline einen Rekorder oder eine Kamera, die Ereignisse speichert, und eine Verbindung dorthin.',
+      'Deine Kameras sind gerade nur für das Live-Bild verbunden. Um zu fragen, was passiert ist, braucht Sightline einen Rekorder oder eine Kamera, die Ereignisse speichert, und eine Verbindung dorthin.',
     loadingIndex: 'Deine Aufnahmen werden geladen…',
     searching: 'Deine Aufnahmen werden durchsucht…',
     failed: (systems) => `Ereignisse von ${systems} konnten nicht geladen werden, daher fehlen sie in den Antworten.`,

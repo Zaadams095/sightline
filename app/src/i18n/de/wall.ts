@@ -27,7 +27,7 @@ const wall: typeof en = {
     camerasOnWall: 'Kameras auf der Wand',
     allCameras: 'Alle Kameras',
     whenSomething: 'Wenn etwas passiert',
-    whenFooter: 'Meldungen folgen deinen Meldungs-Einstellungen. Nach einer Weile geht die Wand zurück zur Runde.',
+    whenFooter: 'Meldungen folgen deinen Meldungseinstellungen. Nach einer Weile geht die Wand zurück zur Runde.',
     showDoorbell: 'Türklingel zeigen, wenn jemand klingelt',
     showAlert: 'Kamera mit neuer Meldung zeigen',
     night: 'Nacht',

@@ -5,7 +5,7 @@ const p = plural('de');
 
 // Menu names inside each brand's own app stay in English, as in en/guides.ts.
 const guides: typeof en = {
-  comeBack: 'Komm hierher zurück und tippe auf Weiter.',
+  comeBack: 'Komm hierher zurück und tippe auf „Weiter“.',
   badAddress: 'Das sieht nicht nach einer Kameraadresse aus. Sie sollte so aussehen: 192.168.1.50.',
   alt: {
     pickAnother: 'Andere Marke wählen',
@@ -227,8 +227,8 @@ const guides: typeof en = {
     starting: 'Wird gestartet …',
     findIt: 'In meinem WLAN suchen',
     looking: 'Wird gesucht …',
-    lookingDetail: (status: string) => `${status} Wenn dein iPhone fragt, ob es Geräte in deinem Netzwerk suchen darf, tippe auf Erlauben.`,
-    notFound: 'Nicht gefunden. Prüfe, ob die Kamera an ist und dein iPhone im selben WLAN ist, oder gib unten ihre Adresse ein.',
+    lookingDetail: (status: string) => `${status} Wenn dein Handy fragt, ob es Geräte in deinem Netzwerk suchen darf, tippe auf „Erlauben“.`,
+    notFound: 'Nicht gefunden. Prüfe, ob die Kamera an ist und dein Handy im selben WLAN ist, oder gib unten ihre Adresse ein.',
     found: (n: number) => p(n, { one: 'Eine gefunden. Ist es diese?', other: `${n} gefunden. Tippe auf die, die du einrichtest.` }),
     lookAgain: 'Nochmal suchen',
   },

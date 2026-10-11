@@ -66,7 +66,7 @@ const systems: typeof en = {
       animal: 'animaux',
     } as Record<string, string>,
     rtspOff:
-      'La vidéo en direct est désactivée sur cet appareil Reolink. Dans l’app Reolink, ouvrez les réglages de l’appareil → Réseau → Avancé → Réglages des ports, et activez RTSP.',
+      'La vidéo en direct est désactivée sur cet appareil Reolink. Dans l’app Reolink, ouvrez les réglages de l’appareil → Network → Advanced → Port Settings, et activez RTSP.',
     vodPrepFailed: 'L’enregistreur Reolink n’a pas pu préparer cet enregistrement pour la lecture.',
     vodUnnamed: 'L’appareil Reolink n’a pas nommé cet enregistrement, il ne peut donc pas être lu.',
   },
@@ -218,7 +218,7 @@ const systems: typeof en = {
     inviteApp: (link: string) => `Si vous avez déjà Sightline : ${link}`,
   },
   demo: {
-    systemName: 'Caméras d’exemple',
+    systemName: 'Caméras de démo',
     cameras: {
       'front-door': 'Porte d’entrée',
       driveway: 'Allée',
@@ -247,7 +247,7 @@ const systems: typeof en = {
       Street: 'Rue',
       'Front lawn': 'Pelouse avant',
     } as Record<string, string>,
-    sampleAlertBody: 'Alerte d’exemple. Les alertes de vos propres caméras ressemblent à ceci. Touchez pour voir l’enregistrement.',
+    sampleAlertBody: 'Alerte de démo. Les alertes de vos propres caméras ressemblent à ceci. Touchez pour voir l’enregistrement.',
   },
 };
 

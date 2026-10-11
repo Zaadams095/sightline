@@ -98,7 +98,7 @@ const common: typeof en = {
     onVideo: 'Im Video',
     below: 'Darunter',
     hidden: 'Aus',
-    phoneLayout: 'Ansicht auf dem iPhone',
+    phoneLayout: 'Ansicht auf dem Handy',
     oneColumn: '1 Spalte',
     twoColumns: '2 Spalten',
     comfortable: 'Großzügig',

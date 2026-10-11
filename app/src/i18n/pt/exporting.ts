@@ -120,7 +120,7 @@ A impressão digital deste relatório está no manifest.json.`,
     files: 'Arquivos e impressões digitais',
     colFile: 'Arquivo',
     colSize: 'Tamanho',
-    phoneZone: 'o fuso horário do telefone',
+    phoneZone: 'o fuso horário do celular',
     timesShown: (zone, offset) =>
       `Os horários estão em ${zone} (${offset}). Os relógios das câmeras podem estar alguns segundos adiantados ou atrasados.`,
   },

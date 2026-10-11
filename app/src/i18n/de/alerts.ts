@@ -61,11 +61,11 @@ const alerts: typeof en = {
   },
   learned: {
     notImportant: 'Nicht wichtig',
-    alwaysTell: 'Darüber immer informieren',
+    alwaysTell: 'Das immer melden',
     undo: 'Widerrufen',
-    stopAlerting: 'Dafür nicht mehr melden',
+    stopAlerting: 'So etwas nicht mehr melden',
     keepAlerting: 'Weiter melden',
-    askTitle: 'Dafür nicht mehr melden?',
+    askTitle: 'So etwas nicht mehr melden?',
     learnedTitle: 'Sightline hat etwas gelernt',
     thing: (o: string, n: number) => {
       const f = THINGS[o];
@@ -81,7 +81,7 @@ const alerts: typeof en = {
     always: (what: string, camera: string) => `Du möchtest immer über ${what} auf ${camera} informiert werden. Das wird nie stummgeschaltet.`,
     counted: (n: number, what: string, camera: string, extra: string) => `${n} ${what} auf ${camera}${extra}`,
     askPeople: (what: string) =>
-      `Du hast ${what} als unwichtig markiert. Sightline schaltet Personen nie von selbst stumm – dafür nicht mehr melden?`,
+      `Du hast ${what} als unwichtig markiert. Sightline schaltet Personen nie von selbst stumm – so etwas nicht mehr melden?`,
     willStop: (what: string) => `Du hast ${what} als unwichtig markiert – Sightline meldet so etwas ab jetzt nicht mehr.`,
   },
   checkins: {
@@ -101,11 +101,11 @@ const alerts: typeof en = {
       p(h, { one: `Seit ${h} Stunde keine Aktivität ${place}`, other: `Seit ${h} Stunden keine Aktivität ${place}` }),
     allNormal: (place: string) => `Alles normal ${place}`,
     summaryBody: (time: string, n: number) =>
-      p(n, { one: `Erste Aktivität ${time} · heute ${n} Moment.`, other: `Erste Aktivität ${time} · heute ${n} Momente.` }),
+      p(n, { one: `Erste Aktivität ${time} · heute ${n} Ereignis.`, other: `Erste Aktivität ${time} · heute ${n} Ereignisse.` }),
     noActivityToday: (place: string) => `Heute keine Aktivität ${place}`,
     notCheckedYet: 'Noch nicht geprüft.',
     status: (time: string, n: number) =>
-      p(n, { one: `Heute erste Aktivität ${time} · ${n} Moment.`, other: `Heute erste Aktivität ${time} · ${n} Momente.` }),
+      p(n, { one: `Heute erste Aktivität ${time} · ${n} Ereignis.`, other: `Heute erste Aktivität ${time} · ${n} Ereignisse.` }),
     noActivityYetToday: (last: string) => `Heute noch keine Aktivität. ${last}`,
     watchCamera: (camera: string) => `${camera} ansehen`,
     call: (who: string) => `${who} anrufen`,
@@ -165,7 +165,7 @@ const alerts: typeof en = {
       `${name} ist im Netzwerk, hat die Verbindung unter dieser Adresse aber nicht angenommen. Prüfe die Adresse (und den Port) in der App des Geräts oder am Gerät selbst.`,
     noSuchHost: 'Unter diesem Namen wurde keine Adresse gefunden. Prüfe sie auf Tippfehler.',
     notFound: (name: string) =>
-      `${name} wurde in diesem Netzwerk nicht gefunden. Achte darauf, dass dein iPhone im WLAN zu Hause ist und ${name} eingeschaltet ist.`,
+      `${name} wurde in diesem Netzwerk nicht gefunden. Achte darauf, dass dein Handy im WLAN zu Hause ist und ${name} eingeschaltet ist.`,
     tls: (name: string) => `${name} hat geantwortet, aber die sichere Verbindung ließ sich nicht aufbauen. Versuch die Adresse mit http:// davor.`,
     noAway: 'Du bist unterwegs, und es ist noch keine Verbindung für unterwegs eingerichtet (Einstellungen → Unterwegs).',
     generic: (name: string) => `Keine Verbindung zu ${name}.`,
@@ -173,7 +173,7 @@ const alerts: typeof en = {
     wrongLogin: 'Falscher Benutzername oder falsches Passwort',
     loginFailed: (status: number) => `Anmeldung fehlgeschlagen (HTTP ${status})`,
     httpStatus: (name: string, status: number) => `${name} meldet HTTP ${status}`,
-    sameNetwork: (message: string, name: string) => `${message}. Ist das iPhone im selben Netzwerk wie ${name}?`,
+    sameNetwork: (message: string, name: string) => `${message}. Ist das Handy im selben Netzwerk wie ${name}?`,
     expoGoTls: 'Keine Verbindung. Expo Go akzeptiert keine selbstsignierten Zertifikate; nutze für Vorschauen eine http://-Adresse.',
     unreachable: (name: string) => `${name} ist in diesem Netzwerk nicht erreichbar`,
     cannotExport: 'Dieses System kann keine Clips exportieren.',

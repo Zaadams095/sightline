@@ -192,7 +192,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld pacotes"
+            "value": "%lld encomendas"
           }
         }
       }
@@ -276,7 +276,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chegou pacote?"
+            "value": "Chegou encomenda?"
           }
         }
       }
@@ -304,7 +304,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chegou pacote hoje?"
+            "value": "Chegou encomenda hoje?"
           }
         }
       }
@@ -500,7 +500,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nenhum pacote hoje, pelo que o Sightline viu."
+            "value": "Nenhuma encomenda hoje, pelo que o Sightline viu."
           }
         }
       }
@@ -690,7 +690,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Öffnet das Livebild einer deiner Kameras."
+            "value": "Öffnet das Live-Bild einer deiner Kameras."
           }
         },
         "pt-BR": {
@@ -948,7 +948,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diz se chegou um pacote hoje e se parece que ainda está lá fora."
+            "value": "Diz se chegou uma encomenda hoje e se parece que ainda está lá fora."
           }
         }
       }
@@ -1200,7 +1200,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sim, parece que %1$lld pacotes ainda estão lá fora: %2$@."
+            "value": "Sim, parece que %1$lld encomendas ainda estão lá fora: %2$@."
           }
         }
       }
@@ -1228,7 +1228,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sim. Um pacote foi entregue na frente da câmera %@ e parece que ainda está lá."
+            "value": "Sim. Uma encomenda foi entregue na frente da câmera %@ e parece que ainda está lá."
           }
         }
       }
@@ -1256,7 +1256,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sim. Um pacote foi visto na frente da câmera %1$@ %2$@. Talvez alguém já tenha pegado."
+            "value": "Sim. Uma encomenda foi vista na frente da câmera %1$@ %2$@. Talvez alguém já tenha pegado."
           }
         }
       }
@@ -1732,7 +1732,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "um pacote"
+            "value": "uma encomenda"
           }
         }
       }

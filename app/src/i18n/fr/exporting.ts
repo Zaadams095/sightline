@@ -17,7 +17,7 @@ const exporting: typeof en = {
       `Certaines de vos caméras ne peuvent relire les enregistrements qu’à vitesse normale : copier leur vidéo prend donc environ ${duration}. Gardez Sightline ouverte jusqu’à la fin.`,
   },
   screen: {
-    title: 'Export pour la police ou l’assurance',
+    title: 'Exporter pour la police ou l’assurance',
     intro:
       'Sightline rassemble la vidéo de toutes les caméras pour la période choisie, avec un résumé PDF pour la personne qui le recevra. Tout est préparé sur cet iPhone et n’en sort que lorsque vous le partagez.',
     checking: 'Vérification…',

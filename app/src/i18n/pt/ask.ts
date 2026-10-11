@@ -29,7 +29,7 @@ const ask: typeof en = {
     showingLatest: (n) => ` (mostrando as ${n} mais recentes)`,
     tryAsking: 'Experimente perguntar',
     examples: {
-      package: 'Chegou algum pacote hoje?',
+      package: 'Chegou alguma encomenda hoje?',
       backyard: 'Alguém esteve no quintal ontem à noite?',
       kids: 'Quando as crianças chegaram em casa?',
       cars: 'Quantos carros passaram nesta semana?',
@@ -58,7 +58,7 @@ const ask: typeof en = {
     one: {
       person: 'alguém',
       vehicle: 'um carro',
-      package: 'um pacote',
+      package: 'uma encomenda',
       delivery: 'uma entrega',
       animal: 'um animal',
       bicycle: 'uma bicicleta',
@@ -67,7 +67,7 @@ const ask: typeof en = {
     many: {
       person: 'pessoas',
       vehicle: 'carros',
-      package: 'pacotes',
+      package: 'encomendas',
       delivery: 'entregas',
       animal: 'animais',
       bicycle: 'bicicletas',
@@ -76,7 +76,7 @@ const ask: typeof en = {
     none: {
       person: 'ninguém',
       vehicle: 'nenhum carro',
-      package: 'nenhum pacote',
+      package: 'nenhuma encomenda',
       delivery: 'nenhuma entrega',
       animal: 'nenhum animal',
       bicycle: 'nenhuma bicicleta',
@@ -94,7 +94,7 @@ const ask: typeof en = {
       vehicle: 'um veículo',
       motorcycle: 'uma moto',
       bus: 'um ônibus',
-      package: 'um pacote',
+      package: 'uma encomenda',
       dog: 'um cachorro',
       cat: 'um gato',
       bird: 'um pássaro',

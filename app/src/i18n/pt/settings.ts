@@ -69,7 +69,7 @@ const settings: typeof en = {
       'Esse não é um código de transferência do Sightline. No celular antigo, abra Ajustes → Backup e celular novo → Transferir para outro celular.',
     codeUsed: 'Esse código já foi usado ou expirou. No celular antigo, toque em “Criar um novo código” e escaneie de novo.',
     cantReachOld:
-      'Não foi possível alcançar seu celular antigo. Confira se os dois estão no mesmo Wi-Fi com o Sightline aberto e tente de novo.',
+      'Não foi possível acessar seu celular antigo. Confira se os dois estão no mesmo Wi-Fi com o Sightline aberto e tente de novo.',
     fileName: (day) => `Backup do Sightline ${day}`,
     saveDialog: 'Salve seu backup do Sightline',
     needsPassword: (names) =>
@@ -123,7 +123,7 @@ const settings: typeof en = {
     checkedAfterSignIn: 'Verificado quando o login funcionar.',
     signedIn: (n) => p(n, { one: `Login feito. ${n} câmera encontrada.`, other: `Login feito. ${n} câmeras encontradas.` }),
     refused: (name, system) => `${name} recusou o usuário ou a senha. Confira em Ajustes → ${system}.`,
-    reachedNoSignIn: (name, why) => `${name} foi alcançado, mas o login falhou. ${why}`,
+    reachedNoSignIn: (name, why) => `${name} foi encontrado, mas o login falhou. ${why}`,
     skippedUnreachable: 'Pulado: o Sightline não conseguiu alcançá-lo.',
     noCameras: (name) => `${name} não listou nenhuma câmera.`,
     videoOk: 'O vídeo ao vivo está funcionando.',
@@ -307,7 +307,7 @@ const settings: typeof en = {
     removeTitle: (name) => `Remover ${name}?`,
     removeBody:
       'As câmeras dele vão sumir deste app. Nada muda no gravador ou nas câmeras, e você pode adicioná-lo de novo depois.',
-    demo: 'Vídeo de exemplo embutido, não é uma câmera real',
+    demo: 'Vídeo de exemplo integrado, não é uma câmera de verdade',
     connectedHome: 'Conectado em casa',
     connectedAway: 'Conectado fora de casa',
     notConnected: 'Não conectado',
@@ -331,7 +331,7 @@ const settings: typeof en = {
     setUpHub: 'Configurar um Sightline Hub',
     connectHub: 'Tenho um Hub: conectar',
     removeTitle: 'Remover sua VPN?',
-    removeBody: 'O Sightline não vai mais usá-la para alcançar suas câmeras quando você estiver fora de casa.',
+    removeBody: 'O Sightline não vai mais usá-la para acessar suas câmeras quando você estiver fora de casa.',
     advanced: 'Avançado: minha própria VPN',
     notInPreview: 'Indisponível na prévia',
     notInPreviewDetail: 'Sua própria VPN funciona no app completo da App Store ou do TestFlight.',

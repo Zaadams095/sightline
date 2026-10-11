@@ -50,7 +50,7 @@ const home: typeof en = {
   tile: {
     cameraOff: 'Kamera aus',
     cameraOffA11y: (name) => `${name}, Kamera aus`,
-    opensLive: 'Öffnet die Live-Ansicht',
+    opensLive: 'Öffnet das Live-Bild',
     canMove: 'Schwenkbar',
   },
   badge: {
@@ -142,10 +142,10 @@ const home: typeof en = {
     pullToRetry: 'Zum Wiederholen nach unten ziehen.',
     noCamerasBody: 'Füge deinen Rekorder oder deine Kameras hinzu, um zu sehen, was passiert ist.',
     unreachableTitle: 'Deine Kameras sind gerade nicht erreichbar',
-    unreachableBody: 'Zum Wiederholen nach unten ziehen oder unter Einstellungen → Diagnose nachsehen.',
-    liveOnlyTitle: 'Nur Live-Ansicht',
+    unreachableBody: 'Zum Wiederholen nach unten ziehen oder unter Einstellungen → Verbindungstest nachsehen.',
+    liveOnlyTitle: 'Nur Live-Bild',
     liveOnlyBody:
-      'Deine Kameras sind für die Live-Ansicht verbunden. Um zurückzuschauen, füge den Rekorder oder die Software hinzu, die sie aufzeichnet.',
+      'Deine Kameras sind für das Live-Bild verbunden. Um zurückzuschauen, füge den Rekorder oder die Software hinzu, die sie aufzeichnet.',
     addRecorder: 'Rekorder hinzufügen',
     noStoriesTitle: 'Noch keine Verläufe',
     noStoriesBody:
@@ -206,7 +206,7 @@ const home: typeof en = {
     awayDetail: 'Sieh deine Kameras von überall',
     connectionCheckDetail: 'Finde heraus, warum sich ein Rekorder oder eine Kamera nicht verbindet',
     alertSettings: 'Meldungseinstellungen',
-    builtIn: 'Eingebaut (kann ein paar Minuten später kommen)',
+    builtIn: 'Integriert (kann ein paar Minuten später kommen)',
     homeOnly: 'Zuhause: nur ausgewählte Kameras melden',
     awayAll: 'Unterwegs: alle Kameras melden',
     homeAwayDetail: 'Meldungen automatisch stumm, wenn du zu Hause bist',

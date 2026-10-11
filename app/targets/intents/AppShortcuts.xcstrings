@@ -24,7 +24,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tem pacote hoje no ${applicationName}"
+            "value": "Tem encomenda hoje no ${applicationName}"
           }
         }
       }
@@ -80,7 +80,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pergunte ao ${applicationName} sobre pacotes"
+            "value": "Pergunte ao ${applicationName} sobre encomendas"
           }
         }
       }
@@ -220,7 +220,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Procure pacotes com o ${applicationName}"
+            "value": "Procure encomendas com o ${applicationName}"
           }
         }
       }
@@ -276,7 +276,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chegou algum pacote no ${applicationName}"
+            "value": "Chegou alguma encomenda no ${applicationName}"
           }
         }
       }

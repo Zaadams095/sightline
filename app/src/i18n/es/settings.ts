@@ -16,7 +16,7 @@ const settings: typeof en = {
     deleteBody:
       'Se borrarán de iCloud tus ajustes de Sightline y las contraseñas de las cámaras, y se desactivará la copia. Todo sigue en este teléfono.',
     icloudFooter:
-      'Tus grabadores, el orden de las cámaras, los grupos, las vistas y los ajustes de alertas se guardan en tu propio iCloud, y las contraseñas de las cámaras en el Llavero de iCloud. Un iPhone nuevo con tu cuenta de Apple se configura solo a partir de ellos. Los vídeos nunca se suben y Sightline no tiene servidores propios.',
+      'Tus grabadores, el orden de las cámaras, los grupos, los diseños y los ajustes de alertas se guardan en tu propio iCloud, y las contraseñas de las cámaras en el Llavero de iCloud. Un iPhone nuevo con tu cuenta de Apple se configura solo a partir de ellos. Los vídeos nunca se suben y Sightline no tiene servidores propios.',
     backUpToICloud: 'Copia en iCloud',
     backUpNow: 'Hacer copia ahora',
     deleteBackup: 'Eliminar copia de iCloud',
@@ -142,15 +142,15 @@ const settings: typeof en = {
   },
 
   grid: {
-    intro: 'Crea paredes de cámaras para el iPad. Haz más grandes las cámaras importantes y cambia de vista desde la pestaña En directo.',
+    intro: 'Crea paredes de cámaras para el iPad. Haz más grandes las cámaras importantes y cambia de diseño desde la pestaña En directo.',
     wide: 'Ancha',
-    newLayout: 'Nueva vista',
-    layoutN: (n) => `Vista ${n}`,
-    layoutName: 'Nombre de la vista',
+    newLayout: 'Nuevo diseño',
+    layoutN: (n) => `Diseño ${n}`,
+    layoutName: 'Nombre del diseño',
     tapHint: 'Toca una cámara para elegirla, arrástrala para moverla y elige un tamaño abajo.',
     camera: 'Cámara',
     addCamera: 'Añadir cámara',
-    saveLayout: 'Guardar vista',
+    saveLayout: 'Guardar diseño',
   },
 
   groups: {
@@ -305,7 +305,7 @@ const settings: typeof en = {
     removeTitle: (name) => `¿Quitar ${name}?`,
     removeBody:
       'Sus cámaras desaparecerán de esta app. No se cambia nada en el grabador ni en las cámaras, y puedes volver a añadirlo más tarde.',
-    demo: 'Vídeo de muestra integrado, no es una cámara real',
+    demo: 'Vídeo de ejemplo integrado, no es una cámara real',
     connectedHome: 'Conectado en casa',
     connectedAway: 'Conectado fuera de casa',
     notConnected: 'Sin conexión',

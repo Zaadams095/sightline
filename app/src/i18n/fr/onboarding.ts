@@ -12,9 +12,9 @@ const onboarding: typeof en = {
     findCamerasDetail: 'Sightline explore le Wi-Fi de votre maison et trouve les caméras et enregistreurs pour vous.',
     pickBrand: 'Choisir la marque de votre caméra',
     noCameras: 'Pas de caméra sous la main ?',
-    noCamerasDetail: 'Découvrez toutes les fonctions avec des caméras de démonstration. Rien à configurer, et vous pourrez connecter les vôtres à tout moment.',
+    noCamerasDetail: 'Découvrez toutes les fonctions avec des caméras de démo. Rien à configurer, et vous pourrez connecter les vôtres à tout moment.',
     trySample: 'Essayer avec des caméras de démo',
-    sharedWithMe: 'Quelqu’un m’a partagé des caméras',
+    sharedWithMe: 'Quelqu’un a partagé des caméras avec moi',
     haveHub: 'J’ai un Sightline Hub',
     orChoose: 'Ou choisissez votre système d’enregistrement',
     sections: {
@@ -51,7 +51,7 @@ const onboarding: typeof en = {
     notListed: 'Pas dans la liste ?',
     otherCamera: 'Autre caméra réseau',
     otherCameraDetail: 'La plupart des autres caméras fonctionnent avec juste leur adresse et leur mot de passe',
-    findOnWifi: 'Trouver les caméras sur mon Wi-Fi',
+    findOnWifi: 'Chercher des caméras sur mon Wi-Fi',
     findOnWifiDetail: 'Sightline cherche et vous montre ce qu’il trouve',
     haveStreamLink: 'J’ai un lien de flux',
     haveStreamLinkDetail: 'Un lien qui commence par rtsp://',
@@ -142,7 +142,7 @@ const onboarding: typeof en = {
     body: (method) =>
       `Utilisez ${method} pour ouvrir Sightline : personne ne pourra voir vos caméras en empruntant votre téléphone. Aucun compte ni mot de passe à retenir.`,
     turnOn: (method) => `Activer ${method}`,
-    changeLater: 'Vous pouvez modifier ce choix à tout moment dans Réglages → Sécurité.',
+    changeLater: 'Vous pouvez modifier ce choix à tout moment dans Réglages → Confidentialité et verrouillage.',
   },
   move: {
     cameraNeeded: 'L’accès à l’appareil photo est nécessaire pour scanner le code. Vous pouvez aussi utiliser un fichier de sauvegarde.',
@@ -152,7 +152,7 @@ const onboarding: typeof en = {
     setUpMany: (n) => `Vos ${n} enregistreurs et caméras sont configurés.`,
     setUpManyFrom: (n, phone) => `Vos ${n} enregistreurs et caméras sont configurés, comme sur ${phone}.`,
     seeMyCameras: 'Voir mes caméras',
-    title: 'Vous changez de téléphone ?',
+    title: 'Vous venez d’un autre téléphone ?',
     intro: 'Transférez vos caméras, mots de passe et réglages en une minute. Rien à ressaisir.',
     oldPhoneNearby: 'Avec votre ancien téléphone à côté',
     oldPhoneBody:
@@ -193,9 +193,9 @@ const onboarding: typeof en = {
     intro: 'À la maison, Sightline se connecte directement. Pour voir vos caméras d’ailleurs, choisissez une option :',
     hubOption: 'Sightline Hub (le plus simple)',
     hubBody:
-      'Un module gratuit pour Home Assistant, ou une petite app pour un NAS ou un ordinateur toujours allumé. Aucun réglage de box. Offre aussi les alertes instantanées et le partage en famille.',
+      'Un module gratuit pour Home Assistant, ou une petite app pour un NAS ou un ordinateur toujours allumé. Aucun réglage du routeur. Offre aussi les Alertes instantanées et le partage en famille.',
     vpnOption: 'Mon propre VPN (avancé)',
-    vpnBody: 'Si votre box a déjà un VPN auquel vous vous connectez depuis votre téléphone, scannez son code QR. Sightline l’active tout seul, seulement quand il le faut.',
+    vpnBody: 'Si votre routeur a déjà un VPN auquel vous vous connectez depuis votre téléphone, scannez son code QR. Sightline l’active tout seul, seulement quand il le faut.',
     hubSteps: 'Installez le Hub, ouvrez sa page de configuration, puis scannez le code QR affiché. Vous pouvez le faire à tout moment depuis Réglages.',
     haveHub: 'Mon Hub fonctionne : scanner son code',
     previewOnly: 'Mode aperçu : votre propre VPN ne fonctionne que dans l’app complète.',
@@ -214,7 +214,7 @@ const onboarding: typeof en = {
     needsHubBody:
       'L’app TV affiche les caméras via votre Sightline Hub, elle fonctionne donc avec toutes les marques. Configurez un Hub (Réglages → Alertes instantanées ou Partage), puis scannez à nouveau le code de la TV.',
     showOn: (name) => `Afficher vos caméras sur « ${name} » ?`,
-    grantBody: 'La TV reçoit le direct et les images de toutes les caméras, rien d’autre. Vous pouvez la retirer à tout moment dans Partage.',
+    grantBody: 'La TV reçoit le direct et les photos de toutes les caméras, rien d’autre. Vous pouvez la retirer à tout moment dans Partage.',
     whichHub: 'Quel Hub',
     selected: 'Sélectionné',
     connectTv: 'Connecter la TV',
@@ -240,21 +240,21 @@ const onboarding: typeof en = {
     reolink: {
       blurb: 'Enregistreurs, Home Hub et caméras Reolink',
       addressHint:
-        'Dans l’app Reolink, ouvrez les réglages de l’appareil et cherchez Informations réseau (ou Infos appareil) pour voir son adresse IP. Utilisez l’adresse de l’enregistreur ou du Home Hub si vous en avez un.',
+        'Dans l’app Reolink, ouvrez les réglages de l’appareil et cherchez Network Information (ou Device Info) pour voir son adresse IP. Utilisez l’adresse de l’enregistreur ou du Home Hub si vous en avez un.',
       addressHelp: 'L’adresse de l’enregistreur, du Home Hub ou d’une caméra seule.',
       passwordHint: 'Le mot de passe que vous utilisez dans l’app Reolink pour cet appareil.',
     },
     hikvision: {
       blurb: 'Enregistreurs et caméras Hikvision (et beaucoup de modèles rebaptisés)',
       addressHint:
-        'Sur l’écran de l’enregistreur : Menu → Configuration → Réseau → Général affiche l’adresse IPv4. Pour une caméra seule, cherchez-la dans la liste des appareils connectés de votre box.',
+        'Sur l’écran de l’enregistreur : Menu → Configuration → Network → General affiche l’adresse IPv4. Pour une caméra seule, cherchez-la dans la liste des appareils connectés de votre routeur.',
       addressHelp: 'L’adresse de l’enregistreur (ou de la caméra).',
       passwordHint: 'Le mot de passe pour vous connecter à l’enregistreur (pas votre compte Hik-Connect).',
     },
     dahua: {
       blurb: 'Enregistreurs et caméras Dahua, Amcrest et Lorex',
       addressHint:
-        'Sur l’écran de l’enregistreur : Menu principal → Réseau affiche l’adresse IP. Dans l’app Amcrest ou Lorex, ouvrez les réglages de l’appareil → Infos appareil.',
+        'Sur l’écran de l’enregistreur : Main Menu → Network affiche l’adresse IP. Dans l’app Amcrest ou Lorex, ouvrez les réglages de l’appareil → Device info.',
       addressHelp: 'L’adresse de l’enregistreur (ou d’une caméra seule).',
       usernameHint: 'Les mêmes identifiants que sur l’écran de l’enregistreur ou dans son app.',
     },
@@ -311,7 +311,7 @@ const onboarding: typeof en = {
       label: 'Autre caméra réseau',
       blurb: 'La plupart des caméras Wi-Fi et filaires : juste l’adresse et le mot de passe',
       addressHint:
-        'L’adresse de la caméra, dans la liste des appareils de votre box ou dans l’app de la caméra. Connectez-vous avec les mêmes identifiants que dans l’app ou la page web de la caméra.',
+        'L’adresse de la caméra, dans la liste des appareils de votre routeur ou dans l’app de la caméra. Connectez-vous avec les mêmes identifiants que dans l’app ou la page web de la caméra.',
       addressHelp:
         'L’adresse suffit généralement. Si la connexion échoue, activez « ONVIF » (la façon standard dont les apps parlent aux caméras) dans l’app de la caméra, et ajoutez le port indiqué, p. ex. 192.168.1.70:8000.',
       usernameHint: 'Souvent « admin ». Certaines caméras demandent un compte caméra séparé, créé dans leur app.',
@@ -324,7 +324,7 @@ const onboarding: typeof en = {
     },
     demo: {
       label: 'Caméras de démo',
-      blurb: 'Vidéo de démonstration intégrée pour découvrir l’app',
+      blurb: 'Vidéo de démo intégrée pour découvrir l’app',
     },
   },
 };

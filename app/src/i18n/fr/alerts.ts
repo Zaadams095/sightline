@@ -111,7 +111,7 @@ const alerts: typeof en = {
     call: (who: string) => `Appeler ${who}`,
     unconfirmedTitle: (place: string) => `Activité ${place} pas encore confirmée`,
     unconfirmedBody: (place: string, time: string) =>
-      `Sightline n’a pas pu joindre les caméras ${place} pour vérifier avant ${time}. Touchez pour regarder. Sans Sightline Hub, les nouvelles de la famille peuvent arriver en retard.`,
+      `Sightline n’a pas pu joindre les caméras ${place} pour vérifier avant ${time}. Touchez pour regarder. Sans Sightline Hub, les notifications de veille peuvent arriver en retard.`,
     today: (time: string) => `aujourd’hui à ${time}`,
     yesterday: (time: string) => `hier à ${time}`,
     onDay: (day: string, time: string) => `${day} à ${time}`,
@@ -151,9 +151,9 @@ const alerts: typeof en = {
     waitingKey: 'En attente de votre clé Alertes instantanées depuis le trousseau iCloud. Réessayez dans quelques minutes.',
     noPush: 'Les notifications push ne sont pas configurées dans cette version (ID de projet EAS manquant).',
     notPaired: 'Les Alertes instantanées ne sont pas encore jumelées.',
-    unreachable: 'Impossible de joindre le bridge',
-    badSecret: 'Le bridge a refusé la clé secrète. Recopiez l’extrait et redémarrez le conteneur.',
-    httpError: (status: number, text: string) => `Le bridge a renvoyé HTTP ${status} : ${text}`,
+    unreachable: 'Impossible de joindre le relais',
+    badSecret: 'Le relais a refusé la clé secrète. Recopiez le code et redémarrez le conteneur.',
+    httpError: (status: number, text: string) => `Le relais a renvoyé HTTP ${status} : ${text}`,
     addFrigate: 'Ajoutez d’abord un système Frigate.',
   },
   presence: {
@@ -176,7 +176,7 @@ const alerts: typeof en = {
     sameNetwork: (message: string, name: string) => `${message}. Le téléphone est-il sur le même réseau que ${name} ?`,
     expoGoTls: 'Connexion impossible. Expo Go n’accepte pas les certificats autosignés ; utilisez une adresse http:// pour les aperçus.',
     unreachable: (name: string) => `Impossible de joindre ${name} sur ce réseau`,
-    cannotExport: 'Ce système ne peut pas exporter de clips.',
+    cannotExport: 'Ce système ne peut pas exporter d’extraits.',
   },
 };
 

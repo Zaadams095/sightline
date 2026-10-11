@@ -151,17 +151,17 @@ var messages = map[string]map[string]string{
 	// ---- test push (main.go sendTestPush) ----
 	"test.title": {
 		"en":    "Instant Alerts are working",
-		"es":    "Las alertas instantáneas funcionan",
-		"fr":    "Les alertes instantanées fonctionnent",
-		"de":    "Sofort-Alarme funktionieren",
+		"es":    "Las Alertas instantáneas funcionan",
+		"fr":    "Les Alertes instantanées fonctionnent",
+		"de":    "Sofort-Meldungen funktionieren",
 		"pt-BR": "Os alertas instantâneos estão funcionando",
 	},
 	"test.body": {
 		"en":    "You'll get notifications here the moment a camera sees something.",
-		"es":    "Recibirás avisos aquí en cuanto una cámara vea algo.",
+		"es":    "Recibirás alertas aquí en cuanto una cámara vea algo.",
 		"fr":    "Vous serez prévenu ici dès qu’une caméra verra quelque chose.",
 		"de":    "Du bekommst hier sofort Bescheid, wenn eine Kamera etwas sieht.",
-		"pt-BR": "Você vai receber avisos aqui assim que uma câmera vir algo.",
+		"pt-BR": "Você vai receber alertas aqui assim que uma câmera vir algo.",
 	},
 
 	// ---- family check-ins (checkins.go) ----
@@ -207,7 +207,7 @@ var messages = map[string]map[string]string{
 	"checkin.normal.title": {
 		"en":    "All normal %s",
 		"es":    "Todo normal %s",
-		"fr":    "Tout va bien %s",
+		"fr":    "Tout est normal %s",
 		"de":    "Alles normal %s",
 		"pt-BR": "Tudo normal %s",
 	},
@@ -245,14 +245,14 @@ var messages = map[string]map[string]string{
 		"es":    "Sightline no ha visto a nadie en %s desde que empezó a vigilar.",
 		"fr":    "Sightline n’a vu personne sur %s depuis le début de la surveillance.",
 		"de":    "Sightline hat seit Beginn der Überwachung niemanden auf %s gesehen.",
-		"pt-BR": "O Sightline não viu ninguém em %s desde que começou a vigiar.",
+		"pt-BR": "O Sightline não viu ninguém em %s desde que começou a monitorar.",
 	},
 	"checkin.notSeenAny": {
 		"en":    "Sightline hasn’t seen anyone on the cameras since it started watching.",
 		"es":    "Sightline no ha visto a nadie en las cámaras desde que empezó a vigilar.",
 		"fr":    "Sightline n’a vu personne sur les caméras depuis le début de la surveillance.",
 		"de":    "Sightline hat seit Beginn der Überwachung niemanden auf den Kameras gesehen.",
-		"pt-BR": "O Sightline não viu ninguém nas câmeras desde que começou a vigiar.",
+		"pt-BR": "O Sightline não viu ninguém nas câmeras desde que começou a monitorar.",
 	},
 	// Appended to a "no activity" body (keep the leading space).
 	"checkin.verifyFailed": {

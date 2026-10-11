@@ -68,7 +68,7 @@ const onboarding: typeof en = {
     tried: (message, url) => `${message} (se probó ${url})`,
     badLogin: (name) => `${name} no aceptó el usuario o la contraseña. Revísalos e inténtalo de nuevo.`,
     connected: (n) => p(n, { one: `Conectado. Se encontró ${n} cámara.`, other: `Conectado. Se encontraron ${n} cámaras.` }),
-    reachAway: 'Verla cuando no esté en casa',
+    reachAway: 'Conectar cuando esté fuera',
     reachAwayDetail: 'Usa tu propia VPN, si configuraste una (Ajustes → Fuera de casa). No hace falta con un Sightline Hub.',
     checkStepByStep: 'Revisar la conexión paso a paso',
     saveAnyway: 'Guardar igualmente y configurar el acceso desde fuera',
@@ -142,7 +142,7 @@ const onboarding: typeof en = {
     body: (method) =>
       `Usa ${method} para abrir Sightline, así nadie que tome prestado tu teléfono podrá ver tus cámaras. Sin cuentas ni contraseñas que recordar.`,
     turnOn: (method) => `Activar ${method}`,
-    changeLater: 'Puedes cambiarlo cuando quieras en Ajustes → Seguridad.',
+    changeLater: 'Puedes cambiarlo cuando quieras en Ajustes → Privacidad y bloqueo.',
   },
   move: {
     cameraNeeded: 'Se necesita acceso a la cámara para escanear el código. También puedes usar un archivo de copia de seguridad.',
@@ -195,7 +195,7 @@ const onboarding: typeof en = {
     hubBody:
       'Un complemento gratuito para Home Assistant o una pequeña app para un NAS o un ordenador siempre encendido. Sin tocar el router. También ofrece alertas instantáneas y compartir con la familia.',
     vpnOption: 'Mi propia VPN (avanzado)',
-    vpnBody: 'Si tu router ya tiene una VPN a la que te conectas desde el teléfono, escanea su código QR. Sightline la activa por sí solo solo cuando hace falta.',
+    vpnBody: 'Si tu router ya tiene una VPN a la que te conectas desde el teléfono, escanea su código QR. Sightline la activa automáticamente, solo cuando hace falta.',
     hubSteps: 'Instala el Hub, abre su página de configuración y escanea el código QR que muestra. Puedes hacerlo cuando quieras desde Ajustes.',
     haveHub: 'Ya tengo el Hub funcionando: escanear su código',
     previewOnly: 'Modo vista previa: tu propia VPN solo funciona en la app completa.',
@@ -214,7 +214,7 @@ const onboarding: typeof en = {
     needsHubBody:
       'La app de TV muestra las cámaras a través de tu Sightline Hub, así que funciona con todas las marcas. Configura un Hub (Ajustes → Alertas instantáneas o Compartir) y vuelve a escanear el código del televisor.',
     showOn: (name) => `¿Mostrar tus cámaras en «${name}»?`,
-    grantBody: 'El televisor recibe vista en directo e imágenes de todas las cámaras, nada más. Puedes quitarlo cuando quieras en Compartir.',
+    grantBody: 'El televisor recibe vista en directo e instantáneas de todas las cámaras, nada más. Puedes quitarlo cuando quieras en Compartir.',
     whichHub: 'Qué Hub',
     selected: 'Seleccionado',
     connectTv: 'Conectar TV',
