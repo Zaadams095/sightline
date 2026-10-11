@@ -1,0 +1,154 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Chip, T } from '@/components/ui/primitives';
+import { useLinks } from '@/net/connection';
+import { useApp } from '@/state/store';
+import { getAdapter, useAllCameras } from '@/systems/registry';
+import type { ReviewItem, Severity } from '@/systems/types';
+import { space } from '@/theme/tokens';
+import { usePalette } from '@/theme/use-palette';
+import { formatClock, formatDay, labelFor } from '@/util/format';
+
+type Filter = 'all' | Severity;
+
+export default function ReviewScreen() {
+  const p = usePalette();
+  const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
+  const systems = useApp((s) => s.systems);
+  const links = useLinks((s) => s.links);
+  const radius = useApp((s) => s.appearance.radius);
+  const { entries } = useAllCameras({ includeHidden: true });
+  const [filter, setFilter] = useState<Filter>('alert');
+  const [unreviewedOnly, setUnreviewedOnly] = useState(false);
+  const [camera, setCamera] = useState<string | null>(null);
+
+  const reviewable = systems.filter((s) => {
+    const a = getAdapter(s, links[s.id]);
+    return a?.capabilities.review && (links[s.id]?.mode === 'lan' || links[s.id]?.mode === 'tunnel');
+  });
+
+  const query = useQuery({
+    queryKey: ['review-all', reviewable.map((s) => `${s.id}@${links[s.id]?.baseUrl}`).join('|'), filter],
+    enabled: reviewable.length > 0,
+    queryFn: async () => {
+      const after = Date.now() / 1000 - 7 * 86400;
+      const res = await Promise.allSettled(
+        reviewable.map((s) =>
+          getAdapter(s, links[s.id])!.listReview!({ after, severity: filter === 'all' ? undefined : filter, limit: 300 }),
+        ),
+      );
+      return res.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])).sort((a, b) => b.startTime - a.startTime);
+    },
+  });
+
+  const names = useMemo(() => new Map(entries.map((e) => [e.camera.key, e.camera.name])), [entries]);
+
+  const sections = useMemo(() => {
+    const items = (query.data ?? []).filter(
+      (r) => (!unreviewedOnly || !r.reviewed) && (!camera || `${r.systemId}:${r.cameraId}` === camera),
+    );
+    const byDay = new Map<string, ReviewItem[]>();
+    for (const r of items) {
+      const day = formatDay(r.startTime);
+      byDay.set(day, [...(byDay.get(day) ?? []), r]);
+    }
+    return [...byDay].map(([title, data]) => ({ title, data }));
+  }, [query.data, unreviewedOnly, camera]);
+
+  const open = (r: ReviewItem) => {
+    const s = systems.find((x) => x.id === r.systemId);
+    const a = s && getAdapter(s, links[s.id]);
+    if (a?.markReviewed && !r.reviewed) {
+      a.markReviewed([r.id])
+        .then(() => qc.invalidateQueries({ queryKey: ['review-all'] }))
+        .catch(() => {});
+    }
+    router.push({
+      pathname: '/playback',
+      params: { systemId: r.systemId, cameraId: r.cameraId, start: String(Math.floor(r.startTime - 5)), reviewId: r.id },
+    });
+  };
+
+  return (
+    <SectionList
+      style={{ backgroundColor: p.bg }}
+      sections={sections}
+      keyExtractor={(r) => `${r.systemId}:${r.id}`}
+      stickySectionHeadersEnabled
+      contentContainerStyle={{ paddingBottom: 120 }}
+      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />}
+      ListHeaderComponent={
+        <View style={{ paddingTop: insets.top + space.sm, gap: space.md, paddingBottom: space.sm }}>
+          <T v="title" style={{ paddingHorizontal: space.lg }}>
+            Review
+          </T>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            <Chip label="Alerts" selected={filter === 'alert'} onPress={() => setFilter('alert')} />
+            <Chip label="Detections" selected={filter === 'detection'} onPress={() => setFilter('detection')} />
+            <Chip label="All" selected={filter === 'all'} onPress={() => setFilter('all')} />
+            <Chip label="Unreviewed" selected={unreviewedOnly} onPress={() => setUnreviewedOnly((v) => !v)} />
+          </ScrollView>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            <Chip label="All cameras" selected={!camera} onPress={() => setCamera(null)} />
+            {entries.map((e) => (
+              <Chip key={e.camera.key} label={e.camera.name} selected={camera === e.camera.key} onPress={() => setCamera(e.camera.key)} />
+            ))}
+          </ScrollView>
+        </View>
+      }
+      ListEmptyComponent={
+        <View style={styles.empty}>
+          <T muted>{query.isLoading ? 'Loading…' : reviewable.length ? 'Nothing to review' : 'Not connected'}</T>
+        </View>
+      }
+      renderSectionHeader={({ section }) => (
+        <View style={[styles.sectionHeader, { backgroundColor: p.bg }]}>
+          <T v="label" muted>
+            {section.title}
+          </T>
+        </View>
+      )}
+      renderItem={({ item }) => (
+        <Pressable onPress={() => open(item)} style={({ pressed }) => [styles.item, pressed && { backgroundColor: p.surface }]}>
+          <View style={[styles.thumbWrap, { borderRadius: Math.min(radius, 12), backgroundColor: p.surface }]}>
+            {item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
+            <View style={styles.titleRow}>
+              {!item.reviewed && <View style={[styles.dot, { backgroundColor: p.accent }]} />}
+              <T v="label" numberOfLines={1}>
+                {labelFor(item.objects)}
+              </T>
+            </View>
+            <T v="caption" muted numberOfLines={1}>
+              {names.get(`${item.systemId}:${item.cameraId}`) ?? item.cameraId} · {formatClock(item.startTime)}
+            </T>
+            {item.zones.length > 0 && (
+              <T v="caption" muted numberOfLines={1}>
+                {item.zones.join(', ')}
+              </T>
+            )}
+          </View>
+          {item.severity === 'alert' && <View style={[styles.sev, { backgroundColor: p.danger }]} />}
+        </Pressable>
+      )}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  chips: { gap: space.sm, paddingHorizontal: space.lg },
+  sectionHeader: { paddingHorizontal: space.lg, paddingVertical: space.sm },
+  item: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  thumbWrap: { width: 128, height: 72, overflow: 'hidden' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  sev: { width: 4, alignSelf: 'stretch', borderRadius: 2 },
+  empty: { alignItems: 'center', padding: space.xxl },
+});

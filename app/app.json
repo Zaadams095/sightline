@@ -1,0 +1,136 @@
+{
+  "expo": {
+    "name": "Sightline",
+    "slug": "sightline",
+    "version": "0.1.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "sightline",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.zachadams.sightline",
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scan a WireGuard QR code to connect to your home network.",
+        "NSLocalNetworkUsageDescription": "Connect to cameras and recorders on your home network.",
+        "NSBonjourServices": [
+          "_http._tcp",
+          "_rtsp._tcp"
+        ],
+        "UIBackgroundModes": [
+          "fetch",
+          "processing",
+          "remote-notification"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "SightlineAppGroup": "group.com.zachadams.sightline"
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.zachadams.sightline"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.zachadams.sightline",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0D12",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0D12",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-video",
+      "expo-secure-store",
+      "expo-background-task",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scan a WireGuard QR code to connect to your home network.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#7C5CFF"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "17.1"
+          }
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID to unlock your cameras."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a floor plan or map image to place your cameras on.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "@bacons/apple-targets"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.zachadams.sightline.notification-service",
+                  "targetName": "NotificationService",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.zachadams.sightline"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "04a27cc2-1b54-4d42-a1e4-41869a5deea1"
+      }
+    },
+    "owner": "zaadams095"
+  }
+}
