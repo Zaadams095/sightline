@@ -3,7 +3,10 @@ import { test } from 'node:test';
 
 import {
   buildRtspUrl,
+  canReuseAfterRejection,
   clockFromDeviceNow,
+  fileCacheCovers,
+  snapUrl,
   dayChunks,
   defaultRtspPath,
   enableRtspBody,
@@ -34,6 +37,40 @@ import {
 
 // Fixed UTC+2 device so results don't depend on the machine running the tests.
 const CEST: DeviceClock = { offsetMin: 120, phoneZone: false };
+
+test('playback reuses cached files only when they answer the seek', () => {
+  const w = { year: 2024, mon: 5, day: 1, hour: 0, min: 0, sec: 0 };
+  const file = (start: number, end: number) => ({ start, end, startWall: w, endWall: w, triggers: null });
+  const t = (h: number, m: number) => Date.UTC(2024, 4, 1, h, m) / 1000;
+  // Searched 09:45–10:30 earlier: it knows a 09:58 file but nothing about 09:30.
+  const cache = { after: t(9, 45), before: t(10, 30), at: t(10, 30), files: [file(t(9, 58), t(10, 3))] };
+  assert.equal(fileCacheCovers(cache, t(9, 30), t(10, 30)), false);
+  assert.equal(fileCacheCovers(cache, t(10, 0), t(11, 0)), true); // a cached file contains the start
+  assert.equal(fileCacheCovers(cache, t(9, 50), t(10, 20)), true); // window fully searched (a gap)
+  // A window reaching past when the search ran can have newer files.
+  assert.equal(fileCacheCovers({ ...cache, before: t(11, 0), at: t(10, 30) }, t(10, 10), t(10, 50)), false);
+  assert.equal(fileCacheCovers(undefined, t(10, 0), t(10, 5)), false);
+});
+
+test('snapshot URL works before the first sign-in', () => {
+  assert.equal(
+    snapUrl({ base: 'http://127.0.0.1:5000', channel: 0, token: 'abc' }),
+    'http://127.0.0.1:5000/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=sightline&token=abc',
+  );
+  assert.equal(
+    snapUrl({ base: 'http://gw', channel: 2, user: 'admin', password: 'p&w d', sub: { width: 640, height: 360 } }),
+    'http://gw/cgi-bin/api.cgi?cmd=Snap&channel=2&rs=sightline&snapType=sub&width=640&height=360&user=admin&password=p%26w%20d',
+  );
+});
+
+test('a rejected token triggers one sign-in, not one per request', () => {
+  const now = 1_000_000;
+  // Another request already replaced the rejected token: reuse it.
+  assert.equal(canReuseAfterRejection({ token: 'new', expires: now + 60_000 }, 'old', now), true);
+  // The rejected token is still current: sign in again.
+  assert.equal(canReuseAfterRejection({ token: 'old', expires: now + 60_000 }, 'old', now), false);
+  assert.equal(canReuseAfterRejection({ token: 'new', expires: now - 1 }, 'old', now), false);
+});
 
 test('login: token and lease; wrong password and lockout are plain language', () => {
   const ok = parseResponse('[{"cmd":"Login","code":0,"value":{"Token":{"leaseTime":3600,"name":"e1d5b8a2c3f4a1b"}}}]');

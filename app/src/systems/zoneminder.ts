@@ -3,6 +3,7 @@ import { HttpSystem } from '@/systems/http-base';
 import { daysOf, fileAt, formatLocalDateTime, httpMessage, mergeSpans, parseLocalDateTime, type Query } from '@/systems/http-kit';
 import {
   authQuery,
+  eventCacheCovers,
   eventsPath,
   frameAt,
   parseEvents,
@@ -68,7 +69,7 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
   private loggingIn: Promise<void> | null = null;
   private mons: ZmMonitor[] | null = null;
   private ptzCache = new Map<string, PtzCaps>();
-  private eventCache = new Map<string, { at: number; after: number; before: number; events: ZmEvent[] }>();
+  private eventCache = new Map<string, { at: number; after: number; before: number; complete: boolean; events: ZmEvent[] }>();
 
   private authed(url: string): string {
     const a = this.auth ? authQuery(this.auth) : '';
@@ -231,20 +232,57 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
     };
   }
 
-  private async events(cameraId: string | undefined, after: number, before: number, limit: number): Promise<ZmEvent[]> {
+  /**
+   * Events overlapping [after, before], newest first, up to `limit` per page and `maxPages`
+   * pages. A cached answer is reused only if it really covers the range (an earlier query cut
+   * at a smaller limit doesn't).
+   */
+  private async events(cameraId: string | undefined, after: number, before: number, limit: number, maxPages = 1): Promise<ZmEvent[]> {
     await this.ready();
     const key = cameraId ?? '*';
     const hit = this.eventCache.get(key);
-    if (hit && Date.now() - hit.at < 20_000 && hit.after <= after && hit.before >= before) return hit.events;
+    if (hit && Date.now() - hit.at < 20_000 && eventCacheCovers(hit, after, before)) return hit.events;
+    const parse = (rows: ZmEventRow[] | undefined) => parseEvents(rows ?? [], (s) => parseLocalDateTime(s, this.tz));
     const path = eventsPath(this.api, {
       monitorId: cameraId,
       after: formatLocalDateTime(after, this.tz),
       before: formatLocalDateTime(before, this.tz),
     });
-    // Always send page+limit: 1.37 returns everything (unsorted) without them.
-    const r = await this.get<{ events?: ZmEventRow[] }>(path, { sort: 'StartTime', direction: 'desc', limit, page: 1 });
-    const events = parseEvents(r.events ?? [], (s) => parseLocalDateTime(s, this.tz));
-    this.eventCache.set(key, { at: Date.now(), after, before, events });
+    const events: ZmEvent[] = [];
+    let complete = false;
+    for (let page = 1; page <= maxPages; page++) {
+      // Always send page+limit: 1.37 returns everything (unsorted) without them.
+      const r = await this.get<{ events?: ZmEventRow[]; pagination?: { pageCount?: number | string } }>(path, {
+        sort: 'StartTime',
+        direction: 'desc',
+        limit,
+        page,
+      });
+      const rows = r.events ?? [];
+      events.push(...parse(rows));
+      const pageCount = Number(r.pagination?.pageCount) || 0;
+      if (rows.length < limit || (pageCount > 0 && page >= pageCount)) {
+        complete = true;
+        break;
+      }
+    }
+    // Events still recording have no EndTime, so the query above can't match them: when the
+    // window reaches the last couple of hours, also ask for recently started events.
+    const now = Date.now() / 1000;
+    if (before >= now - 7200) {
+      const recent = eventsPath(this.api, {
+        monitorId: cameraId,
+        after: formatLocalDateTime(Math.max(after - 7200, now - 7200), this.tz),
+        before: formatLocalDateTime(before, this.tz),
+        startedAfter: true,
+      });
+      const r = await this.get<{ events?: ZmEventRow[] }>(recent, { sort: 'StartTime', direction: 'desc', limit, page: 1 }).catch(() => null);
+      const seen = new Set(events.map((e) => e.id));
+      const ongoing = parse(r?.events).filter((e) => e.end == null && !seen.has(e.id));
+      events.push(...ongoing);
+      events.sort((a, b) => b.start - a.start);
+    }
+    this.eventCache.set(key, { at: Date.now(), after, before, complete, events });
     return events;
   }
 
@@ -279,14 +317,14 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
   }
 
   async recordingSegments(cameraId: string, after: number, before: number): Promise<RecordingSegment[]> {
-    const evs = await this.events(cameraId, after, before, 500);
+    const evs = await this.events(cameraId, after, before, 500, 10);
     const now = Date.now() / 1000;
     return mergeSpans(evs.map((e) => ({ start: e.start, end: e.end ?? now })), 2);
   }
 
   async recordingDays(cameraId: string): Promise<string[]> {
     const now = Date.now() / 1000;
-    const evs = await this.events(cameraId, now - 31 * 86400, now + 60, 500);
+    const evs = await this.events(cameraId, now - 31 * 86400, now + 60, 500, 10);
     return daysOf(evs.map((e) => ({ start: e.start, end: e.end ?? now })));
   }
 
@@ -333,11 +371,16 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
     const hit = this.ptzCache.get(cameraId);
     if (hit) return hit;
     const m = (await this.monitors()).find((x) => x.id === cameraId);
+    let failed = false;
     const control = m?.controlId
-      ? await this.get<{ control?: { Control?: ZmControl } }>(`${this.api}/controls/${encodeURIComponent(m.controlId)}.json`).catch(() => null)
+      ? await this.get<{ control?: { Control?: ZmControl } }>(`${this.api}/controls/${encodeURIComponent(m.controlId)}.json`).catch(() => {
+          failed = true;
+          return null;
+        })
       : null;
     const caps = ptzCaps(control?.control?.Control);
-    this.ptzCache.set(cameraId, caps);
+    // A failed lookup (timeout, busy server) isn't remembered as "can't move"; it's asked again next time.
+    if (!failed) this.ptzCache.set(cameraId, caps);
     return caps;
   }
 

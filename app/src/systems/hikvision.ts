@@ -3,9 +3,11 @@ import { secrets, SECRET } from '@/state/secrets';
 import {
   buildChannels,
   dailyDistributionXml,
+  dayRanges,
   deviceToday,
   errorFor,
   HikvisionError,
+  isDefinitiveNo,
   liveUrl,
   matchesToReview,
   mergeSegments,
@@ -90,6 +92,8 @@ export class HikvisionAdapter implements CameraSystemAdapter {
   private ptzRoutes = new Map<number, PtzRoute | null>();
   private presets = new Map<number, Map<string, number>>();
   private loaded: Promise<void> | null = null;
+  /** Whether the device accepts the "event recordings only" search filter (unknown until tried). */
+  private allEventFilter: boolean | undefined;
 
   constructor(
     readonly config: SystemConfig,
@@ -188,22 +192,34 @@ export class HikvisionAdapter implements CameraSystemAdapter {
     return this.loaded;
   }
 
-  /** Finds how to steer a channel: directly, or through the recorder's PTZ proxy. */
+  /**
+   * Finds how to steer a channel: directly, or through the recorder's PTZ proxy. "Can't be
+   * steered" is remembered only when the device says so (capabilities without pan/tilt/zoom,
+   * or a not-supported / not-allowed answer); timeouts and busy replies are retried next time.
+   */
   private async ptzRoute(c: Channel): Promise<PtzRoute | null> {
     if (this.ptzRoutes.has(c.id)) return this.ptzRoutes.get(c.id)!;
     const paths = c.proxied
       ? [`/ISAPI/ContentMgmt/PTZCtrlProxy/channels/${c.id}`, `/ISAPI/PTZCtrl/channels/${c.id}`]
       : [`/ISAPI/PTZCtrl/channels/${c.id}`];
-    let route: PtzRoute | null = null;
+    let transient = false;
     for (const path of paths) {
-      const caps = parsePtzCaps(await this.maybe(`${path}/capabilities`).catch(() => ''));
+      let xml: string;
+      try {
+        xml = await this.req(`${path}/capabilities`);
+      } catch (e) {
+        if (!isDefinitiveNo(e)) transient = true;
+        continue;
+      }
+      const caps = parsePtzCaps(xml);
       if (caps.canMove || caps.canZoom) {
-        route = { path, ...caps };
-        break;
+        const route = { path, ...caps };
+        this.ptzRoutes.set(c.id, route);
+        return route;
       }
     }
-    this.ptzRoutes.set(c.id, route);
-    return route;
+    if (!transient) this.ptzRoutes.set(c.id, null);
+    return null;
   }
 
   async listCameras(): Promise<Camera[]> {
@@ -264,9 +280,30 @@ export class HikvisionAdapter implements CameraSystemAdapter {
   // -------------------------------------------------------------------------------------------
   // Recordings and events
 
-  /** All pages of a ContentMgmt/search for one channel's main recording track. */
-  private async findRecordings(channel: number, start: number, end: number, metadata?: string): Promise<SearchMatch[]> {
+  /**
+   * A ContentMgmt/search for one channel's main recording track, one device-local day at a
+   * time from the newest. The device pages results oldest first (with a page cap), so one
+   * search over many days would drop the most recent recordings on a busy recorder.
+   * `stop` ends the walk early once the caller has enough.
+   */
+  private async findRecordings(
+    channel: number,
+    start: number,
+    end: number,
+    metadata?: string,
+    stop?: (sofar: SearchMatch[]) => boolean,
+  ): Promise<SearchMatch[]> {
     await this.load();
+    const out: SearchMatch[] = [];
+    for (const [from, to] of dayRanges(start, end, this.clock)) {
+      out.push(...(await this.searchDay(channel, from, to, metadata)));
+      if (stop?.(out)) break;
+    }
+    return out;
+  }
+
+  /** All pages of one search (a day or less). */
+  private async searchDay(channel: number, start: number, end: number, metadata?: string): Promise<SearchMatch[]> {
     const searchId = randomSearchId();
     const out: SearchMatch[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
@@ -322,22 +359,40 @@ export class HikvisionAdapter implements CameraSystemAdapter {
    * human/vehicle). Asks for event recordings only ("AllEvent"); devices that don't support
    * that filter get a plain search, keeping only segments whose type marks them as events.
    */
-  private async eventMatches(channel: number, after: number, before: number): Promise<SearchMatch[]> {
-    try {
-      return await this.findRecordings(channel, after, before, 'AllEvent');
-    } catch (e) {
-      if (!(e instanceof HikvisionError) || e.status === 401 || e.status === 403) throw e;
-      return (await this.findRecordings(channel, after, before)).filter((m) => m.recordType);
+  private async eventMatches(
+    channel: number,
+    after: number,
+    before: number,
+    stop: (sofar: SearchMatch[]) => boolean,
+  ): Promise<SearchMatch[]> {
+    if (this.allEventFilter !== false) {
+      try {
+        const out = await this.findRecordings(channel, after, before, 'AllEvent', stop);
+        this.allEventFilter = true;
+        return out;
+      } catch (e) {
+        if (!(e instanceof HikvisionError) || e.status === 401 || e.status === 403) throw e;
+        // Remember only a clear "not supported"; anything else is retried with the filter next time.
+        if (isDefinitiveNo(e)) this.allEventFilter = false;
+      }
     }
+    return (await this.findRecordings(channel, after, before, undefined, (all) => stop(all.filter((m) => m.recordType)))).filter(
+      (m) => m.recordType,
+    );
   }
 
   async listReview(q: { cameras?: string[]; after?: number; before?: number; severity?: Severity; limit?: number }): Promise<ReviewItem[]> {
     await this.load();
     const before = q.before ?? Date.now() / 1000;
     const after = Math.max(q.after ?? before - 86400, before - REVIEW_DAYS * 86400);
+    const limit = q.limit ?? 100;
     const ids = q.cameras?.length ? q.cameras : this.channels.map((c) => String(c.id));
+    // Each camera walks back day by day until it has `limit` matching events: the merged list
+    // is cut to `limit` newest, so older ones from any one camera could never be shown.
+    const enough = (id: string) => (sofar: SearchMatch[]) =>
+      matchesToReview(sofar, this.config.id, id).filter((r) => !q.severity || r.severity === q.severity).length >= limit;
     const results = await Promise.allSettled(
-      ids.map(async (id) => matchesToReview(await this.eventMatches(this.channelOf(id), after, before), this.config.id, id)),
+      ids.map(async (id) => matchesToReview(await this.eventMatches(this.channelOf(id), after, before, enough(id)), this.config.id, id)),
     );
     const ok = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
     if (!ok.length) {

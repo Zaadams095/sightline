@@ -60,6 +60,14 @@ export class HikvisionError extends Error {
   }
 }
 
+/**
+ * The device itself answered "not supported" / "not allowed" (as opposed to a timeout, a busy
+ * device or a network failure, which are worth retrying later).
+ */
+export function isDefinitiveNo(e: unknown): boolean {
+  return e instanceof HikvisionError && (e.notSupported || e.status === 400 || e.status === 403 || e.status === 404);
+}
+
 /** Plain-language message for an ISAPI failure (HTTP status plus the ResponseStatus body). */
 export function errorFor(status: number, body: string): HikvisionError {
   const sub = (xmlText(body, 'subStatusCode') ?? '').toLowerCase();
@@ -169,6 +177,24 @@ export function searchTime(t: number, clock: DeviceClock): string {
 export function rtspTime(t: number, clock: DeviceClock): string {
   const w = unixToWall(t, clock);
   return `${w.year}${p2(w.mon)}${p2(w.day)}T${p2(w.hour)}${p2(w.min)}${p2(w.sec)}Z`;
+}
+
+/**
+ * Splits [after, before] into device-local calendar days, newest first, as [from, to] unix
+ * pairs. Searches page oldest-first, so walking day by day from the newest keeps a busy day
+ * from crowding out the most recent recordings.
+ */
+export function dayRanges(after: number, before: number, clock: DeviceClock, maxDays = 62): [number, number][] {
+  const out: [number, number][] = [];
+  let end = before;
+  while (end > after && out.length < maxDays) {
+    const w = unixToWall(end - 1, clock);
+    const dayStart = wallToUnix({ ...w, hour: 0, min: 0, sec: 0 }, clock);
+    const from = Math.max(after, Math.min(dayStart, end - 1));
+    out.push([from, end]);
+    end = from;
+  }
+  return out;
 }
 
 export function deviceToday(nowSec: number, clock: DeviceClock): { year: number; mon: number; day: number } {

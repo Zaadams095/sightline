@@ -72,10 +72,33 @@ export function parseRemoteEnabled(kv: Record<string, string>): Map<number, bool
 // ---------------------------------------------------------------------------------------------
 // Time. Dahua devices speak *local device time* everywhere (search conditions, file times,
 // RTSP playback start times) with no zone attached. We measure the device's offset from real
-// UTC once (global.cgi?action=getCurrentTime vs. the phone clock) and apply it both ways. This
-// also absorbs a device clock that is a few minutes off, since recordings are labelled with
-// that same clock. Limitation: recordings made before a daylight-saving change are shifted by
-// the DST difference (the offset is the device's *current* one).
+// UTC (global.cgi?action=getCurrentTime vs. the phone clock), as Reolink/Hikvision do:
+// - When that offset, rounded to 15 minutes, equals the phone's current offset, the device is
+//   taken to be in the phone's time zone and times convert with the phone's zone rules, which
+//   know historic DST changes (a recording from before a DST change keeps its right hour).
+//   The leftover seconds (a device clock a little fast or slow) are applied on top, since
+//   recordings are labelled with that same clock.
+// - Otherwise a fixed offset is used both ways. Limitation: for a recorder in a different zone
+//   from the phone, recordings made before a DST change there are off by the DST difference.
+
+export interface DeviceClock {
+  /** Device wall clock minus real UTC, in seconds (includes any clock drift). */
+  offsetSec: number;
+  /** The device is in the phone's time zone: convert with the phone's zone rules. */
+  phoneZone: boolean;
+  /** Device clock error (seconds fast) on top of the zone offset; only used with phoneZone. */
+  driftSec: number;
+}
+
+/** A clock, or a plain fixed offset in seconds. */
+export type ClockArg = DeviceClock | number;
+
+const asClock = (c: ClockArg): DeviceClock => (typeof c === 'number' ? { offsetSec: c, phoneZone: false, driftSec: 0 } : c);
+
+/** "The device is in the phone's zone", used when the device clock can't be read. */
+export function phoneClock(): DeviceClock {
+  return { offsetSec: -new Date().getTimezoneOffset() * 60, phoneZone: true, driftSec: 0 };
+}
 
 /** Wall-clock fields of a Dahua time string ("2011-7-3 21:02:32", also 2011-07-03T21:02:32 or underscores). */
 function wallFields(s: string): number[] | null {
@@ -102,16 +125,45 @@ export function deviceOffset(currentTimeBody: string, phoneNowMs: number): numbe
   return Math.round(wall - phoneNowMs / 1000);
 }
 
+/**
+ * The device clock from a getCurrentTime reply. `phoneOffsetMin` is the phone's current UTC
+ * offset in minutes (-new Date().getTimezoneOffset()).
+ */
+export function deviceClock(currentTimeBody: string, phoneNowMs: number, phoneOffsetMin: number): DeviceClock {
+  const offsetSec = deviceOffset(currentTimeBody, phoneNowMs);
+  const zoneMin = Math.round(offsetSec / 900) * 15;
+  return { offsetSec, phoneZone: zoneMin === phoneOffsetMin, driftSec: offsetSec - zoneMin * 60 };
+}
+
 /** Device-local time string → unix seconds. */
-export function fromDeviceTime(s: string, offsetSec: number): number | null {
+export function fromDeviceTime(s: string, clock: ClockArg): number | null {
+  const c = asClock(clock);
+  if (c.phoneZone) {
+    const f = wallFields(s);
+    if (!f) return null;
+    const [y, mo, d, h, mi, se] = f;
+    return new Date(y, mo - 1, d, h, mi, se).getTime() / 1000 - c.driftSec;
+  }
   const w = wallAsUtc(s);
-  return w == null ? null : w - offsetSec;
+  return w == null ? null : w - c.offsetSec;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-function wallParts(unixSec: number, offsetSec: number) {
-  const d = new Date((Math.floor(unixSec) + offsetSec) * 1000);
+function wallParts(unixSec: number, clock: ClockArg) {
+  const c = asClock(clock);
+  if (c.phoneZone) {
+    const l = new Date((Math.floor(unixSec) + c.driftSec) * 1000);
+    return {
+      y: String(l.getFullYear()),
+      mo: pad(l.getMonth() + 1),
+      d: pad(l.getDate()),
+      h: pad(l.getHours()),
+      mi: pad(l.getMinutes()),
+      s: pad(l.getSeconds()),
+    };
+  }
+  const d = new Date((Math.floor(unixSec) + c.offsetSec) * 1000);
   return {
     y: String(d.getUTCFullYear()),
     mo: pad(d.getUTCMonth() + 1),
@@ -123,14 +175,14 @@ function wallParts(unixSec: number, offsetSec: number) {
 }
 
 /** unix seconds → "2026-10-10 21:02:32" (device local), for CGI search conditions. */
-export function toDeviceTime(unixSec: number, offsetSec: number): string {
-  const p = wallParts(unixSec, offsetSec);
+export function toDeviceTime(unixSec: number, clock: ClockArg): string {
+  const p = wallParts(unixSec, clock);
   return `${p.y}-${p.mo}-${p.d} ${p.h}:${p.mi}:${p.s}`;
 }
 
 /** unix seconds → "2026_10_10_21_02_32" (device local), for RTSP playback `starttime`. */
-export function toPlaybackTime(unixSec: number, offsetSec: number): string {
-  const p = wallParts(unixSec, offsetSec);
+export function toPlaybackTime(unixSec: number, clock: ClockArg): string {
+  const p = wallParts(unixSec, clock);
   return `${p.y}_${p.mo}_${p.d}_${p.h}_${p.mi}_${p.s}`;
 }
 
@@ -138,6 +190,24 @@ export function toPlaybackTime(unixSec: number, offsetSec: number): string {
 export function deviceDate(s: string): string | null {
   const f = wallFields(s);
   return f ? `${f[0]}-${pad(f[1])}-${pad(f[2])}` : null;
+}
+
+/**
+ * Splits [after, before] into device-local calendar days, newest first, as [from, to] unix
+ * pairs. File searches page oldest first with a cap, so busy recorders are searched one day
+ * at a time from the newest; otherwise the most recent recordings are the ones cut off.
+ */
+export function dayRanges(after: number, before: number, clock: ClockArg, maxDays = 62): [number, number][] {
+  const out: [number, number][] = [];
+  let end = before;
+  while (end > after && out.length < maxDays) {
+    const day = toDeviceTime(end - 1, clock).slice(0, 10);
+    const dayStart = fromDeviceTime(`${day} 00:00:00`, clock) ?? end - 86400;
+    const from = Math.max(after, Math.min(dayStart, end - 1));
+    out.push([from, end]);
+    end = from;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -157,7 +227,9 @@ export interface DahuaFile {
 
 /**
  * Search conditions for `mediaFileFind.cgi?action=findFile`. Times are device local. Arrays use
- * 0-based indexes. Note: `condition.Channel` is 1-based.
+ * 0-based indexes. Note: `condition.Channel` is 1-based. `types` (dav, jpg, mp4), `flags`
+ * (Timing, Manual, Marker, Event, …) and `videoStream` (Main, Extra1, …) narrow the search, as
+ * in the Amcrest HTTP API's findFile example.
  */
 export function findFileQuery(c: {
   objectId: string;
@@ -165,7 +237,9 @@ export function findFileQuery(c: {
   start: string;
   end: string;
   types?: string[];
+  flags?: string[];
   events?: string[];
+  videoStream?: string;
 }): string {
   const parts = [
     'action=findFile',
@@ -174,7 +248,9 @@ export function findFileQuery(c: {
     `condition.StartTime=${encodeURIComponent(c.start)}`,
     `condition.EndTime=${encodeURIComponent(c.end)}`,
     ...(c.types ?? []).map((t, i) => `condition.Types[${i}]=${encodeURIComponent(t)}`),
+    ...(c.flags ?? []).map((f, i) => `condition.Flag[${i}]=${encodeURIComponent(f)}`),
     ...(c.events ?? []).map((e, i) => `condition.Events[${i}]=${encodeURIComponent(e)}`),
+    ...(c.videoStream ? [`condition.VideoStream=${encodeURIComponent(c.videoStream)}`] : []),
   ];
   return parts.join('&');
 }
@@ -226,10 +302,10 @@ export function parseFindNext(body: string): { found: number; files: DahuaFile[]
 const isVideo = (f: DahuaFile) => f.type !== 'jpg';
 
 /** Video files → merged recording spans (unix seconds). Gaps up to `gapSec` are joined. */
-export function filesToSegments(files: DahuaFile[], offsetSec: number, gapSec = 2): RecordingSegment[] {
+export function filesToSegments(files: DahuaFile[], clock: ClockArg, gapSec = 2): RecordingSegment[] {
   const spans = files
     .filter(isVideo)
-    .map((f) => ({ start: fromDeviceTime(f.startTime, offsetSec), end: fromDeviceTime(f.endTime, offsetSec) }))
+    .map((f) => ({ start: fromDeviceTime(f.startTime, clock), end: fromDeviceTime(f.endTime, clock) }))
     .filter((s): s is RecordingSegment => s.start != null && s.end != null && s.end > s.start)
     .sort((a, b) => a.start - b.start);
   const out: RecordingSegment[] = [];
@@ -302,18 +378,18 @@ export function classifyEvents(codes: string[]): { objects: string[]; severity: 
  */
 export function filesToReview(
   files: DahuaFile[],
-  opts: { systemId: string; offsetSec: number; thumbUrl: (filePath: string) => string },
+  opts: { systemId: string; clock: ClockArg; thumbUrl: (filePath: string) => string },
 ): ReviewItem[] {
   const pictures = files
     .filter((f) => f.type === 'jpg' && f.filePath)
-    .map((f) => ({ f, t: fromDeviceTime(f.startTime, opts.offsetSec) ?? 0 }));
+    .map((f) => ({ f, t: fromDeviceTime(f.startTime, opts.clock) ?? 0 }));
   const items: ReviewItem[] = [];
   for (const f of files) {
     if (!isVideo(f)) continue;
     const cls = classifyEvents(f.events);
     if (!cls) continue;
-    const start = fromDeviceTime(f.startTime, opts.offsetSec);
-    const end = fromDeviceTime(f.endTime, opts.offsetSec);
+    const start = fromDeviceTime(f.startTime, opts.clock);
+    const end = fromDeviceTime(f.endTime, opts.clock);
     if (start == null) continue;
     const pic = pictures.find((p) => p.f.channel === f.channel && p.t >= start - 5 && p.t <= (end ?? start) + 5);
     items.push({
@@ -446,8 +522,19 @@ export function livePath(channel: number, quality: 'main' | 'sub'): string {
 }
 
 /** Playback: `/cam/playback?channel=N&starttime=YYYY_MM_DD_HH_MM_SS&endtime=…` in device-local time. */
-export function playbackPath(channel: number, start: number, end: number, offsetSec: number): string {
-  return `/cam/playback?channel=${channel}&starttime=${toPlaybackTime(start, offsetSec)}&endtime=${toPlaybackTime(end, offsetSec)}`;
+export function playbackPath(channel: number, start: number, end: number, clock: ClockArg): string {
+  return `/cam/playback?channel=${channel}&starttime=${toPlaybackTime(start, clock)}&endtime=${toPlaybackTime(end, clock)}`;
+}
+
+/**
+ * A failed request that never got an HTTP answer (timeout, refused, dropped). The raw errors
+ * ("Network request failed", "No response from 127.0.0.1:53817 after 10s") mean nothing to
+ * people, and the loopback port is an app detail.
+ */
+export function dahuaNetworkMessage(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (msg.startsWith('No response')) return 'The recorder didn’t answer in time. Check that it’s on and reachable.';
+  return 'Couldn’t reach the recorder. Check the address and that your phone is on the same network.';
 }
 
 export function dahuaHttpMessage(status: number, body = ''): string {

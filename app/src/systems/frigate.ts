@@ -94,10 +94,19 @@ export class FrigateAdapter implements CameraSystemAdapter {
     return `${this.baseUrl}${path}${params ? `?${params}` : ''}`;
   }
 
+  /** fetch whose network failures (timeouts, refused connections) become plain-language errors. */
+  private async send(url: string, init: RequestInit, timeoutMs = 8000): Promise<Response> {
+    try {
+      return await fetchWithTimeout(url, init, timeoutMs);
+    } catch (e) {
+      throw new Error(networkMessage(e));
+    }
+  }
+
   private async get<T>(path: string, q?: Record<string, string | number | undefined>): Promise<T> {
-    const res = await fetchWithTimeout(this.url(path, q), { headers: { Accept: 'application/json' }, credentials: 'include' });
+    const res = await this.send(this.url(path, q), { headers: { Accept: 'application/json' }, credentials: 'include' });
     if (!res.ok) throw new Error(httpMessage(res.status));
-    return (await res.json()) as T;
+    return parseJson<T>(await res.text());
   }
 
   async connect(): Promise<void> {
@@ -184,7 +193,7 @@ export class FrigateAdapter implements CameraSystemAdapter {
   }
 
   async markReviewed(ids: string[]): Promise<void> {
-    const res = await fetch(this.url('/api/reviews/viewed'), {
+    const res = await this.send(this.url('/api/reviews/viewed'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '1' },
       credentials: 'include',
@@ -263,7 +272,7 @@ export class FrigateAdapter implements CameraSystemAdapter {
   }
 
   async search(q: { query: string; type: 'description' | 'thumbnail'; cameras?: string[]; limit?: number }): Promise<SearchHit[]> {
-    const res = await fetchWithTimeout(
+    const res = await this.send(
       this.url('/api/events/search', {
         query: q.query,
         search_type: q.type,
@@ -279,18 +288,20 @@ export class FrigateAdapter implements CameraSystemAdapter {
       throw new Error(
         /semantic/i.test(body.message ?? '')
           ? 'Smart search needs Semantic Search turned on in Frigate (semantic_search: enabled: true).'
-          : (body.message ?? 'Search failed'),
+          : 'Frigate couldn’t run that search. Try different words.',
       );
     }
     if (!res.ok) throw new Error(httpMessage(res.status));
-    const events = (await res.json()) as {
-      id: string;
-      camera: string;
-      label: string;
-      sub_label?: string | [string, number] | null;
-      start_time: number;
-      end_time: number | null;
-    }[];
+    const events = parseJson<
+      {
+        id: string;
+        camera: string;
+        label: string;
+        sub_label?: string | [string, number] | null;
+        start_time: number;
+        end_time: number | null;
+      }[]
+    >(await res.text());
     return events.map((e) => ({
       eventId: e.id,
       systemId: this.config.id,
@@ -347,7 +358,7 @@ export class FrigateAdapter implements CameraSystemAdapter {
   }
 
   async retain(eventId: string, keep: boolean): Promise<void> {
-    const res = await fetchWithTimeout(this.url(`/api/events/${encodeURIComponent(eventId)}/retain`), {
+    const res = await this.send(this.url(`/api/events/${encodeURIComponent(eventId)}/retain`), {
       method: keep ? 'POST' : 'DELETE',
       headers: { 'X-CSRF-TOKEN': '1' },
       credentials: 'include',
@@ -379,11 +390,15 @@ export class FrigateAdapter implements CameraSystemAdapter {
 
   private socket(): Promise<WebSocket> {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return Promise.resolve(this.ws);
-    this.wsReady ??= new Promise<WebSocket>((resolve, reject) => {
+    if (this.wsReady) return this.wsReady;
+    // Each attempt only clears state it owns: an old socket that closes late must not wipe out
+    // a newer connection attempt (or its open socket).
+    const failed = 'Couldn’t connect to Frigate to move the camera. Check that it’s reachable, then try again.';
+    const ready: Promise<WebSocket> = new Promise<WebSocket>((resolve, reject) => {
       const ws = new WebSocket(`${this.baseUrl.replace(/^http/, 'ws')}/ws`);
       const timer = setTimeout(() => {
         ws.close();
-        reject(new Error('Timed out connecting to Frigate'));
+        reject(new Error(failed));
       }, 8000);
       ws.onopen = () => {
         clearTimeout(timer);
@@ -393,22 +408,26 @@ export class FrigateAdapter implements CameraSystemAdapter {
       };
       ws.onerror = () => {
         clearTimeout(timer);
-        reject(new Error('Could not connect to Frigate'));
+        reject(new Error(failed));
       };
       ws.onclose = () => {
+        clearTimeout(timer);
+        reject(new Error(failed)); // no-op once settled
         if (this.ws === ws) this.ws = null;
-        this.wsReady = null;
+        if (this.wsReady === ready) this.wsReady = null;
       };
     }).catch((e) => {
-      this.wsReady = null;
+      if (this.wsReady === ready) this.wsReady = null;
       throw e;
     });
-    return this.wsReady;
+    this.wsReady = ready;
+    return ready;
   }
 
   dispose() {
     this.ws?.close();
     this.ws = null;
+    this.wsReady = null;
   }
 }
 
@@ -421,12 +440,28 @@ function httpMessage(status: number): string {
     case 401:
       return 'Frigate rejected the login. Check your username and password.';
     case 403:
-      return 'This Frigate user does not have access.';
+      return 'This Frigate user doesn’t have access to that.';
     case 404:
-      return 'Not found on this Frigate server.';
+      return 'Frigate didn’t recognize the request. Check the address (including the port).';
     case 502:
-      return 'Could not reach Frigate.';
+    case 504:
+      return 'Couldn’t reach Frigate. Check that it’s turned on and on the same network.';
     default:
-      return `Frigate returned HTTP ${status}`;
+      return status >= 500 ? `Frigate had a problem (error ${status}). Try again in a moment.` : `Frigate returned error ${status}.`;
+  }
+}
+
+/** Same wording as HttpSystem.send(): never "Network request failed" or a loopback port. */
+function networkMessage(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (msg.startsWith('No response')) return 'Frigate didn’t answer in time. Check that it’s on and reachable.';
+  return 'Couldn’t reach Frigate. Check the address and that your phone is on the same network.';
+}
+
+function parseJson<T>(text: string): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error('Frigate sent an unexpected reply. Check that the address points to Frigate.');
   }
 }

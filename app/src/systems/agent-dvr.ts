@@ -66,7 +66,7 @@ export class AgentDvrAdapter extends HttpSystem implements CameraSystemAdapter {
     const body = await this.json<T & { error?: string }>(path, { headers: await this.headers() }, q);
     // Agent reports some failures as HTTP 200 with an `error` key (agent-py treats it as an error).
     if (body && typeof body === 'object' && !Array.isArray(body) && typeof body.error === 'string') {
-      throw new Error(`Agent DVR: ${body.error}`);
+      throw new Error(`Agent DVR couldn’t do that (${body.error}).`);
     }
     return body;
   }
@@ -153,9 +153,12 @@ export class AgentDvrAdapter extends HttpSystem implements CameraSystemAdapter {
     const ids = q.cameras?.length ? q.cameras : (await this.cameras()).map((c) => c.id);
     const after = q.after ?? Date.now() / 1000 - 86400;
     const before = q.before ?? Infinity;
-    const lists = await Promise.all(ids.map((id) => this.recordings(id, after).catch(() => [] as AgentRecording[])));
-    const items = lists
-      .flat()
+    const results = await Promise.allSettled(ids.map((id) => this.recordings(id, after)));
+    // One camera failing shouldn't hide the others, but if all fail, say why instead of "no events".
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failed && results.every((r) => r.status === 'rejected')) throw failed.reason;
+    const items = results
+      .flatMap((r) => (r.status === 'fulfilled' ? r.value : ([] as AgentRecording[])))
       .filter((r) => r.end >= after && r.start <= before)
       .map<ReviewItem>((r) => ({
         id: recordingId(r.cameraId, r.fn),
