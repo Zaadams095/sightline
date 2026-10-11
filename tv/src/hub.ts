@@ -127,3 +127,27 @@ export const snapshotUrl = (base: string, token: string, id: string, height: num
 
 /** HLS live view (GET /v1/cameras/{id}/live.m3u8), played with AVPlayer. */
 export const liveUrl = (base: string, token: string, id: string) => `${base}/v1/cameras/${enc(id)}/live.m3u8?token=${enc(token)}`;
+
+export interface RingsReply {
+  rings: { id: string; camera: string; at: number }[];
+  /** Hub clock: pass back as `after` next time. */
+  now: number;
+}
+
+export const ringsUrl = (base: string, after: number, waitSec: number) =>
+  `${base}/v1/rings?after=${after}&wait=${Math.max(0, Math.min(25, Math.floor(waitSec)))}`;
+
+/**
+ * Doorbell rings newer than `after` (GET /v1/rings, a long poll that waits up to `waitSec`).
+ * Hubs from before rings existed answer 404, which throws a HubError with status 404.
+ */
+export async function pollRings(base: string, token: string, after: number, waitSec: number): Promise<RingsReply> {
+  const res = await fetchWithTimeout(
+    ringsUrl(base, after, waitSec),
+    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    (Math.min(25, waitSec) + 10) * 1000,
+  );
+  if (!res.ok) throw await errorFrom(res);
+  const r = (await res.json()) as Partial<RingsReply>;
+  return { rings: Array.isArray(r.rings) ? r.rings : [], now: typeof r.now === 'number' ? r.now : after };
+}

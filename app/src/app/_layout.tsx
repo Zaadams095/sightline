@@ -119,6 +119,10 @@ export default function RootLayout() {
             <Stack.Screen name="settings/learned" options={{ title: 'What Sightline learned' }} />
             <Stack.Screen name="settings/checkins" options={{ title: 'Family check-ins' }} />
             <Stack.Screen name="settings/checkin" options={{ title: 'Check-in' }} />
+            <Stack.Screen name="settings/wall" options={{ title: 'Wall display' }} />
+            <Stack.Screen name="wall" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false, animation: 'fade' }} />
+            <Stack.Screen name="export" options={{ title: 'Export for police or insurance', presentation: 'modal' }} />
+            <Stack.Screen name="share-neighbors" options={{ title: 'Share with neighbors', presentation: 'modal' }} />
             {/* Deep links sightline://invite?… and sightline://hub?… redirect to the join screen. */}
             <Stack.Screen name="invite" options={{ headerShown: false }} />
             <Stack.Screen name="hub" options={{ headerShown: false }} />

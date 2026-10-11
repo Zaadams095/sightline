@@ -64,6 +64,7 @@ export function GridScreen({
   columns,
   onColumns,
   onOpen,
+  onTour,
   onDisconnect,
 }: {
   hubName: string;
@@ -73,6 +74,8 @@ export function GridScreen({
   columns: 2 | 3;
   onColumns: (c: 2 | 3) => void;
   onOpen: (index: number) => void;
+  /** Full-screen tour of every camera that switches to the doorbell on a ring. */
+  onTour: () => void;
   onDisconnect: () => void;
 }) {
   const { width } = useWindowDimensions();
@@ -89,6 +92,11 @@ export function GridScreen({
       <View style={styles.header}>
         <Text style={styles.title}>{hubName}</Text>
         <View style={styles.actions}>
+          {cameras.length > 0 && (
+            <Pressable onPress={onTour} style={({ focused }) => [styles.button, focused && styles.buttonFocused]}>
+              <Text style={styles.buttonText}>Tour</Text>
+            </Pressable>
+          )}
           <Pressable onPress={() => onColumns(columns === 2 ? 3 : 2)} style={({ focused }) => [styles.button, focused && styles.buttonFocused]}>
             <Text style={styles.buttonText}>{columns === 2 ? '3 × 3' : '2 × 2'}</Text>
           </Pressable>

@@ -135,5 +135,56 @@ public class WgTunnelModule: Module {
     AsyncFunction("deriveKey") { (passcode: String, saltB64: String, iterations: Int) -> String in
       WgtunnelDeriveKey(passcode, saltB64, iterations)
     }
+
+    // Evidence export (tunnel/wgtunnel/record.go, sign.go, zipdir.go).
+    AsyncFunction("startRecording") { (url: String, viaTunnel: Bool, outPath: String, maxSeconds: Int) -> Int in
+      var id: Int = 0
+      var error: NSError?
+      _ = WgtunnelStartRecording(url, viaTunnel, outPath, maxSeconds, &id, &error)
+      if let error { throw Exception(name: "RecordError", description: error.localizedDescription) }
+      return id
+    }
+
+    Function("recordingStatus") { (id: Int) -> String in
+      WgtunnelRecordingStatus(id)
+    }
+
+    AsyncFunction("stopRecording") { (id: Int) in
+      WgtunnelStopRecording(id)
+    }
+
+    AsyncFunction("newSigningKey") { () -> String in
+      var error: NSError?
+      let key = WgtunnelNewSigningKey(&error)
+      if let error { throw Exception(name: "SignError", description: error.localizedDescription) }
+      return key
+    }
+
+    AsyncFunction("signingPublicKey") { (privateKey: String) -> String in
+      var error: NSError?
+      let pem = WgtunnelSigningPublicKeyPEM(privateKey, &error)
+      if let error { throw Exception(name: "SignError", description: error.localizedDescription) }
+      return pem
+    }
+
+    AsyncFunction("signFile") { (privateKey: String, path: String, sigPath: String) -> String in
+      var error: NSError?
+      let sig = WgtunnelSignFile(privateKey, path, sigPath, &error)
+      if let error { throw Exception(name: "SignError", description: error.localizedDescription) }
+      return sig
+    }
+
+    AsyncFunction("sha256File") { (path: String) -> String in
+      var error: NSError?
+      let hex = WgtunnelSHA256File(path, &error)
+      if let error { throw Exception(name: "HashError", description: error.localizedDescription) }
+      return hex
+    }
+
+    AsyncFunction("zipFolder") { (dir: String, outPath: String, rootName: String) in
+      var error: NSError?
+      _ = WgtunnelZipFolder(dir, outPath, rootName, &error)
+      if let error { throw Exception(name: "ZipError", description: error.localizedDescription) }
+    }
   }
 }
