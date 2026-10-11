@@ -472,13 +472,12 @@ func checkinMessage(d device, c checkin, st checkinState, n checkinNotice) pushM
 	if cam == "" || !slices.Contains(c.Cameras, cam) {
 		cam = c.Cameras[0]
 	}
-	m := pushMessage{
-		To: d.PushToken, Title: n.Title, Body: n.Body, Sound: "default", Priority: "high",
-		ThreadID:   "checkin:" + c.ID,
-		CategoryID: "checkin-" + c.ID, // "Watch Kitchen" / "Call Mom" / "Mom's fine", registered by the app
-		Data: map[string]string{
-			"kind": "checkin", "checkinId": c.ID, "notice": n.Kind, "systemId": d.SystemID, "cameraId": cam,
-		},
+	m := pushTo(d)
+	m.Title, m.Body, m.Sound, m.Priority = n.Title, n.Body, "default", "high"
+	m.ThreadID = "checkin:" + c.ID
+	m.CategoryID = "checkin-" + c.ID // "Watch Kitchen" / "Call Mom" / "Mom's fine", registered by the app
+	m.Data = map[string]string{
+		"kind": "checkin", "checkinId": c.ID, "notice": n.Kind, "systemId": d.SystemID, "cameraId": cam,
 	}
 	// A missing check-in is worth breaking through Focus (unless the user asked it to wait).
 	if n.Kind != "summary" && c.DuringQuietHours {

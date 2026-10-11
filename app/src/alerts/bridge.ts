@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 
 import { legacyMasks } from '@/alerts/zones';
 import type { CheckInState } from '@/alerts/checkins';
+import { ENC_MSG_CAP } from '@/alerts/sealed';
 import { hubLearningFor } from '@/alerts/smart';
 import { getLocale, subscribeLocale, tr } from '@/i18n';
 import { connectSystem } from '@/net/connection';
@@ -121,6 +122,9 @@ async function deviceBody(system: SystemConfig, token: string) {
     // The app's language ('en' | 'es' | 'fr' | 'de' | 'pt-BR'): the Hub writes this phone's
     // notifications in it.
     lang: getLocale(),
+    // This app opens end-to-end sealed alert text (alerts/sealed.ts): the Hub then shows Apple,
+    // Google and Expo only "Activity on your cameras" (bridge/seal.go). Older apps don't send it.
+    caps: [ENC_MSG_CAP],
     defaultRule: st.alerts.defaultRule,
     rules,
     cameraNames,

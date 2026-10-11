@@ -20,6 +20,7 @@ import { recognizeItems } from '@/familiar/recognize';
 // Background wake-ups write notifications in the app's language too.
 import '@/i18n/device';
 import { checkCheckinsBuiltIn, handleCheckinResponse } from '@/alerts/checkins-run';
+import { revealResponse } from '@/alerts/reveal';
 import { FEEDBACK_ACTIONS, featureData, filterSmart, handleSmartResponse, registerLearnedCategory } from '@/alerts/smart';
 import { useSmart } from '@/state/smart';
 import { connectSystem, type SystemLink } from '@/net/connection';
@@ -81,13 +82,15 @@ function registerCategories() {
  * Opens the clip for a tapped notification, or applies a snooze action. Also called at startup
  * with the response that launched the app, because a cold start can miss the listener.
  */
-export async function handleResponse(resp: Notifications.NotificationResponse) {
-  const id = `${resp.notification.request.identifier}:${resp.actionIdentifier}`;
+export async function handleResponse(sealed: Notifications.NotificationResponse) {
+  const id = `${sealed.notification.request.identifier}:${sealed.actionIdentifier}`;
   if (handledResponses.has(id)) return;
   handledResponses.add(id);
   // Background actions (snooze) can launch the app without the UI: write into the saved
   // settings, not the empty defaults that would then overwrite them.
   if (!useApp.persist.hasHydrated()) await useApp.persist.rehydrate();
+  // End-to-end sealed Instant Alerts: the extension normally opened it already (alerts/sealed.ts).
+  const resp = await revealResponse(sealed);
   // Feedback ("Not important"), what-was-learned and check-in notifications.
   if ((await handleSmartResponse(resp)) || (await handleCheckinResponse(resp))) return;
 

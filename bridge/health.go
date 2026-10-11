@@ -134,7 +134,9 @@ func (h *healthMonitor) evaluateHealth(report backend.Health, pollErr error) {
 			if cam, ok := strings.CutPrefix(is.key, "offline:"); ok && d.CameraNames[cam] != "" {
 				title = tr(lang, "health.offline.title", d.CameraNames[cam])
 			}
-			msgs = append(msgs, pushMessage{To: d.PushToken, Title: title, Body: body, Sound: "default"})
+			m := pushTo(d)
+			m.Title, m.Body, m.Sound, m.gist = title, body, "default", "sealed.hub"
+			msgs = append(msgs, m)
 		}
 	}
 	h.active = now

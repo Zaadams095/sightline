@@ -29,8 +29,15 @@ func thumbKey(secret string) []byte {
 }
 
 // sealThumb encrypts with AES-256-GCM and returns base64(nonce || ciphertext || tag).
-func sealThumb(secret string, plain []byte) (string, error) {
-	block, err := aes.NewCipher(thumbKey(secret))
+func sealThumb(secret string, plain []byte) (string, error) { return sealGCM(thumbKey(secret), plain) }
+
+func openThumb(secret, b64 string) ([]byte, error) { return openGCM(thumbKey(secret), b64) }
+
+// sealGCM is AES-256-GCM with a random nonce: base64(nonce || ciphertext || tag), no
+// additional data. The layout CryptoKit's AES.GCM.SealedBox(combined:) and expo-crypto's
+// AESSealedData.fromCombined read.
+func sealGCM(key, plain []byte) (string, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
@@ -45,12 +52,12 @@ func sealThumb(secret string, plain []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, plain, nil)), nil
 }
 
-func openThumb(secret, b64 string) ([]byte, error) {
+func openGCM(key []byte, b64 string) ([]byte, error) {
 	raw, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		return nil, err
 	}
-	block, err := aes.NewCipher(thumbKey(secret))
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}

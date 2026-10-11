@@ -22,6 +22,11 @@ type pushMessage struct {
 	CategoryID     string            `json:"categoryId,omitempty"`
 	// iOS: "time-sensitive" breaks through Focus (doorbell rings); needs the app's entitlement.
 	InterruptionLevel string `json:"interruptionLevel,omitempty"`
+
+	// Not sent: the recipient, for end-to-end sealing (seal.go), and the i18n key of the
+	// generic title sealed pushes show ("" = picked from data.kind).
+	dev  *device
+	gist string
 }
 
 type pusher interface {

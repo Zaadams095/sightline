@@ -35,7 +35,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("store: %v", err)
 	}
-	pusher := newExpoPusher(cfg.expoAccessToken)
+	// Every push is sealed for its phone on the way out (seal.go).
+	pusher := &sealingPusher{next: newExpoPusher(cfg.expoAccessToken), secret: cfg.secret}
 	engine := newEngine(store, pusher)
 	engine.secret = cfg.secret
 
@@ -293,12 +294,9 @@ func api(cfg config, store *store, engine *engine, h *hub) http.Handler {
 }
 
 func sendTestPush(ctx context.Context, p pusher, d device) error {
-	return p.send(ctx, []pushMessage{{
-		To:    d.PushToken,
-		Title: tr(d.Lang, "test.title"),
-		Body:  tr(d.Lang, "test.body"),
-		Sound: "default",
-	}})
+	m := pushTo(d)
+	m.Title, m.Body, m.Sound, m.gist = tr(d.Lang, "test.title"), tr(d.Lang, "test.body"), "default", "test.title"
+	return p.send(ctx, []pushMessage{m})
 }
 
 func itoa(n int) string {

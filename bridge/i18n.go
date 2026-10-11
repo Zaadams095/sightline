@@ -148,6 +148,42 @@ var messages = map[string]map[string]string{
 		"pt-BR": "%s GB livres em %s.",
 	},
 
+	// ---- end-to-end sealed pushes (seal.go) ----
+	// The only text Apple, Google and Expo see for phones that decrypt alerts themselves. The
+	// phone replaces it with the real title ("Person · Front Door") before showing it; these
+	// only appear if that fails, so they must say nothing about cameras, people or places.
+	"sealed.activity": {
+		"en":    "Activity on your cameras",
+		"es":    "Actividad en tus cámaras",
+		"fr":    "Activité sur vos caméras",
+		"de":    "Aktivität bei deinen Kameras",
+		"pt-BR": "Atividade nas suas câmeras",
+	},
+	"sealed.doorbell": {
+		"en": "Doorbell", "es": "Timbre", "fr": "Sonnette", "de": "Türklingel", "pt-BR": "Campainha",
+	},
+	"sealed.checkin": {
+		"en":    "Family check-in update",
+		"es":    "Novedades de un aviso familiar",
+		"fr":    "Nouvelles de la veille familiale",
+		"de":    "Neues von einem Familien-Check-in",
+		"pt-BR": "Novidades do acompanhamento da família",
+	},
+	"sealed.hub": {
+		"en":    "Your Sightline Hub needs a look",
+		"es":    "Tu Sightline Hub necesita un vistazo",
+		"fr":    "Votre Sightline Hub a besoin d’un coup d’œil",
+		"de":    "Dein Sightline Hub braucht einen Blick",
+		"pt-BR": "Seu Sightline Hub precisa de atenção",
+	},
+	"sealed.body": {
+		"en":    "Open Sightline to see more.",
+		"es":    "Abre Sightline para ver más.",
+		"fr":    "Ouvrez Sightline pour en savoir plus.",
+		"de":    "Öffne Sightline, um mehr zu sehen.",
+		"pt-BR": "Abra o Sightline para ver mais.",
+	},
+
 	// ---- test push (main.go sendTestPush) ----
 	"test.title": {
 		"en":    "Instant Alerts are working",

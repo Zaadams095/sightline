@@ -72,6 +72,9 @@ type device struct {
 	GrantID string `json:"grantId,omitempty"`
 	// Hub: per-phone key for the encrypted inline thumbnail (legacy pairings use BRIDGE_SECRET).
 	ThumbKey string `json:"thumbKey,omitempty"`
+	// What this app version understands, e.g. "enc-msg-v1" (end-to-end sealed push text,
+	// seal.go). Older apps send nothing and keep getting plaintext pushes.
+	Caps []string `json:"caps,omitempty"`
 
 	// Learned quieting and family check-ins (learning.go, checkins.go).
 	deviceSmart
@@ -256,15 +259,7 @@ func (e *engine) OnEvent(r backend.Event) {
 }
 
 // thumbKey is the secret a device decrypts inline thumbnails with ("" = no thumbnail).
-func (e *engine) thumbKey(d device) string {
-	if d.ThumbKey != "" {
-		return d.ThumbKey
-	}
-	if d.GrantID == "" {
-		return e.secret
-	}
-	return ""
-}
+func (e *engine) thumbKey(d device) string { return deviceSecret(d, e.secret) }
 
 func shouldNotify(d device, r backend.Event, now time.Time) bool {
 	ru, ok := d.Rules[r.Camera]
@@ -356,22 +351,20 @@ func buildMessage(d device, r backend.Event) pushMessage {
 	if len(r.Zones) > 0 {
 		body = tr(lang, "alert.zones", strings.ReplaceAll(strings.Join(r.Zones, ", "), "_", " "))
 	}
-	m := pushMessage{
-		To:       d.PushToken,
-		Title:    tr(lang, "alert.title", what, name),
-		Body:     body,
-		Sound:    "default",
-		Priority: "high",
-		ThreadID: d.SystemID + ":" + r.Camera,
-		Data: map[string]string{
-			"systemId": d.SystemID,
-			"cameraId": r.Camera,
-			"start":    fmt.Sprintf("%d", int64(r.Start)-5),
-			"reviewId": r.ID,
-		},
-		MutableContent: true,
-		CategoryID:     "camera-alert", // long-press snooze actions, registered by the app
+	m := pushTo(d)
+	m.Title = tr(lang, "alert.title", what, name)
+	m.Body = body
+	m.Sound = "default"
+	m.Priority = "high"
+	m.ThreadID = d.SystemID + ":" + r.Camera
+	m.Data = map[string]string{
+		"systemId": d.SystemID,
+		"cameraId": r.Camera,
+		"start":    fmt.Sprintf("%d", int64(r.Start)-5),
+		"reviewId": r.ID,
 	}
+	m.MutableContent = true
+	m.CategoryID = "camera-alert" // long-press snooze actions, registered by the app
 	// Same titles as the app's built-in alerts (rules.ts notificationTitle, packages-notify.ts).
 	switch {
 	case isDoorbell(r):

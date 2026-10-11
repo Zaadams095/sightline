@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { AppState } from 'react-native';
 
 import { showFromNotification, showRing } from '@/alerts/live-activity';
+import { revealNotification } from '@/alerts/reveal';
 import { isDoorbellCamera, isFreshRing, RING_FRESH_SEC, selectNotifications } from '@/alerts/rules';
 import { tr } from '@/i18n';
 import { useLinks } from '@/net/connection';
@@ -89,13 +90,15 @@ export function ringParamsFrom(data: Partial<Record<string, string>>): RingParam
  * every few seconds systems that report events are checked for a fresh ring.
  */
 export function startDoorbellWatch(): () => void {
-  const received = Notifications.addNotificationReceivedListener((n) => {
+  const onReceived = (n: Notifications.Notification) => {
     const ring = isRingNotification(n);
     const p = ring ? ringParamsFrom(n.request.content.data as Partial<Record<string, string>>) : null;
     // Lock Screen / Dynamic Island, for rings and camera events alike.
     showFromNotification(n.request.content, p);
     if (p && (useApp.getState().alerts.doorbell.fullScreen || ringHandler)) openDoorbell(p);
-  });
+  };
+  // End-to-end sealed Instant Alerts are opened first (alerts/sealed.ts).
+  const received = Notifications.addNotificationReceivedListener((sealed) => void revealNotification(sealed).then(onReceived));
 
   let timer: ReturnType<typeof setInterval> | null = null;
   let busy = false;
