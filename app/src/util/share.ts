@@ -28,3 +28,32 @@ export function pruneClips() {
     for (const f of dir.list()) if (f instanceof File && (f.modificationTime ?? 0) < cutoff) f.delete();
   } catch {}
 }
+
+const libraryDir = () => {
+  const dir = new Directory(Paths.document, 'library');
+  if (!dir.exists) dir.create();
+  return dir;
+};
+
+/** Downloads a saved clip into the app's Documents (kept until removed) for offline viewing. */
+export async function downloadClipForOffline(
+  adapter: CameraSystemAdapter,
+  clip: { id: string; cameraId: string; start: number; end: number },
+): Promise<string> {
+  if (!adapter.clip) throw new Error('This system cannot export clips.');
+  const dest = new File(libraryDir(), `${clip.id}.mp4`);
+  if (dest.exists) dest.delete();
+  const file = await File.downloadFileAsync(adapter.clip(clip.cameraId, clip.start, clip.end).uri, dest);
+  return file.uri;
+}
+
+export function deleteOfflineClip(uri: string) {
+  try {
+    const f = new File(uri);
+    if (f.exists) f.delete();
+  } catch {}
+}
+
+export async function shareLocalFile(uri: string, title: string) {
+  await Sharing.shareAsync(uri, { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: title });
+}

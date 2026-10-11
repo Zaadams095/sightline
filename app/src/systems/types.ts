@@ -81,6 +81,8 @@ export interface ReviewItem {
   endTime: number | null; // null while in progress
   severity: Severity;
   objects: string[];
+  /** Recognized identities (Frigate face names / known plates). Empty = nobody recognized. */
+  subLabels: string[];
   zones: string[];
   reviewed: boolean;
   /** Underlying object-event IDs (Frigate detections). */
@@ -92,6 +94,24 @@ export interface ReviewItem {
 export interface MotionPoint {
   t: number;
   v: number;
+}
+
+/** A result from smart (semantic) search: one tracked object. */
+export interface SearchHit {
+  eventId: string;
+  systemId: string;
+  cameraId: string;
+  label: string;
+  subLabel?: string;
+  startTime: number;
+  endTime: number | null;
+  thumbnailUrl: string;
+}
+
+export interface HealthReport {
+  /** Camera IDs that are enabled but receiving no frames. */
+  offline: string[];
+  storage: { path: string; usedPct: number; freeGb: number }[];
 }
 
 export interface RecordingSegment {
@@ -148,6 +168,13 @@ export interface CameraSystemAdapter {
   detectionPoints?(item: ReviewItem): Promise<{ x: number; y: number }[]>;
   /** Short preview video of a review item (for notification attachments). */
   previewClip?(item: ReviewItem): MediaSource;
+  /** Smart search by description or visual similarity. Throws a readable error if unsupported. */
+  search?(q: { query: string; type: 'description' | 'thumbnail'; cameras?: string[]; limit?: number }): Promise<SearchHit[]>;
+  /** Names the recorder can recognize (faces, known plates), for "unknown only" alerts. */
+  knownNames?(): Promise<string[]>;
+  health?(): Promise<HealthReport>;
+  /** Keep (or stop keeping) an event forever so retention doesn't delete it. */
+  retain?(eventId: string, keep: boolean): Promise<void>;
   /** Downloadable MP4 of a time range (for sharing / saving). */
   clip?(cameraId: string, start: number, end: number): MediaSource;
 

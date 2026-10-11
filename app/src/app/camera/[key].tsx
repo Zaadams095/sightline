@@ -3,16 +3,17 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActionSheetIOS, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LivePlayer } from '@/components/live/live-player';
+import { nextTimeOfDay } from '@/alerts/rules';
 import { PtzPad } from '@/components/ptz-pad';
 import { T } from '@/components/ui/primitives';
 import { useApp } from '@/state/store';
 import { useAdapter } from '@/systems/registry';
 import { space } from '@/theme/tokens';
-import { formatRelative, labelFor, nowSec } from '@/util/format';
+import { formatClock, formatRelative, nowSec, titleFor } from '@/util/format';
 
 export default function CameraScreen() {
   const { key, poster: tilePoster } = useLocalSearchParams<{ key: string; poster?: string }>();
@@ -25,6 +26,20 @@ export default function CameraScreen() {
   const [muted, setMuted] = useState(true);
   const [showPtz, setShowPtz] = useState(false);
   const radius = useApp((s) => s.appearance.radius);
+  const snoozedUntil = useApp((s) => s.alerts.snoozed[key] ?? 0);
+  const snooze = useApp((s) => s.snooze);
+  const isSnoozed = snoozedUntil > nowSec();
+  const toggleSnooze = () => {
+    if (isSnoozed) return snooze(key, null);
+    ActionSheetIOS.showActionSheetWithOptions(
+      { title: 'Mute alerts from this camera', options: ['For 1 hour', 'Until 7 AM', 'For 24 hours', 'Cancel'], cancelButtonIndex: 3 },
+      (i) => {
+        const now = Math.floor(nowSec());
+        const until = [now + 3600, nextTimeOfDay(7, 0), now + 86400][i];
+        if (until) snooze(key, until);
+      },
+    );
+  };
 
   const cameras = useQuery({
     queryKey: ['cameras-of', systemId, !!adapter],
@@ -96,6 +111,12 @@ export default function CameraScreen() {
               />
             )}
             {camera?.ptz && <Action icon="move.3d" label="PTZ" active={showPtz} onPress={() => setShowPtz((v) => !v)} />}
+            <Action
+              icon={isSnoozed ? 'bell.slash.fill' : 'bell'}
+              label={isSnoozed ? `Muted till ${formatClock(snoozedUntil)}` : 'Snooze'}
+              active={isSnoozed}
+              onPress={toggleSnooze}
+            />
           </View>
 
           {showPtz && camera?.ptz ? (
@@ -131,7 +152,7 @@ export default function CameraScreen() {
                   )}
                   <View style={{ flex: 1, gap: 2 }}>
                     <T v="label" color="#fff">
-                      {labelFor(item.objects)}
+                      {titleFor(item)}
                     </T>
                     <T v="caption" color="rgba(255,255,255,0.6)">
                       {formatRelative(item.startTime)}

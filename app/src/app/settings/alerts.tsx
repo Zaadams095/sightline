@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { checkForAlerts, registerBackgroundAlerts, requestNotificationPermission } from '@/alerts/background';
 import { ruleFor } from '@/alerts/rules';
+import { HealthSection, KnownPeopleSection, SnoozedSection } from '@/components/alerts/alert-extras';
 import { Button, Chip, Field, Row, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { useApp, type CameraAlertRule } from '@/state/store';
 import { useAllCameras } from '@/systems/registry';
@@ -31,6 +32,10 @@ export default function AlertSettings() {
         </View>
       </Section>
 
+      <SnoozedSection entries={entries} />
+
+      <KnownPeopleSection />
+
       <Section title="Quiet hours">
         <ToggleRow
           label="Quiet hours"
@@ -50,6 +55,8 @@ export default function AlertSettings() {
           </View>
         )}
       </Section>
+
+      <HealthSection />
 
       <Section title="Cooldown per camera">
         <View style={styles.chips}>

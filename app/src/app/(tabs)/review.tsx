@@ -5,6 +5,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SavedPanel } from '@/components/review/saved-panel';
+import { SearchPanel } from '@/components/review/search-panel';
 import { Chip, T } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
@@ -12,9 +14,10 @@ import { getAdapter, useAllCameras } from '@/systems/registry';
 import type { ReviewItem, Severity } from '@/systems/types';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
-import { formatClock, formatDay, labelFor } from '@/util/format';
+import { formatClock, formatDay, titleFor } from '@/util/format';
 
 type Filter = 'all' | Severity;
+type Mode = 'events' | 'search' | 'saved';
 
 export default function ReviewScreen() {
   const p = usePalette();
@@ -24,6 +27,8 @@ export default function ReviewScreen() {
   const links = useLinks((s) => s.links);
   const radius = useApp((s) => s.appearance.radius);
   const { entries } = useAllCameras({ includeHidden: true });
+  const [mode, setMode] = useState<Mode>('events');
+  const savedCount = useApp((s) => s.savedClips.length);
   const [filter, setFilter] = useState<Filter>('alert');
   const [unreviewedOnly, setUnreviewedOnly] = useState(false);
   const [camera, setCamera] = useState<string | null>(null);
@@ -75,6 +80,37 @@ export default function ReviewScreen() {
     });
   };
 
+  const modeTabs = (
+    <View style={styles.modes}>
+      {([
+        ['events', 'Events'],
+        ['search', 'Search'],
+        ['saved', savedCount ? `Saved (${savedCount})` : 'Saved'],
+      ] as [Mode, string][]).map(([m, label]) => (
+        <Pressable key={m} onPress={() => setMode(m)} style={[styles.mode, mode === m && { backgroundColor: p.surfaceRaised }]}>
+          <T v="label" color={mode === m ? p.text : p.textMuted}>
+            {label}
+          </T>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  if (mode !== 'events') {
+    return (
+      <ScrollView
+        style={{ backgroundColor: p.bg }}
+        contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingBottom: 120, gap: space.md }}
+        keyboardShouldPersistTaps="handled">
+        <T v="title" style={{ paddingHorizontal: space.lg }}>
+          Review
+        </T>
+        {modeTabs}
+        {mode === 'search' ? <SearchPanel /> : <SavedPanel />}
+      </ScrollView>
+    );
+  }
+
   return (
     <SectionList
       style={{ backgroundColor: p.bg }}
@@ -88,6 +124,7 @@ export default function ReviewScreen() {
           <T v="title" style={{ paddingHorizontal: space.lg }}>
             Review
           </T>
+          {modeTabs}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             <Chip label="Alerts" selected={filter === 'alert'} onPress={() => setFilter('alert')} />
             <Chip label="Detections" selected={filter === 'detection'} onPress={() => setFilter('detection')} />
@@ -123,7 +160,7 @@ export default function ReviewScreen() {
             <View style={styles.titleRow}>
               {!item.reviewed && <View style={[styles.dot, { backgroundColor: p.accent }]} />}
               <T v="label" numberOfLines={1}>
-                {labelFor(item.objects)}
+                {titleFor(item)}
               </T>
             </View>
             <T v="caption" muted numberOfLines={1}>
@@ -144,6 +181,8 @@ export default function ReviewScreen() {
 
 const styles = StyleSheet.create({
   chips: { gap: space.sm, paddingHorizontal: space.lg },
+  modes: { flexDirection: 'row', marginHorizontal: space.lg, padding: 3, borderRadius: 12, gap: 3, backgroundColor: 'rgba(127,127,127,0.12)' },
+  mode: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 9 },
   sectionHeader: { paddingHorizontal: space.lg, paddingVertical: space.sm },
   item: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm },
   thumbWrap: { width: 128, height: 72, overflow: 'hidden' },

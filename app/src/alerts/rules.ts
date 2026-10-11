@@ -3,7 +3,7 @@ import type { ReviewItem } from '@/systems/types';
 
 /**
  * Decides whether a review item should notify. Kept pure (no RN imports) so the same
- * logic can be mirrored by the Instant Alerts bridge.
+ * logic can be mirrored by the Instant Alerts bridge (bridge/engine.go).
  */
 export function ruleFor(settings: AlertSettings, cameraKey: string): CameraAlertRule {
   return settings.rules[cameraKey] ?? settings.defaultRule;
@@ -15,6 +15,16 @@ export function matchesRule(item: ReviewItem, rule: CameraAlertRule): boolean {
   if (rule.objects.length && !item.objects.some((o) => rule.objects.includes(o))) return false;
   if (rule.zones.length && !item.zones.some((z) => rule.zones.includes(z))) return false;
   return true;
+}
+
+/** True when everyone recognized in the event is on the quiet list (e.g. family, own car). */
+export function onlyKnown(item: ReviewItem, quietFor: string[]): boolean {
+  const names = item.subLabels ?? [];
+  return names.length > 0 && names.every((n) => quietFor.includes(n));
+}
+
+export function isSnoozed(settings: AlertSettings, cameraKey: string, nowSec: number): boolean {
+  return (settings.snoozed?.[cameraKey] ?? 0) > nowSec;
 }
 
 /** "HH:MM" quiet hours; supports ranges that cross midnight (e.g. 23:00–06:30). */
@@ -31,8 +41,8 @@ export function inQuietHours(q: AlertSettings['quietHours'], at: Date = new Date
 }
 
 /**
- * Filters new items down to the ones to notify, applying rules, quiet hours, and a
- * per-camera cooldown. `lastByCamera` is updated in place.
+ * Filters new items down to the ones to notify, applying rules, snoozes, known people,
+ * quiet hours, and a per-camera cooldown. `lastByCamera` is updated in place.
  */
 export function selectNotifications(
   items: ReviewItem[],
@@ -41,14 +51,25 @@ export function selectNotifications(
   at: Date = new Date(),
 ): ReviewItem[] {
   if (inQuietHours(settings.quietHours, at)) return [];
+  const now = at.getTime() / 1000;
   const out: ReviewItem[] = [];
   for (const item of [...items].sort((a, b) => a.startTime - b.startTime)) {
     const key = `${item.systemId}:${item.cameraId}`;
+    if (isSnoozed(settings, key, now)) continue;
     if (!matchesRule(item, ruleFor(settings, key))) continue;
+    if (onlyKnown(item, settings.quietFor ?? [])) continue;
     const last = lastByCamera[key] ?? 0;
     if (item.startTime - last < settings.cooldownSec) continue;
     lastByCamera[key] = item.startTime;
     out.push(item);
   }
   return out;
+}
+
+/** Next local occurrence of hh:mm, as unix seconds (for "snooze until morning"). */
+export function nextTimeOfDay(hour: number, minute: number, from: Date = new Date()): number {
+  const d = new Date(from);
+  d.setHours(hour, minute, 0, 0);
+  if (d <= from) d.setDate(d.getDate() + 1);
+  return Math.floor(d.getTime() / 1000);
 }

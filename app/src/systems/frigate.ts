@@ -1,5 +1,7 @@
 import type {
+  HealthReport,
   MotionPoint,
+  SearchHit,
   Camera,
   CameraSystemAdapter,
   MediaSource,
@@ -32,6 +34,7 @@ interface FrigateCameraConfig {
 
 interface FrigateConfig {
   cameras: Record<string, FrigateCameraConfig>;
+  lpr?: { known_plates?: Record<string, string[]> | null };
 }
 
 interface FrigateReview {
@@ -166,7 +169,8 @@ export class FrigateAdapter implements CameraSystemAdapter {
       startTime: r.start_time,
       endTime: r.end_time,
       severity: r.severity,
-      objects: [...(r.data.objects ?? []), ...(r.data.sub_labels ?? [])],
+      objects: r.data.objects ?? [],
+      subLabels: (r.data.sub_labels ?? []).filter(Boolean),
       zones: r.data.zones ?? [],
       reviewed: r.has_been_reviewed,
       detections: r.data.detections ?? [],
@@ -253,6 +257,85 @@ export class FrigateAdapter implements CameraSystemAdapter {
       }
     }
     return pts;
+  }
+
+  async search(q: { query: string; type: 'description' | 'thumbnail'; cameras?: string[]; limit?: number }): Promise<SearchHit[]> {
+    const res = await fetchWithTimeout(
+      this.url('/api/events/search', {
+        query: q.query,
+        search_type: q.type,
+        cameras: q.cameras?.length ? q.cameras.join(',') : undefined,
+        limit: q.limit ?? 50,
+        include_thumbnails: 0,
+      }),
+      { headers: { Accept: 'application/json' }, credentials: 'include' },
+      20000,
+    );
+    if (res.status === 400) {
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(
+        /semantic/i.test(body.message ?? '')
+          ? 'Smart search needs Semantic Search turned on in Frigate (semantic_search: enabled: true).'
+          : (body.message ?? 'Search failed'),
+      );
+    }
+    if (!res.ok) throw new Error(httpMessage(res.status));
+    const events = (await res.json()) as {
+      id: string;
+      camera: string;
+      label: string;
+      sub_label?: string | [string, number] | null;
+      start_time: number;
+      end_time: number | null;
+    }[];
+    return events.map((e) => ({
+      eventId: e.id,
+      systemId: this.config.id,
+      cameraId: e.camera,
+      label: e.label,
+      subLabel: Array.isArray(e.sub_label) ? e.sub_label[0] : (e.sub_label ?? undefined),
+      startTime: e.start_time,
+      endTime: e.end_time,
+      thumbnailUrl: this.url(`/api/events/${encodeURIComponent(e.id)}/thumbnail.webp`),
+    }));
+  }
+
+  async knownNames(): Promise<string[]> {
+    const cfg = await this.config_();
+    const plates = Object.keys(cfg.lpr?.known_plates ?? {});
+    const faces = await this.get<Record<string, string[]>>('/api/faces').catch(() => ({}));
+    // Frigate keeps unclassified training images under "train"; it isn't a person.
+    return [...new Set([...Object.keys(faces).filter((n) => n !== 'train'), ...plates])].sort();
+  }
+
+  async health(): Promise<HealthReport> {
+    const [stats, cfg] = await Promise.all([
+      this.get<{
+        cameras?: Record<string, { camera_fps?: number }>;
+        service?: { storage?: Record<string, { total?: number; used?: number; free?: number }> };
+      }>('/api/stats'),
+      this.config_(),
+    ]);
+    const offline = Object.entries(stats.cameras ?? {})
+      .filter(([id, s]) => cfg.cameras[id]?.enabled !== false && (s.camera_fps ?? 0) === 0)
+      .map(([id]) => id);
+    const storage = Object.entries(stats.service?.storage ?? {})
+      .filter(([path, s]) => path.startsWith('/media/frigate') && (s.total ?? 0) > 0)
+      .map(([path, s]) => ({
+        path,
+        usedPct: Math.round(((s.used ?? 0) / (s.total ?? 1)) * 100),
+        freeGb: Math.round(((s.free ?? 0) / 1024) * 10) / 10, // Frigate reports MB
+      }));
+    return { offline, storage };
+  }
+
+  async retain(eventId: string, keep: boolean): Promise<void> {
+    const res = await fetchWithTimeout(this.url(`/api/events/${encodeURIComponent(eventId)}/retain`), {
+      method: keep ? 'POST' : 'DELETE',
+      headers: { 'X-CSRF-TOKEN': '1' },
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(httpMessage(res.status));
   }
 
   previewClip(item: ReviewItem): MediaSource {

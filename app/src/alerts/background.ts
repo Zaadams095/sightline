@@ -5,12 +5,12 @@ import { router } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 
 import { isMasked } from '@/alerts/masks';
-import { selectNotifications } from '@/alerts/rules';
+import { nextTimeOfDay, selectNotifications } from '@/alerts/rules';
 import { connectSystem } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
 import type { ReviewItem } from '@/systems/types';
-import { labelFor } from '@/util/format';
+import { titleFor } from '@/util/format';
 
 /**
  * Built-in alerts (no server). iOS decides when this runs — typically every 15 min to a
@@ -18,6 +18,11 @@ import { labelFor } from '@/util/format';
  */
 export const ALERT_TASK = 'sightline-alert-check';
 const MAX_PER_RUN = 5;
+/** Category for camera alerts; the bridge sends the same id so actions work on Instant Alerts too. */
+export const ALERT_CATEGORY = 'camera-alert';
+const ACTION_SNOOZE_HOUR = 'snooze-1h';
+const ACTION_SNOOZE_MORNING = 'snooze-morning';
+const handledResponses = new Set<string>();
 
 export function setupNotificationHandling() {
   Notifications.setNotificationHandler({
@@ -29,16 +34,53 @@ export function setupNotificationHandling() {
     }),
   });
 
-  // Tapping a notification opens the clip at the moment it happened.
-  Notifications.addNotificationResponseReceivedListener((resp) => {
-    const d = resp.notification.request.content.data as Partial<Record<string, string>>;
-    if (d.systemId && d.cameraId && d.start) {
-      router.push({
-        pathname: '/playback',
-        params: { systemId: d.systemId, cameraId: d.cameraId, start: d.start, reviewId: d.reviewId ?? '' },
-      });
-    }
-  });
+  // Long-press actions. Snoozing runs in the background without opening the app.
+  void Notifications.setNotificationCategoryAsync(ALERT_CATEGORY, [
+    { identifier: ACTION_SNOOZE_HOUR, buttonTitle: 'Snooze this camera for 1 hour', options: { opensAppToForeground: false } },
+    { identifier: ACTION_SNOOZE_MORNING, buttonTitle: 'Snooze this camera until 7 AM', options: { opensAppToForeground: false } },
+  ]).catch(() => {});
+
+  Notifications.addNotificationResponseReceivedListener(handleResponse);
+}
+
+/**
+ * Opens the clip for a tapped notification, or applies a snooze action. Also called at startup
+ * with the response that launched the app, because a cold start can miss the listener.
+ */
+export function handleResponse(resp: Notifications.NotificationResponse) {
+  const id = `${resp.notification.request.identifier}:${resp.actionIdentifier}`;
+  if (handledResponses.has(id)) return;
+  handledResponses.add(id);
+
+  const d = resp.notification.request.content.data as Partial<Record<string, string>>;
+  if (!d.systemId || !d.cameraId) return;
+  const key = `${d.systemId}:${d.cameraId}`;
+
+  if (resp.actionIdentifier === ACTION_SNOOZE_HOUR) {
+    useApp.getState().snooze(key, Math.floor(Date.now() / 1000) + 3600);
+    return;
+  }
+  if (resp.actionIdentifier === ACTION_SNOOZE_MORNING) {
+    useApp.getState().snooze(key, nextTimeOfDay(7, 0));
+    return;
+  }
+  if (d.start) {
+    router.push({
+      pathname: '/playback',
+      params: { systemId: d.systemId, cameraId: d.cameraId, start: d.start, reviewId: d.reviewId ?? '' },
+    });
+  } else {
+    router.push({ pathname: '/camera/[key]', params: { key } });
+  }
+}
+
+/** Handles the notification that launched the app (cold start), once navigation is ready. */
+export async function handleLaunchNotification() {
+  const resp = await Notifications.getLastNotificationResponseAsync().catch(() => null);
+  if (resp) {
+    handleResponse(resp);
+    await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+  }
 }
 
 TaskManager.defineTask(ALERT_TASK, async () => {
@@ -114,6 +156,54 @@ export async function checkForAlerts(): Promise<number> {
     }
     useApp.getState().setLastNotified(system.id, Math.max(...fresh.map((i) => i.startTime)));
   }
+  posted += await checkHealth();
+  return posted;
+}
+
+/**
+ * Camera offline / storage nearly full / recorder unreachable. Each issue notifies once and
+ * re-arms after it clears, so a dead camera doesn't buzz every check.
+ */
+export async function checkHealth(): Promise<number> {
+  const { systems, alerts, healthAlerted } = useApp.getState();
+  if (!alerts.health?.enabled) return 0;
+  const active: Record<string, number> = {};
+  const toPost: { key: string; title: string; body: string }[] = [];
+
+  for (const system of systems) {
+    const link = await connectSystem(system);
+    const adapter = getAdapter(system, link);
+    if (!adapter?.health) continue;
+    // Unreachable could just mean we're away without the VPN, so only judge systems we reached.
+    if (link.mode !== 'lan' && link.mode !== 'tunnel') {
+      // Keep existing issues for this system armed instead of re-alerting when it's back in range.
+      for (const k of Object.keys(healthAlerted)) if (k.startsWith(`${system.id}:`)) active[k] = healthAlerted[k];
+      continue;
+    }
+    try {
+      const report = await adapter.health();
+      const names = new Map((await adapter.listCameras().catch(() => [])).map((c) => [c.id, c.name]));
+      for (const cam of report.offline) {
+        toPost.push({ key: `${system.id}:offline:${cam}`, title: `${names.get(cam) ?? cam} is offline`, body: `No video from this camera on ${system.name}.` });
+      }
+      for (const s of report.storage) {
+        if (s.usedPct >= alerts.health.storagePct) {
+          toPost.push({ key: `${system.id}:storage:${s.path}`, title: `${system.name} storage is ${s.usedPct}% full`, body: `${s.freeGb} GB free on ${s.path}.` });
+        }
+      }
+    } catch (e) {
+      toPost.push({ key: `${system.id}:down`, title: `${system.name} isn't responding`, body: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  let posted = 0;
+  for (const issue of toPost) {
+    active[issue.key] = healthAlerted[issue.key] ?? Math.floor(Date.now() / 1000);
+    if (healthAlerted[issue.key]) continue;
+    await Notifications.scheduleNotificationAsync({ content: { title: issue.title, body: issue.body }, trigger: null });
+    posted++;
+  }
+  useApp.getState().setHealthAlerted(active);
   return posted;
 }
 
@@ -142,7 +232,7 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${labelFor(item.objects)} · ${camera}`,
+      title: `${titleFor(item)} · ${camera}`,
       body: `${new Date(item.startTime * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${
         item.zones.length ? ` in ${item.zones.join(', ')}` : ''
       }`,
@@ -153,6 +243,7 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
         reviewId: item.id,
       },
       attachments,
+      categoryIdentifier: ALERT_CATEGORY,
     },
     trigger: null,
   });

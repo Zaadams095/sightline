@@ -8,7 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { WebView } from 'react-native-webview';
 
 import { watchBridgeSync } from '@/alerts/bridge';
-import { registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
+import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
 import { startLifecycle } from '@/net/connection';
 import { AppLockGate } from '@/security/app-lock';
 import { useApp } from '@/state/store';
@@ -34,9 +34,12 @@ export default function RootLayout() {
     if (!hydrated) return;
     void SplashScreen.hideAsync();
     void registerBackgroundAlerts();
+    // Give the navigator a moment to mount before routing to a tapped notification's clip.
+    const launchTimer = setTimeout(() => void handleLaunchNotification(), 300);
     const stopBridge = watchBridgeSync();
     const stopLifecycle = startLifecycle(() => useApp.getState().systems);
     return () => {
+      clearTimeout(launchTimer);
       stopBridge();
       stopLifecycle();
     };
@@ -60,6 +63,7 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="camera/[key]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="playback" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="clip" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
             <Stack.Screen name="settings/alerts" options={{ title: 'Notifications' }} />
             <Stack.Screen name="settings/vpn" options={{ title: 'VPN' }} />

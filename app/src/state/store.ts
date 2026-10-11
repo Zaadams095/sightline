@@ -39,6 +39,14 @@ export interface AlertSettings {
   quietHours: { enabled: boolean; start: string; end: string };
   /** Minimum seconds between notifications for the same camera. */
   cooldownSec: number;
+  /**
+   * Recognized people/plates (Frigate sub-labels) that never trigger alerts. An event alerts
+   * unless everyone recognized in it is on this list; unrecognized = always alerts.
+   */
+  quietFor: string[];
+  /** Camera key -> unix seconds until which that camera is muted. */
+  snoozed: Record<string, number>;
+  health: { enabled: boolean; storagePct: number };
   /** Instant Alerts bridge, if configured. */
   bridge?: { url: string; pairedAt: number };
 }
@@ -70,6 +78,22 @@ export interface CameraMap {
 /** Alert mask polygons per camera, normalized 0–1 points. Detections whose feet fall inside are ignored. */
 export type AlertMasks = Record<string, { x: number; y: number }[][]>;
 
+/** A bookmarked moment, optionally downloaded for offline viewing. */
+export interface SavedClip {
+  id: string;
+  systemId: string;
+  cameraId: string;
+  cameraName: string;
+  title: string;
+  start: number;
+  end: number;
+  savedAt: number;
+  /** Frigate events kept forever on the recorder because of this bookmark. */
+  retainedEvents: string[];
+  /** Local file when downloaded for offline viewing. */
+  localUri?: string;
+}
+
 export interface SecuritySettings {
   lockEnabled: boolean;
   /** device = Face ID / Touch ID with the iPhone passcode as fallback; pin = an app-only PIN. */
@@ -95,6 +119,9 @@ interface AppState {
   security: SecuritySettings;
   cameraMap: CameraMap;
   masks: AlertMasks;
+  savedClips: SavedClip[];
+  /** Health issues already notified (issue key -> unix seconds), cleared when resolved. */
+  healthAlerted: Record<string, number>;
   /** Newest review item start time already notified, per system. */
   lastNotified: Record<string, number>;
 
@@ -113,6 +140,10 @@ interface AppState {
   setSecurity(p: Partial<SecuritySettings>): void;
   setCameraMap(p: Partial<CameraMap>): void;
   setMasks(cameraKey: string, polygons: { x: number; y: number }[][]): void;
+  snooze(cameraKey: string, until: number | null): void;
+  saveClip(c: SavedClip): void;
+  removeClip(id: string): void;
+  setHealthAlerted(v: Record<string, number>): void;
 }
 
 export const useApp = create<AppState>()(
@@ -131,7 +162,12 @@ export const useApp = create<AppState>()(
         defaultRule: { enabled: true, objects: ['person'], zones: [], severities: ['alert'] },
         quietHours: { enabled: false, start: '23:00', end: '06:30' },
         cooldownSec: 60,
+        quietFor: [],
+        snoozed: {},
+        health: { enabled: true, storagePct: 90 },
       },
+      savedClips: [],
+      healthAlerted: {},
       lastNotified: {},
       cameraMap: { aspect: 4 / 3, placements: {}, links: [] },
       masks: {},
@@ -163,6 +199,16 @@ export const useApp = create<AppState>()(
           else delete rules[key];
           return { alerts: { ...st.alerts, rules } };
         }),
+      snooze: (key, until) =>
+        set((st) => {
+          const snoozed = { ...st.alerts.snoozed };
+          if (until) snoozed[key] = until;
+          else delete snoozed[key];
+          return { alerts: { ...st.alerts, snoozed } };
+        }),
+      saveClip: (c) => set((st) => ({ savedClips: [c, ...st.savedClips.filter((x) => x.id !== c.id)] })),
+      removeClip: (id) => set((st) => ({ savedClips: st.savedClips.filter((x) => x.id !== id) })),
+      setHealthAlerted: (healthAlerted) => set({ healthAlerted }),
       setCameraMap: (p) => set((st) => ({ cameraMap: { ...st.cameraMap, ...p } })),
       setMasks: (key, polygons) =>
         set((st) => {
@@ -179,6 +225,19 @@ export const useApp = create<AppState>()(
       name: 'app-state',
       version: 1,
       storage: createJSONStorage(() => Storage),
+      // Settings saved by older app versions lack newer fields: fill them from defaults
+      // one level deep so updates never load half-empty settings objects.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppState>;
+        return {
+          ...current,
+          ...p,
+          alerts: { ...current.alerts, ...p.alerts },
+          appearance: { ...current.appearance, ...p.appearance },
+          security: { ...current.security, ...p.security },
+          cameraMap: { ...current.cameraMap, ...p.cameraMap },
+        };
+      },
     },
   ),
 );

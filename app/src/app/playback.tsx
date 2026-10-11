@@ -16,7 +16,7 @@ import { useApp } from '@/state/store';
 import { useAdapter } from '@/systems/registry';
 import type { ReviewItem } from '@/systems/types';
 import { space } from '@/theme/tokens';
-import { formatClock, formatDay, labelFor, nowSec } from '@/util/format';
+import { formatClock, formatDay, labelFor, titleFor, nowSec } from '@/util/format';
 import { seekPlayer, setPlayerRate } from '@/util/player';
 import { shareClip } from '@/util/share';
 import { clipSegments, playerToWall, wallToPlayer } from '@/util/vod-time';
@@ -192,10 +192,41 @@ export default function PlaybackScreen() {
   const openCamera = (otherId: string, at: number) =>
     router.replace({ pathname: '/playback', params: { systemId: params.systemId, cameraId: otherId, start: String(Math.floor(at)) } });
 
+  // Bookmark: the current event (or 30 s either side), kept forever on the recorder.
+  const savedClips = useApp((s) => s.savedClips);
+  const saveClip = useApp((s) => s.saveClip);
+  const removeClip = useApp((s) => s.removeClip);
+  const bookmarkRange: [number, number] = current
+    ? [current.startTime - 3, Math.min(now, (current.endTime ?? wall + 15) + 3)]
+    : [wall - 30, Math.min(now, wall + 30)];
+  const existing = savedClips.find(
+    (c) => c.systemId === params.systemId && c.cameraId === cameraId && Math.abs(c.start - bookmarkRange[0]) < 5,
+  );
+  const toggleSaved = async () => {
+    if (existing) {
+      await Promise.allSettled(existing.retainedEvents.map((id) => adapter?.retain?.(id, false)));
+      removeClip(existing.id);
+      return;
+    }
+    const retained = current?.detections ?? [];
+    await Promise.allSettled(retained.map((id) => adapter?.retain?.(id, true)));
+    saveClip({
+      id: `${params.systemId}-${cameraId}-${Math.floor(bookmarkRange[0])}`,
+      systemId: params.systemId,
+      cameraId,
+      cameraName: nameOf(cameraId),
+      title: current ? titleFor(current) : 'Saved moment',
+      start: bookmarkRange[0],
+      end: bookmarkRange[1],
+      savedAt: Math.floor(nowSec()),
+      retainedEvents: retained,
+    });
+  };
+
   const share = () => {
     if (!adapter?.clip) return;
     const options: { label: string; range: [number, number] }[] = [];
-    if (current) options.push({ label: `This event (${labelFor(current.objects)})`, range: [current.startTime - 3, (current.endTime ?? wall + 15) + 3] });
+    if (current) options.push({ label: `This event (${titleFor(current)})`, range: [current.startTime - 3, (current.endTime ?? wall + 15) + 3] });
     options.push({ label: '30 seconds around here', range: [wall - 15, wall + 15] });
     options.push({ label: '2 minutes around here', range: [wall - 60, wall + 60] });
     ActionSheetIOS.showActionSheetWithOptions(
@@ -241,11 +272,14 @@ export default function PlaybackScreen() {
           </T>
           {current && (
             <T v="caption" color="rgba(255,255,255,0.7)" numberOfLines={1}>
-              {labelFor(current.objects)}
+              {titleFor(current)}
               {current.zones.length ? ` · ${current.zones.join(', ')}` : ''}
             </T>
           )}
         </View>
+        <Pressable onPress={() => void toggleSaved()} hitSlop={8} style={styles.round}>
+          <SymbolView name={existing ? 'star.fill' : 'star'} tintColor={existing ? '#FFD60A' : '#fff'} size={18} />
+        </Pressable>
         {adapter?.clip && (
           <Pressable onPress={share} hitSlop={8} style={styles.round} disabled={sharing}>
             {sharing ? <ActivityIndicator color="#fff" /> : <SymbolView name="square.and.arrow.up" tintColor="#fff" size={17} />}

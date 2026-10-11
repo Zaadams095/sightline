@@ -38,3 +38,9 @@ export function labelFor(objects: string[]): string {
 export function nowSec(): number {
   return Date.now() / 1000;
 }
+
+/** Event title: recognized names first ("Zach"), else the object labels ("Person & Car"). */
+export function titleFor(item: { objects: string[]; subLabels?: string[] }): string {
+  const names = [...new Set(item.subLabels ?? [])];
+  return names.length ? names.join(' & ') : labelFor(item.objects);
+}
