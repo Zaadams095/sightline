@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { FrigateAdapter } from '@/systems/frigate';
+import { HikvisionAdapter } from '@/systems/hikvision';
+import { ReolinkAdapter } from '@/systems/reolink';
 import { RtspAdapter } from '@/systems/rtsp';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 
@@ -14,6 +16,10 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
       return new FrigateAdapter(s, baseUrl);
     case 'rtsp':
       return new RtspAdapter(s);
+    case 'reolink':
+      return new ReolinkAdapter(s, baseUrl);
+    case 'hikvision':
+      return new HikvisionAdapter(s, baseUrl);
     default:
       throw new Error(`${s.kind} is not supported yet`);
   }

@@ -154,11 +154,13 @@ export type LiveSource =
 /**
  * Recorded video for a time window.
  * - vod: seekable HLS of the whole window (gaps removed; mapped with recordingSegments()).
- * - stream: plays forward from the window start; seeking asks for a new window.
+ * - stream: plays forward from the window start; seeking asks for a new window. `startsAt` is
+ *   the wall-clock time (unix s) of the source's first frame when it isn't the requested start
+ *   (e.g. a whole recording file); the player seeks to `start - startsAt`.
  */
 export type PlaybackSource =
   | { kind: 'vod'; uri: string }
-  | { kind: 'stream'; source: LiveSource | { kind: 'file'; uri: string } };
+  | { kind: 'stream'; source: LiveSource | { kind: 'file'; uri: string }; startsAt?: number };
 
 export interface CameraSystemAdapter {
   readonly config: SystemConfig;

@@ -97,16 +97,23 @@ export const CATALOG: SystemDescriptor[] = [
     label: 'Reolink',
     blurb: 'Reolink recorders, Home Hub and cameras',
     category: 'recorder',
-    available: false,
+    available: true,
+    // Newer Reolink firmware ships with HTTPS on and plain HTTP off.
     defaultPorts: [
       { port: 443, https: true },
       { port: 80, https: false },
     ],
-    addressHint: 'In the Reolink app: Settings → Device info → IP address.',
-    fields: [ADDRESS('192.168.1.20', 'The recorder (or single camera) address.'), USER(), PASS],
+    addressHint:
+      'In the Reolink app, open the device’s settings and look for Network Information (or Device Info) to see its IP address. Use the recorder or Home Hub address if you have one.',
+    fields: [
+      ADDRESS('192.168.1.20', 'The recorder, Home Hub or single camera address.'),
+      USER(),
+      { ...PASS, hint: 'The password you use in the Reolink app for this device.' },
+    ],
+    // Without a token the API still answers JSON naming the command ("please login first").
     fingerprints: [
-      { port: 80, https: false, path: '/cgi-bin/api.cgi?cmd=GetDevInfo', match: (r) => has(r.body, '"cmd"') && has(r.body, 'GetDevInfo') },
       { port: 443, https: true, path: '/cgi-bin/api.cgi?cmd=GetDevInfo', match: (r) => has(r.body, '"cmd"') && has(r.body, 'GetDevInfo') },
+      { port: 80, https: false, path: '/cgi-bin/api.cgi?cmd=GetDevInfo', match: (r) => has(r.body, '"cmd"') && has(r.body, 'GetDevInfo') },
     ],
   },
   {
@@ -114,17 +121,27 @@ export const CATALOG: SystemDescriptor[] = [
     label: 'Hikvision',
     blurb: 'Hikvision recorders and cameras (also many rebranded ones)',
     category: 'recorder',
-    available: false,
+    available: true,
     defaultPorts: [
       { port: 80, https: false },
       { port: 443, https: true },
     ],
-    addressHint: 'Printed on the recorder, or in Hik-Connect: device → Device information.',
-    fields: [ADDRESS('192.168.1.64', 'The recorder (or camera) address.'), USER(), PASS],
-    fingerprints: [
-      { port: 80, https: false, path: '/ISAPI/System/deviceInfo', match: (r) => r.status === 401 && (has(r.server, 'webs') || has(r.auth, 'digest')) },
-      { port: 443, https: true, path: '/ISAPI/System/deviceInfo', match: (r) => r.status === 401 && (has(r.server, 'webs') || has(r.auth, 'digest')) },
+    addressHint:
+      'On the recorder’s screen: Menu → Configuration → Network → General shows the IPv4 address. For a single camera, look for it in your router’s list of connected devices.',
+    fields: [
+      ADDRESS('192.168.1.64', 'The recorder (or camera) address.'),
+      USER(),
+      { ...PASS, hint: 'The password you sign in to the recorder with (not your Hik-Connect account).' },
     ],
+    // ISAPI answers a Digest challenge. Dahua-based devices also use Digest but with a
+    // "Login to <serial>" realm, so those are left to the Dahua entry.
+    fingerprints: [80, 443].map((port) => ({
+      port,
+      https: port === 443,
+      path: '/ISAPI/System/deviceInfo',
+      match: (r: ProbeResult) =>
+        has(r.body, '<DeviceInfo') || (r.status === 401 && !has(r.auth, 'login to') && (has(r.server, 'webs') || has(r.auth, 'digest'))),
+    })),
   },
   {
     kind: 'dahua',
