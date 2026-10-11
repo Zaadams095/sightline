@@ -40,6 +40,7 @@ type hub struct {
 
 	playbacks playbackCache
 	hls       hlsSessions
+	talks     talkProbeCache
 
 	mu      sync.RWMutex
 	systems []*system

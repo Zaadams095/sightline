@@ -121,6 +121,15 @@ type CameraConfig struct {
 // Config is the subset of /api/config the Hub uses.
 type Config struct {
 	Cameras map[string]CameraConfig `json:"cameras"`
+	// Go2RTC is Frigate's built-in go2rtc: its streams are also served over RTSP (port 8554),
+	// with the ONVIF backchannel when the camera behind them has a speaker.
+	Go2RTC struct {
+		Streams map[string]json.RawMessage `json:"streams"`
+		RTSP    struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		} `json:"rtsp"`
+	} `json:"go2rtc"`
 }
 
 // HealthFrom turns one stats/config poll into the brand-neutral health report.

@@ -180,8 +180,20 @@ func (r *RTSP) ID() string    { return r.cfg.ID }
 func (r *RTSP) Kind() string  { return kind }
 func (r *RTSP) Label() string { return label }
 
-// Capabilities: a bare link gives live video and nothing else.
-func (r *RTSP) Capabilities() backend.Capabilities { return backend.Capabilities{} }
+// Capabilities: a bare link gives live video, and talking when the camera behind it offers the
+// ONVIF backchannel (the Hub asks it before offering Talk).
+func (r *RTSP) Capabilities() backend.Capabilities { return backend.Capabilities{Talk: true} }
+
+func (r *RTSP) Talk(_ context.Context, camera string) (backend.TalkTarget, error) {
+	s, err := r.stream(camera)
+	if err != nil {
+		return backend.TalkTarget{}, err
+	}
+	if !strings.HasPrefix(s.Main, "rtsp://") && !strings.HasPrefix(s.Main, "rtsps://") {
+		return backend.TalkTarget{}, backend.ErrUnsupported
+	}
+	return backend.TalkTarget{Kind: "rtsp", URL: s.Main}, nil
+}
 
 func (r *RTSP) Cameras(context.Context) ([]backend.Camera, error) {
 	out := make([]backend.Camera, 0, len(r.streams))

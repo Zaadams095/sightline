@@ -15,6 +15,8 @@ import {
 import type {
   Camera,
   CameraSystemAdapter,
+  DeterAction,
+  DeterInfo,
   LiveSource,
   MediaSource,
   PlaybackSource,
@@ -25,6 +27,7 @@ import type {
   Severity,
   SystemCapabilities,
   SystemConfig,
+  TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 
@@ -305,6 +308,37 @@ export class HubAdapter implements CameraSystemAdapter {
 
   async ptz(cameraId: string, action: PtzAction | `preset_${string}`): Promise<void> {
     await this.request('POST', `/v1/cameras/${enc(cameraId)}/ptz`, { action });
+  }
+
+  /**
+   * The Hub asks the camera itself whether it can take audio (and remembers), so this is the
+   * only check needed: available → the Hub's talk WebSocket. Guests without talk get 403.
+   */
+  async talkTarget(cameraId: string): Promise<TalkTarget | null> {
+    if (!this.capabilities.twoWayAudio) return null;
+    try {
+      const r = await this.json<{ available: boolean }>('GET', `/v1/cameras/${enc(cameraId)}/talk`);
+      if (!r.available) return null;
+    } catch {
+      return null;
+    }
+    await hubToken(this.config.id);
+    return { kind: 'ws', url: this.mediaUrl(`/v1/cameras/${enc(cameraId)}/talk`).replace(/^http/, 'ws') };
+  }
+
+  async deterInfo(cameraId: string): Promise<DeterInfo> {
+    if (!this.capabilities.deter) return { light: false, siren: false };
+    try {
+      return await this.json<DeterInfo>('GET', `/v1/cameras/${enc(cameraId)}/deter`);
+    } catch (e) {
+      // 501: this camera's system has no lights or sirens.
+      if (e instanceof HubError && (e.status === 501 || e.status === 403)) return { light: false, siren: false };
+      throw e;
+    }
+  }
+
+  async deter(cameraId: string, action: DeterAction): Promise<void> {
+    await this.request('POST', `/v1/cameras/${enc(cameraId)}/deter`, { action }, 20000);
   }
 
   // ---- sharing (owner / full access) ----

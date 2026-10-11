@@ -164,6 +164,14 @@ func (g *grant) canPTZ() bool {
 // canPush: may register a phone for alerts.
 func (g *grant) canPush() bool { return g.Role != roleLive }
 
+// canTalk: speaking through a camera's speaker is for the people who live there (owner, full
+// access, household). Guests with temporary or live-only access can watch, but can't speak to
+// whoever is at the door on the owner's behalf.
+func (g *grant) canTalk() bool { return g.canPTZ() }
+
+// canDeter: spotlight and siren, for the same people as talking (a siren is louder than a voice).
+func (g *grant) canDeter() bool { return g.canPTZ() }
+
 // grantView is the public JSON shape (docs/HUB_API.md).
 type grantView struct {
 	ID            string    `json:"id"`

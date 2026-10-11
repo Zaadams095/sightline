@@ -9,6 +9,7 @@ import {
   dayChunks,
   dayKey,
   defaultRtspPath,
+  deterSupport,
   enableRtspBody,
   errorMessage,
   fileAt,
@@ -34,9 +35,11 @@ import {
   ptzSupport,
   ReolinkError,
   searchBody,
+  sirenBody,
   snapUrl,
   unixToWall,
   vodFileUrl,
+  whiteLedBody,
   type ChannelInfo,
   type DevInfo,
   type DeviceClock,
@@ -49,6 +52,8 @@ import {
 import type {
   Camera,
   CameraSystemAdapter,
+  DeterAction,
+  DeterInfo,
   LiveSource,
   MediaSource,
   PlaybackSource,
@@ -59,6 +64,7 @@ import type {
   Severity,
   SystemCapabilities,
   SystemConfig,
+  TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 import { WgTunnel } from '@modules/wg-tunnel';
@@ -93,7 +99,9 @@ export class ReolinkAdapter implements CameraSystemAdapter {
     review: true,
     events: true,
     ptz: true,
-    twoWayAudio: false,
+    // Only models that offer the ONVIF RTSP backchannel (doorbells); the talk layer asks first.
+    twoWayAudio: true,
+    deter: true,
   };
 
   private tok: Token | null = null;
@@ -554,6 +562,34 @@ export class ReolinkAdapter implements CameraSystemAdapter {
       if (!op) return;
       body = ptzBody(ch, op, { speed: PTZ_SPEED });
     }
+    const [item] = await this.api(body);
+    if (!item || item.code !== 0) throw new ReolinkError(errorMessage(item), item?.error?.rspCode);
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Talk and deterrence
+
+  /**
+   * Reolink's own two-way audio is only in its private app protocol, not the HTTP API. Some
+   * models (doorbells) also take audio on the ONVIF RTSP backchannel; the talk layer asks the
+   * camera and shows Talk only when it does.
+   */
+  async talkTarget(cameraId: string): Promise<TalkTarget | null> {
+    const live = await this.liveStream(cameraId, { quality: 'main' });
+    return live.kind === 'rtsp' ? { kind: 'rtsp', url: live.url } : null;
+  }
+
+  async deterInfo(cameraId: string): Promise<DeterInfo> {
+    await this.load();
+    return deterSupport(this.ability, this.channelOf(cameraId));
+  }
+
+  async deter(cameraId: string, action: DeterAction): Promise<void> {
+    const info = await this.deterInfo(cameraId);
+    const ch = this.channelOf(cameraId);
+    const body =
+      action === 'siren' ? (info.siren ? sirenBody(ch) : null) : info.light ? whiteLedBody(ch, action === 'light-on') : null;
+    if (!body) throw new ReolinkError('This camera doesn’t have that.');
     const [item] = await this.api(body);
     if (!item || item.code !== 0) throw new ReolinkError(errorMessage(item), item?.error?.rspCode);
   }

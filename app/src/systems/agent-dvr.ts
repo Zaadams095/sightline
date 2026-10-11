@@ -48,6 +48,7 @@ export class AgentDvrAdapter extends HttpSystem implements CameraSystemAdapter {
     events: true,
     ptz: true,
     twoWayAudio: false,
+    deter: false,
   };
 
   private cams: AgentCamera[] | null = null;

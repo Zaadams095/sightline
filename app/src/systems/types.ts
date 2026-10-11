@@ -25,7 +25,33 @@ export interface SystemCapabilities {
   review: boolean;
   events: boolean;
   ptz: boolean;
+  /** Some camera may take the user's voice (`talkTarget` says which, per camera). */
   twoWayAudio: boolean;
+  /** Some camera may have a spotlight or siren (`deterInfo` says which, per camera). */
+  deter: boolean;
+}
+
+/**
+ * Where a camera's speaker is. The app's talk layer (talk/talk.ts) opens it through the tunnel
+ * library, which speaks each kind; adapters only describe it.
+ * - rtsp: the camera's RTSP stream with the ONVIF backchannel (most brands share this path).
+ * - isapi: Hikvision two-way audio, `http://user:pass@host:port`.
+ * - ws: a Sightline Hub talk WebSocket (the Hub opens the camera's speaker itself).
+ */
+export type TalkTarget = { kind: 'rtsp'; url: string } | { kind: 'isapi'; url: string } | { kind: 'ws'; url: string };
+
+export type DeterAction = 'light-on' | 'light-off' | 'siren';
+
+/** What a camera can do to scare someone off, from the device's own capability flags. */
+export interface DeterInfo {
+  /** A white spotlight that can be turned on and off. */
+  light: boolean;
+  /** A siren that sounds once and stops by itself. */
+  siren: boolean;
+  /** Seconds the light stays on by itself (absent/0: until turned off). */
+  lightAutoOffSec?: number;
+  /** Roughly how long one siren lasts, when known. */
+  sirenSec?: number;
 }
 
 /** How to reach a system. `lanUrl` is tried first; the tunnel is used when it's unreachable. */
@@ -218,6 +244,15 @@ export interface CameraSystemAdapter {
 
   ptzInfo?(cameraId: string): Promise<PtzInfo>;
   ptz?(cameraId: string, action: PtzAction | `preset_${string}`): Promise<void>;
+
+  /**
+   * Where to send the user's voice for this camera, or null when it has no speaker the app can
+   * use. Only an address: the talk layer checks with the camera before showing Talk.
+   */
+  talkTarget?(cameraId: string): Promise<TalkTarget | null>;
+  /** Spotlight / siren this camera has (both false = show nothing). */
+  deterInfo?(cameraId: string): Promise<DeterInfo>;
+  deter?(cameraId: string, action: DeterAction): Promise<void>;
 
   /** Called when the route to the system changes (LAN ⇄ VPN gateway port). */
   setBaseUrl?(url: string): void;

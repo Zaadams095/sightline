@@ -84,6 +84,23 @@ public class WgTunnelModule: Module {
       WgtunnelRemoveRTSPSource(port)
     }
 
+    // Two-way audio: a loopback WebSocket the microphone page feeds (see tunnel/wgtunnel/talk.go).
+    AsyncFunction("addTalk") { (kind: String, url: String, viaTunnel: Bool) -> Int in
+      var port: Int = 0
+      var error: NSError?
+      WgtunnelAddTalk(kind, url, viaTunnel, &port, &error)
+      if let error { throw Exception(name: "TalkError", description: error.localizedDescription) }
+      return port
+    }
+
+    Function("removeTalk") { (port: Int) in
+      WgtunnelRemoveTalk(port)
+    }
+
+    AsyncFunction("probeTalk") { (kind: String, url: String, viaTunnel: Bool, timeoutMs: Int) -> String in
+      WgtunnelProbeTalk(kind, url, viaTunnel, timeoutMs)
+    }
+
     // Values the notification extension needs (bridge secret / URL), via the App Group keychain.
     Function("setShared") { (name: String, value: String) in
       SharedKeychain.set(name, value)

@@ -32,6 +32,9 @@ func (h *hub) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/cameras/{id}/hls/{sid}/{file}", h.authed(nil, h.handleLiveHLSFile))
 	mux.HandleFunc("GET /v1/cameras/{id}/ptz", h.authed(needPTZ, h.handlePTZInfo))
 	mux.HandleFunc("POST /v1/cameras/{id}/ptz", h.authed(needPTZ, h.handlePTZ))
+	mux.HandleFunc("GET /v1/cameras/{id}/talk", h.authed(needTalk, h.handleTalk))
+	mux.HandleFunc("GET /v1/cameras/{id}/deter", h.authed(needDeter, h.handleDeterInfo))
+	mux.HandleFunc("POST /v1/cameras/{id}/deter", h.authed(needDeter, h.handleDeter))
 
 	mux.HandleFunc("GET /v1/events", h.authed(needRecordings, h.handleEvents))
 	mux.HandleFunc("GET /v1/events/{id}/thumbnail.jpg", h.authed(needRecordings, h.handleEventThumb))
@@ -75,6 +78,10 @@ type capabilities struct {
 	Alerts  bool `json:"alerts"`
 	Push    bool `json:"push"`
 	Sharing bool `json:"sharing"`
+	// Talk: some camera may take the caller's voice (each camera: GET /v1/cameras/{id}/talk).
+	Talk bool `json:"talk"`
+	// Deter: some camera has a spotlight or siren (each camera: GET /v1/cameras/{id}/deter).
+	Deter bool `json:"deter"`
 }
 
 // capsFor is what the caller can use: the systems' features narrowed by the grant.
@@ -84,6 +91,7 @@ func capsFor(g *grant, sys backend.Capabilities) capabilities {
 		Live: true, Snapshots: sys.Snapshots, Events: rec && sys.Events, Recordings: rec && sys.Recordings,
 		Clips: rec && sys.Clips, PTZ: g.canPTZ() && sys.PTZ, Alerts: g.canPush() && sys.Alerts,
 		Push: g.canPush(), Sharing: g.manager(),
+		Talk: g.canTalk() && sys.Talk, Deter: g.canDeter() && sys.Deter,
 	}
 }
 
@@ -98,6 +106,8 @@ func anyCaps(systems []*system) backend.Capabilities {
 		u.Clips = u.Clips || c.Clips
 		u.PTZ = u.PTZ || c.PTZ
 		u.Alerts = u.Alerts || c.Alerts
+		u.Talk = u.Talk || c.Talk
+		u.Deter = u.Deter || c.Deter
 	}
 	return u
 }

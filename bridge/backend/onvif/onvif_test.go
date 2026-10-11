@@ -302,6 +302,9 @@ func TestDiscoveryLiveSnapshotPTZ(t *testing.T) {
 	if live.Kind != backend.LiveRTSP || live.URL != want {
 		t.Errorf("live = %+v, want %s", live, want)
 	}
+	if tt, err := o.Talk(ctx, "VideoSource_1"); err != nil || tt.Kind != "rtsp" || tt.URL != want || !o.Capabilities().Talk {
+		t.Errorf("talk = %+v %v", tt, err)
+	}
 	sub, _ := o.Live(ctx, "VideoSource_1", "sub")
 	if !strings.Contains(sub.URL, "/Channels/102") {
 		t.Errorf("sub = %s", sub.URL)

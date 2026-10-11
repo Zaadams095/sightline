@@ -22,7 +22,8 @@ func fakeFrigate(t *testing.T) (*Frigate, *[]string) {
 			io.WriteString(w, `{"cameras":{
 				"front_door":{"ui":{"order":2},"detect":{"width":1280,"height":720},"zones":{"porch":{}},"objects":{"track":["person","car"]},
 					"live":{"streams":{"Main":"front_main","Sub":"front_sub"}},"onvif":{"host":"10.0.0.5"}},
-				"back":{"enabled":false,"friendly_name":"Back Yard","ui":{"order":1}}}}`)
+				"back":{"enabled":false,"friendly_name":"Back Yard","ui":{"order":1}}},
+				"go2rtc":{"streams":{"front_main":["rtsp://cam/main"],"front_sub":"rtsp://cam/sub"}}}`)
 		case r.URL.Path == "/api/review":
 			io.WriteString(w, `[{"id":"r1","camera":"back","start_time":100.5,"end_time":null,"severity":"alert","thumb_path":"/media/frigate/clips/review/thumb-back-r1.webp","has_been_reviewed":true,"data":{"objects":["person"],"sub_labels":["","Zach"],"zones":[],"detections":["d1"]}}]`)
 		case r.URL.Path == "/api/review/r1":
@@ -68,6 +69,14 @@ func TestFrigateBackend(t *testing.T) {
 	}
 	if _, err := f.Live(ctx, "nope", ""); !errors.Is(err, backend.ErrNotFound) {
 		t.Errorf("unknown camera live: %v", err)
+	}
+
+	// Talk goes to the camera's go2rtc stream over RTSP; cameras without one can't talk.
+	if tt, err := f.Talk(ctx, "front_door"); err != nil || tt.Kind != "rtsp" || !strings.HasPrefix(tt.URL, "rtsp://127.0.0.1:8554/front_main") {
+		t.Errorf("talk = %+v, %v", tt, err)
+	}
+	if _, err := f.Talk(ctx, "back"); !errors.Is(err, backend.ErrUnsupported) {
+		t.Errorf("talk without a go2rtc stream: %v", err)
 	}
 
 	evs, err := f.Events(ctx, backend.EventQuery{Cameras: []string{"back"}, After: 50, Before: 200})

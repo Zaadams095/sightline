@@ -14,6 +14,7 @@ import type {
   Severity,
   SystemCapabilities,
   SystemConfig,
+  TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 
@@ -38,6 +39,8 @@ interface FrigateConfig {
   cameras: Record<string, FrigateCameraConfig>;
   lpr?: { known_plates?: Record<string, string[]> | null };
   camera_groups?: Record<string, { cameras: string | string[]; order?: number }>;
+  /** Frigate's built-in go2rtc: its streams are also served over RTSP on port 8554. */
+  go2rtc?: { streams?: Record<string, unknown>; rtsp?: { username?: string; password?: string } };
 }
 
 interface FrigateReview {
@@ -63,7 +66,9 @@ export class FrigateAdapter implements CameraSystemAdapter {
     review: true,
     events: true,
     ptz: true,
-    twoWayAudio: false,
+    // Through go2rtc's RTSP backchannel, for cameras whose go2rtc stream has a speaker.
+    twoWayAudio: true,
+    deter: false,
   };
 
   private cfg: FrigateConfig | null = null;
@@ -151,6 +156,26 @@ export class FrigateAdapter implements CameraSystemAdapter {
     const streams = Object.values(cfg.cameras[cameraId]?.live?.streams ?? {});
     if (streams.length === 0) return cameraId;
     return quality === 'sub' && streams.length > 1 ? streams[streams.length - 1] : streams[0];
+  }
+
+  /**
+   * Talk through Frigate's go2rtc: its RTSP server (port 8554) passes the ONVIF backchannel on
+   * to the camera when the camera has a speaker. Cameras without a go2rtc stream can't talk.
+   */
+  async talkTarget(cameraId: string): Promise<TalkTarget | null> {
+    const cfg = await this.config_();
+    const src = await this.streamName(cameraId, 'main');
+    if (!cfg.go2rtc?.streams || !(src in cfg.go2rtc.streams)) return null;
+    let host: string;
+    try {
+      host = new URL(this.config.endpoint.lanUrl).host.replace(/:\d+$/, '');
+    } catch {
+      return null;
+    }
+    const { username, password } = cfg.go2rtc.rtsp ?? {};
+    // Credentials written as {FRIGATE_…} environment placeholders aren't usable from here.
+    const auth = username && !/[{}]/.test(username + (password ?? '')) ? `${encodeURIComponent(username)}:${encodeURIComponent(password ?? '')}@` : '';
+    return { kind: 'rtsp', url: `rtsp://${auth}${host}:8554/${encodeURIComponent(src)}` };
   }
 
   /** WebSocket URL for go2rtc MSE through Frigate's nginx; played by the live player. */

@@ -38,6 +38,8 @@ The Hub runs on any always-on box (Home Assistant add-on, Docker, Raspberry Pi i
 ### Everything else is optional and capability-gated
 - `listReview`/`events`, `recordingSegments`, `recordingDays`, `motionActivity`
 - `ptz` (vendor API, or ONVIF for IP cameras)
+- `talkTarget` (two-way audio; `capabilities.twoWayAudio`): adapters only say where the speaker is (`rtsp` ONVIF backchannel, which most brands share; `isapi` for Hikvision; `ws` for the Hub). `app/src/talk/` routes it (home network or tunnel), asks the camera before showing Talk, and streams the mic (WKWebView getUserMedia on the tunnel library's loopback talk endpoint, 8 kHz PCM → G.711 in Go, `tunnel/wgtunnel/talk.go`).
+- `deterInfo`/`deter` (spotlight, siren; `capabilities.deter`): from the device's own capability flags; the siren always asks first.
 - `search`, `knownNames`, `groups`, `health`, `retain`, `clip`
 
 ### Descriptors drive setup
@@ -71,6 +73,8 @@ Exact JSON shapes, roles and enforcement rules: [HUB_API.md](HUB_API.md).
 | `GET /recordings/{cam}/vod.m3u8?start=&end=` | VOD (`vod` kind) |
 | `GET /recordings/{cam}/clip.mp4?start=&end=` | Clip export |
 | `POST /cameras/{id}/ptz {action}` | PTZ |
+| `GET /cameras/{id}/talk` (WebSocket) | Two-way audio (owner, full, household) |
+| `GET`/`POST /cameras/{id}/deter` | Spotlight and siren (owner, full, household) |
 | `PUT /devices/{id}` | Push registration and alert rules (the existing bridge API, moved) |
 | `POST /grants`, `GET /grants`, `DELETE /grants/{id}` | Sharing (owner only) |
 | `POST /pair {code}` | First owner pairing; returns the owner token |

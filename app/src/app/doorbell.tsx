@@ -10,6 +10,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { setDoorbellScreenOpen } from '@/alerts/doorbell';
 import { LiveView, useLive } from '@/components/live/live-view';
+import { TalkButton } from '@/components/talk/talk-button';
+import { useTalkRoute } from '@/talk/talk';
 import { T } from '@/components/ui/primitives';
 import { useAdapter } from '@/systems/registry';
 import { usePalette } from '@/theme/use-palette';
@@ -30,6 +32,8 @@ export default function DoorbellScreen() {
   const key = `${systemId}:${cameraId}`;
   const ringAt = at ? Number(at) : null;
   const [openedAt] = useState(() => nowSec());
+  // While talking, the camera's sound is on too, so it's a conversation.
+  const [talking, setTalking] = useState(false);
 
   const cameras = useQuery({
     queryKey: ['cameras-of', systemId, !!adapter],
@@ -39,6 +43,8 @@ export default function DoorbellScreen() {
   });
   const name = cameras.data?.find((c) => c.id === cameraId)?.name ?? cameraId;
   const live = useLive(adapter, cameraId);
+  // Speak to whoever is at the door without leaving this screen (cameras with a speaker only).
+  const talkRoute = useTalkRoute(adapter, systemId, cameraId);
 
   useEffect(() => {
     setDoorbellScreenOpen(true);
@@ -81,7 +87,7 @@ export default function DoorbellScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
       <View style={StyleSheet.absoluteFill}>
-        {live.data ? <LiveView live={live.data} fit="cover" poster={poster} /> : poster}
+        {live.data ? <LiveView live={live.data} fit="cover" poster={poster} muted={!talking} /> : poster}
       </View>
       <View style={[styles.shade, { top: 0, height: insets.top + 220 }]} pointerEvents="none" />
       <View style={[styles.shade, { bottom: 0, height: insets.bottom + 260 }]} pointerEvents="none" />
@@ -113,6 +119,7 @@ export default function DoorbellScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 28 }]}>
         <View style={styles.buttons}>
           <CallButton label="Dismiss" color={RED} icon="xmark" onPress={close} />
+          {talkRoute && <TalkButton route={talkRoute} variant="call" onActiveChange={setTalking} />}
           <CallButton label="Answer" color={GREEN} icon="video.fill" onPress={answer} />
         </View>
         {adapter?.playback && (

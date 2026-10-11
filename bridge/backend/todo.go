@@ -47,6 +47,10 @@ package backend
 //    for RTSP replays (Live) and MP4 files (File, with StartTime/EndTime when known). Events
 //    from the device's push stream go to Watch's Sink for Instant Alerts.
 //
+//    Optional extras: Talker (two-way audio: return where the speaker is, usually the RTSP
+//    URL, which the Hub opens with backend/talk's ONVIF backchannel) and Deterrer (spotlight
+//    and siren, gated on the device's own capability flags). Set Capabilities.Talk/Deter.
+//
 // 5. Add one line to bridge/brands.go: uncomment (or add)
 //      import _ "github.com/zachadams/sightline/bridge/backend/<brand>"
 //

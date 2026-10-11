@@ -21,6 +21,7 @@ export class ScryptedAdapter extends HttpSystem implements CameraSystemAdapter {
     events: false,
     ptz: false,
     twoWayAudio: false,
+    deter: false,
   };
 
   private serverHost(): string {

@@ -8,6 +8,7 @@ import {
   errorFor,
   HikvisionError,
   isDefinitiveNo,
+  isapiTalkUrl,
   liveUrl,
   matchesToReview,
   mergeSegments,
@@ -47,6 +48,7 @@ import type {
   Severity,
   SystemCapabilities,
   SystemConfig,
+  TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 import { WgTunnel } from '@modules/wg-tunnel';
@@ -81,7 +83,9 @@ export class HikvisionAdapter implements CameraSystemAdapter {
     review: true,
     events: true,
     ptz: true,
-    twoWayAudio: false,
+    // Cameras on their own only (ISAPI two-way audio); the talk layer asks the camera first.
+    twoWayAudio: true,
+    deter: false,
   };
 
   private device: DeviceInfo | null = null;
@@ -269,6 +273,19 @@ export class HikvisionAdapter implements CameraSystemAdapter {
       user: this.config.username ?? 'admin',
       password: (await secrets.get(this.config.id, SECRET.password)) ?? '',
     };
+  }
+
+  /** ISAPI two-way audio, for a camera on its own over http (see isapiTalkUrl). */
+  async talkTarget(cameraId: string): Promise<TalkTarget | null> {
+    await this.load();
+    this.channelOf(cameraId);
+    const url = isapiTalkUrl({
+      lanUrl: this.config.endpoint.lanUrl,
+      user: this.config.username ?? 'admin',
+      password: (await secrets.get(this.config.id, SECRET.password)) ?? '',
+      channels: this.channels,
+    });
+    return url ? { kind: 'isapi', url } : null;
   }
 
   async liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<LiveSource> {

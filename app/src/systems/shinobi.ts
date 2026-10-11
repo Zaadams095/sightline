@@ -46,6 +46,7 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
     events: true,
     ptz: true,
     twoWayAudio: false,
+    deter: false,
   };
 
   private apiKey = '';

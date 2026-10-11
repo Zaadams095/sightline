@@ -371,6 +371,15 @@ func newFake(t *testing.T, stream func(w http.ResponseWriter, r *http.Request)) 
 				return
 			}
 			io.WriteString(w, "channels[0]=2\r\nchannels[1]=0\r\n")
+		case "/cgi-bin/coaxialControlIO.cgi":
+			switch {
+			case q.Get("channel") != "1":
+				io.WriteString(w, "Error\r\nBad Request!\r\n")
+			case q.Get("action") == "getStatus":
+				io.WriteString(w, crlf("status.status.Speaker=Off", "status.status.WhiteLight=On"))
+			default:
+				io.WriteString(w, "OK\r\n")
+			}
 		case "/cgi-bin/storageDevice.cgi":
 			io.WriteString(w, crlf("list.info[0].Detail[0].Path=/dev/sda1", "list.info[0].Detail[0].TotalBytes=1000000000000", "list.info[0].Detail[0].UsedBytes=900000000000"))
 		default:
@@ -415,6 +424,33 @@ func TestBackend(t *testing.T) {
 	live, err := d.Live(ctx, "2", "sub")
 	if err != nil || live.Kind != backend.LiveRTSP || live.URL != "rtsp://admin:p%40ss@"+host+":5554/cam/realmonitor?channel=2&subtype=1" {
 		t.Fatalf("live = %+v %v", live, err)
+	}
+
+	// Talk: the ONVIF-flavored stream carries the backchannel.
+	if tt, err := d.Talk(ctx, "2"); err != nil || tt.Kind != "rtsp" || tt.URL != "rtsp://admin:p%40ss@"+host+":5554/cam/realmonitor?channel=2&subtype=1&unicast=true&proto=Onvif" {
+		t.Fatalf("talk = %+v %v", tt, err)
+	}
+	// Deterrence: camera 1 has a light and siren, camera 2 neither (the device says "Error").
+	if info, err := d.DeterInfo(ctx, "1"); err != nil || !info.Light || !info.Siren || info.SirenSec != 10 {
+		t.Fatalf("deter info 1 = %+v %v", info, err)
+	}
+	if info, err := d.DeterInfo(ctx, "2"); err != nil || info.Light || info.Siren {
+		t.Fatalf("deter info 2 = %+v %v", info, err)
+	}
+	for action, want := range map[string]string{
+		backend.DeterSiren:    "action=control&channel=1&info[0].Type=2&info[0].IO=1",
+		backend.DeterLightOn:  "action=control&channel=1&info[0].Type=1&info[0].IO=1",
+		backend.DeterLightOff: "action=control&channel=1&info[0].Type=1&info[0].IO=2",
+	} {
+		if err := d.Deter(ctx, "1", action); err != nil {
+			t.Fatalf("%s: %v", action, err)
+		}
+		if len(f.seen(want)) != 1 {
+			t.Errorf("%s: no request %s", action, want)
+		}
+	}
+	if err := d.Deter(ctx, "2", backend.DeterSiren); !errors.Is(err, backend.ErrUnsupported) {
+		t.Errorf("siren on a camera without one: %v", err)
 	}
 
 	// Recordings: device times are UTC−6, so 12:00 on the device is 18:00 UTC.

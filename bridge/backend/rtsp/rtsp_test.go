@@ -81,8 +81,11 @@ func TestBackend(t *testing.T) {
 	if _, err := b.Live(ctx, "camera9", "main"); !errors.Is(err, backend.ErrNotFound) {
 		t.Errorf("unknown camera: %v", err)
 	}
-	if b.Capabilities() != (backend.Capabilities{}) {
+	if b.Capabilities() != (backend.Capabilities{Talk: true}) {
 		t.Errorf("capabilities = %+v", b.Capabilities())
+	}
+	if tt, err := b.(backend.Talker).Talk(ctx, "camera1"); err != nil || tt.Kind != "rtsp" || tt.URL != "rtsp://10.0.0.2/main" {
+		t.Errorf("talk = %+v %v", tt, err)
 	}
 	if _, _, err := b.Snapshot(ctx, "camera1", 0); !errors.Is(err, backend.ErrUnsupported) {
 		t.Errorf("snapshot: %v", err)

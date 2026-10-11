@@ -50,11 +50,14 @@ Camera and event IDs are the backend's native IDs for the first configured syste
 | Live + snapshots | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Events, thumbnails, recordings, clips | ✓ | ✓ | ✓ (window if set) | ✓ within window (default: creation → `expiresAt`) | ✗ 403 |
 | PTZ | ✓ | ✓ | ✓ | ✗ 403 | ✗ 403 |
+| Talk, spotlight and siren | ✓ | ✓ | ✓ | ✗ 403 | ✗ 403 |
 | Push alerts (`/v1/devices`) | ✓ | ✓ | ✓ | ✓ | ✗ 403 |
 | Manage grants | ✓ | ✓ (cannot revoke owners) | ✗ 403 | ✗ 403 | ✗ 403 |
 | `expiresAt` | never | optional | optional | **required** | optional |
 
 **Decision:** `full` is owner-equivalent: it can share and revoke guest access. That's how you add another of your own phones or a partner. Only an owner can remove an owner.
+
+**Decision:** talking through a camera and its spotlight/siren follow PTZ: they are for the people who live there (owner, full, household). Temporary and live-only guests (a pet sitter, a neighbor) can watch, but they never speak, flash lights or sound a siren in the owner's name. Their `/v1/info` reports `talk: false` and `deter: false`, and the routes answer 403.
 
 ### Enforcement on every route
 
@@ -79,11 +82,11 @@ With a token, it adds:
                "capabilities": {…same keys as below, for this system only…}}],
   "lanUrl": "http://192.168.1.20:8086",
   "remoteUrl": "https://sightline-hub.tail1234.ts.net" | null,
-  "capabilities": {"live": true, "snapshots": true, "events": true, "recordings": true, "clips": true, "ptz": true, "alerts": true, "push": true, "sharing": true},
+  "capabilities": {"live": true, "snapshots": true, "events": true, "recordings": true, "clips": true, "ptz": true, "alerts": true, "push": true, "sharing": true, "talk": true, "deter": true},
   "grant": { …grant… }
 }
 ```
-`capabilities` combine what the systems can do (each backend reports its own features; top level = at least one system can) with what the caller's grant allows. A brand without an event API reports `events: false`, one without recordings `recordings: false`, and so on; the app hides those features instead of assuming Frigate's. `alerts` means Instant Alerts can be delivered (a system has an event stream); `push` means the grant may register for them. Routes for a feature a system lacks answer 501 `unsupported`.
+`capabilities` combine what the systems can do (each backend reports its own features; top level = at least one system can) with what the caller's grant allows. A brand without an event API reports `events: false`, one without recordings `recordings: false`, and so on; the app hides those features instead of assuming Frigate's. `alerts` means Instant Alerts can be delivered (a system has an event stream); `push` means the grant may register for them. `talk` and `deter` mean some camera may have a speaker or a spotlight/siren (ask each camera, below). Routes for a feature a system lacks answer 501 `unsupported`.
 
 ### `POST /v1/pair` (LAN only, rate-limited)
 ```json
@@ -132,6 +135,25 @@ The session's files are `/v1/cameras/{id}/hls/<session>/playlist.m3u8`, `init.mp
 
 ### `GET /v1/cameras/{id}/ptz` / `POST /v1/cameras/{id}/ptz`
 `GET` returns `{"canMove": true, "canZoom": false, "presets": ["door"]}`. `POST` takes `{"action": "MOVE_LEFT"}` and returns 204. The actions are `MOVE_UP|MOVE_DOWN|MOVE_LEFT|MOVE_RIGHT|ZOOM_IN|ZOOM_OUT|STOP|preset_<name>`. Moves continue until `STOP`.
+
+### `GET /v1/cameras/{id}/talk` (owner, full, household)
+Two-way audio: the caller's voice out of the camera's speaker.
+- **Without a WebSocket upgrade** it says whether this camera can take audio: `{"available": true, "codec": "PCMU/8000"}`. The Hub asks the camera itself (an RTSP `DESCRIBE` with the ONVIF backchannel header, or Hikvision's `/ISAPI/System/TwoWayAudio/channels`) and remembers the answer (30 minutes for yes, 2 for no). The app shows its Talk button only when `available` is true. 501 when the system has no way to talk at all.
+- **With a WebSocket upgrade** it is the talk session:
+  1. The Hub opens the speaker and sends `{"type":"talk","value":"PCMA/8000"}`, or `{"type":"error","value":"<plain-language reason>"}` and closes.
+  2. The app sends binary frames of **16-bit little-endian mono PCM at 8000 Hz** (any length; ~20–100 ms per frame is typical). The Hub encodes them for the camera (G.711 A-law/µ-law, or linear PCM at the camera's rate), cuts 20 ms RTP packets and sends them on the backchannel.
+  3. Closing the socket hangs up. Only the audio direction is opened (no video comes back).
+
+Brands: the ONVIF RTSP backchannel for Dahua/Amcrest/Lorex (`proto=Onvif` stream), ONVIF cameras, plain RTSP links, Reolink models that offer it (doorbells) and Frigate (through its go2rtc RTSP server on port 8554, for cameras with a go2rtc stream). Hikvision uses ISAPI two-way audio, for a camera on its own over `http://` only (a recorder's two-way audio is the recorder's own audio out). UniFi Protect isn't supported (its talkback needs a separate per-camera stream setup). The app's tunnel library speaks the same protocol for systems it reaches directly (`tunnel/wgtunnel/talk.go`); the shared encoder is `backend/talk`.
+
+### `GET /v1/cameras/{id}/deter` / `POST /v1/cameras/{id}/deter` (owner, full, household)
+`GET` returns what the camera has, from the device's own capability flags:
+```json
+{"light": true, "siren": true, "lightAutoOffSec": 0, "sirenSec": 10}
+```
+`lightAutoOffSec` is how long the spotlight stays on by itself (0 or absent: until turned off). `sirenSec` is roughly how long one siren lasts (it always stops by itself). `POST` takes `{"action": "light-on" | "light-off" | "siren"}` and returns 204; 501 when the camera lacks that output, 400 for an unknown action.
+
+Brands: Reolink (`SetWhiteLed`, `AudioAlarmPlay` once; from `floodLight`/`supportFLswitch` and `alarmAudio`/`supportAudioAlarm` abilities), Dahua/Amcrest active-deterrence cameras (`coaxialControlIO.cgi`, from its `getStatus`). Not offered: Hikvision (no documented manual trigger for the strobe or audible warning; its alarm outputs are wired relays, not a siren), UniFi Protect (lights and sirens are separate devices), Frigate and the rest.
 
 ### `GET /v1/events?cameras=a,b&after=&before=&severity=alert|detection&limit=100`
 Newest first:

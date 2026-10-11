@@ -346,6 +346,24 @@ export function liveUrl(o: { host: string; port: number; user: string; password:
   return `${rtspBase(o)}/Streaming/Channels/${streamId(o.channel, o.quality)}`;
 }
 
+/**
+ * Two-way audio: Hikvision cameras take the phone's voice through ISAPI
+ * (/ISAPI/System/TwoWayAudio), not the ONVIF RTSP backchannel. Only for a camera on its own
+ * (a recorder's two-way audio is the recorder's own audio out) and over plain http (the
+ * audio stream isn't sent over TLS). null when talking isn't possible this way.
+ */
+export function isapiTalkUrl(o: { lanUrl: string; user: string; password: string; channels: { proxied: boolean }[] }): string | null {
+  if (o.channels.length !== 1 || o.channels[0].proxied) return null;
+  let u: URL;
+  try {
+    u = new URL(/^\w+:\/\//.test(o.lanUrl) ? o.lanUrl : `http://${o.lanUrl}`);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:') return null;
+  return `http://${encodeURIComponent(o.user)}:${encodeURIComponent(o.password)}@${u.host}`;
+}
+
 /** Recorded: rtsp://user:pass@host:554/Streaming/tracks/101?starttime=20240501T100000Z&endtime=… */
 export function playbackUrl(o: {
   host: string;
