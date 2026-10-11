@@ -4,8 +4,17 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 
+import { ACTION_WATCH, DOORBELL_CATEGORY, openDoorbell, registerDoorbellCategory, ringParamsFrom } from '@/alerts/doorbell';
 import { isMasked } from '@/alerts/masks';
-import { nextTimeOfDay, selectNotifications } from '@/alerts/rules';
+import {
+  ACTION_GOT_IT,
+  packageHandled,
+  packageRecheckAfter,
+  packageRecheckFilter,
+  registerPackageCategory,
+  trackPackages,
+} from '@/alerts/packages-notify';
+import { isDoorbell, nextTimeOfDay, notificationTitle, selectNotifications } from '@/alerts/rules';
 import { connectSystem } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
@@ -41,6 +50,8 @@ export function setupNotificationHandling() {
     { identifier: ACTION_SNOOZE_HOUR, buttonTitle: 'Snooze this camera for 1 hour', options: { opensAppToForeground: false } },
     { identifier: ACTION_SNOOZE_MORNING, buttonTitle: 'Snooze this camera until 7 AM', options: { opensAppToForeground: false } },
   ]).catch(() => {});
+  registerDoorbellCategory();
+  registerPackageCategory();
 
   Notifications.addNotificationResponseReceivedListener(handleResponse);
 }
@@ -64,6 +75,22 @@ export function handleResponse(resp: Notifications.NotificationResponse) {
   }
   if (resp.actionIdentifier === ACTION_SNOOZE_MORNING) {
     useApp.getState().snooze(key, nextTimeOfDay(7, 0));
+    return;
+  }
+  if (resp.actionIdentifier === ACTION_GOT_IT) {
+    for (const k of (d.cameraKeys ?? key).split('|')) void packageHandled(k);
+    return;
+  }
+  // Doorbell (built-in or Instant Alerts): the call screen, or straight to live for "Watch".
+  if (d.kind === 'doorbell' || resp.notification.request.content.categoryIdentifier === DOORBELL_CATEGORY) {
+    const ring = ringParamsFrom(d);
+    if (ring && resp.actionIdentifier !== ACTION_WATCH && useApp.getState().alerts.doorbell.fullScreen) openDoorbell(ring, true);
+    else router.push({ pathname: '/camera/[key]', params: { key, unmuted: '1' } });
+    return;
+  }
+  // "Is the package still there?": look at the camera now.
+  if (d.kind === 'package-reminder') {
+    router.push({ pathname: '/camera/[key]', params: { key } });
     return;
   }
   if (d.start) {
@@ -137,10 +164,28 @@ export async function checkForAlerts(): Promise<number> {
     const since = state.lastNotified[system.id] ?? Date.now() / 1000 - 3600;
     const items = await adapter.listReview({ after: since, limit: 50 });
     const fresh = items.filter((i) => i.startTime > since);
+
+    // Packages: new events, plus a second look at cameras with a package still out (an event
+    // that was in progress last time may have finished since).
+    let cameraNames: Map<string, string> | null = null;
+    const nameOf = async (cameraKey: string) => {
+      cameraNames ??= new Map((await adapter.listCameras().catch(() => [])).map((c) => [c.id, c.name]));
+      const id = cameraKey.slice(system.id.length + 1);
+      return cameraNames.get(id) ?? id;
+    };
+    const recheckAfter = packageRecheckAfter(system.id);
+    const recheck =
+      recheckAfter != null && recheckAfter < since
+        ? (await adapter.listReview({ after: recheckAfter, before: since + 1, limit: 100 }).catch(() => [])).filter(packageRecheckFilter)
+        : [];
+    const freshIds = new Set(fresh.map((i) => i.id));
+    const pkg = await trackPackages([...recheck.filter((i) => !freshIds.has(i.id)), ...fresh], nameOf);
+    posted += pkg.posted;
     if (fresh.length === 0) continue;
 
     const lastByCamera: Record<string, number> = {};
-    const matched = selectNotifications(fresh, state.alerts, lastByCamera);
+    // An event announced as "Package delivered" doesn't also alert as "Package".
+    const matched = selectNotifications(fresh.filter((i) => !pkg.deliveredIds.has(i.id)), state.alerts, lastByCamera);
     // Drop items whose objects stayed entirely inside the camera's alert masks.
     const unmasked: ReviewItem[] = [];
     for (const item of matched) {
@@ -149,10 +194,9 @@ export async function checkForAlerts(): Promise<number> {
       unmasked.push(item);
     }
     const selected = unmasked.slice(-MAX_PER_RUN);
-    const names = new Map((await adapter.listCameras().catch(() => [])).map((c) => [c.id, c.name]));
     for (const item of selected) {
-      const name = names.get(item.cameraId) ?? item.cameraId;
-      const video = item.endTime && adapter.previewClip ? adapter.previewClip(item).uri : undefined;
+      const name = await nameOf(`${system.id}:${item.cameraId}`);
+      const video = item.endTime && adapter.previewClip && !isDoorbell(item) ? adapter.previewClip(item).uri : undefined;
       await post(item, adapter.snapshot(item.cameraId, { height: 480 }).uri, name, video);
       await recordLastAlert(item, titleFor(item), name);
       posted++;
@@ -248,9 +292,10 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
     }
   }
 
+  const ring = isDoorbell(item);
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${titleFor(item)} · ${camera}`,
+      title: notificationTitle(item, camera, titleFor(item)),
       body: `${new Date(item.startTime * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${
         item.zones.length ? ` in ${item.zones.join(', ')}` : ''
       }`,
@@ -259,9 +304,12 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
         cameraId: item.cameraId,
         start: String(Math.floor(item.startTime - 5)),
         reviewId: item.id,
+        ...(ring ? { kind: 'doorbell' } : {}),
       },
       attachments,
-      categoryIdentifier: ALERT_CATEGORY,
+      // Rings break through Focus (Time Sensitive entitlement) and open the call screen.
+      categoryIdentifier: ring ? DOORBELL_CATEGORY : ALERT_CATEGORY,
+      ...(ring ? { interruptionLevel: 'timeSensitive' as const } : {}),
     },
     trigger: null,
   });

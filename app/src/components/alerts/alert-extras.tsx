@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { StyleSheet, View } from 'react-native';
 
+import { syncPackageReminder } from '@/alerts/packages-notify';
 import { Chip, Row, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
@@ -67,6 +68,54 @@ export function SnoozedSection({ entries }: { entries: CameraEntry[] }) {
           last={i === active.length - 1}
         />
       ))}
+    </Section>
+  );
+}
+
+const REMINDER_TIMES = ['17:00', '18:00', '19:00', '20:00', '21:00'];
+
+/** Doorbell call screen and package alerts (any system that reports rings / packages). */
+export function DoorbellPackagesSection() {
+  const doorbell = useApp((s) => s.alerts.doorbell);
+  const packages = useApp((s) => s.alerts.packages);
+  const setAlerts = useApp((s) => s.setAlerts);
+  const setPackages = (p: Partial<typeof packages>) => {
+    setAlerts({ packages: { ...packages, ...p } });
+    void syncPackageReminder();
+  };
+  return (
+    <Section
+      title="Doorbell & packages"
+      footer="Works with cameras and recorders that report doorbell presses or detect packages. A doorbell ring always notifies, even when other alerts for that camera are filtered.">
+      <ToggleRow
+        label="Doorbell rings open full screen"
+        detail="Like a phone call, with live video and a big Answer button."
+        value={doorbell.fullScreen}
+        onChange={(fullScreen) => setAlerts({ doorbell: { ...doorbell, fullScreen } })}
+      />
+      <ToggleRow
+        label="Package alerts"
+        detail="Tells you when a package is delivered, and when it may have been picked up."
+        value={packages.enabled}
+        onChange={(enabled) => setPackages({ enabled })}
+        last={!packages.enabled}
+      />
+      {packages.enabled && (
+        <ToggleRow
+          label="Evening reminder"
+          detail="If a package is still outside."
+          value={packages.reminder}
+          onChange={(reminder) => setPackages({ reminder })}
+          last={!packages.reminder}
+        />
+      )}
+      {packages.enabled && packages.reminder && (
+        <View style={[styles.chips, { paddingTop: space.sm }]}>
+          {REMINDER_TIMES.map((t) => (
+            <Chip key={t} label={`${Number(t.slice(0, 2)) - 12} PM`} selected={packages.reminderTime === t} onPress={() => setPackages({ reminderTime: t })} />
+          ))}
+        </View>
+      )}
     </Section>
   );
 }

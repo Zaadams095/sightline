@@ -2,6 +2,7 @@ import Storage from 'expo-sqlite/kv-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import type { PackageState } from '@/alerts/packages';
 import type { Severity, SystemConfig } from '@/systems/types';
 import { DEFAULT_APPEARANCE, type Appearance } from '@/theme/tokens';
 
@@ -65,6 +66,10 @@ export interface AlertSettings {
   };
   /** Instant Alerts bridge, if configured. */
   bridge?: { url: string; pairedAt: number };
+  /** Doorbell rings open the full-screen "Someone's at the door" screen. */
+  doorbell: { fullScreen: boolean };
+  /** "Package delivered" / "picked up" alerts, and an optional evening reminder ("HH:MM"). */
+  packages: { enabled: boolean; reminder: boolean; reminderTime: string };
 }
 
 /** Camera placement on the property map. x/y are 0–1 of the map; heading in degrees (0 = up). */
@@ -143,6 +148,8 @@ interface AppState {
   healthAlerted: Record<string, number>;
   /** Newest review item start time already notified, per system. */
   lastNotified: Record<string, number>;
+  /** Packages seen and not yet picked up, per camera key. */
+  packages: PackageState;
 
   setOnboarded(v: boolean): void;
   upsertSystem(s: SystemConfig): void;
@@ -167,6 +174,7 @@ interface AppState {
   saveClip(c: SavedClip): void;
   removeClip(id: string): void;
   setHealthAlerted(v: Record<string, number>): void;
+  setPackages(v: PackageState): void;
 }
 
 export const useApp = create<AppState>()(
@@ -191,10 +199,13 @@ export const useApp = create<AppState>()(
         snoozed: {},
         health: { enabled: true, storagePct: 90 },
         presence: { enabled: false, atHome: false, alertWhenHome: [] },
+        doorbell: { fullScreen: true },
+        packages: { enabled: true, reminder: false, reminderTime: '19:00' },
       },
       savedClips: [],
       healthAlerted: {},
       lastNotified: {},
+      packages: {},
       cameraMap: { aspect: 4 / 3, placements: {}, links: [] },
       masks: {},
       security: { lockEnabled: false, method: 'device', biometricsWithPin: true, relockAfterSec: 60, hideAppSwitcherPreview: true },
@@ -258,6 +269,7 @@ export const useApp = create<AppState>()(
       saveClip: (c) => set((st) => ({ savedClips: [c, ...st.savedClips.filter((x) => x.id !== c.id)] })),
       removeClip: (id) => set((st) => ({ savedClips: st.savedClips.filter((x) => x.id !== id) })),
       setHealthAlerted: (healthAlerted) => set({ healthAlerted }),
+      setPackages: (packages) => set({ packages }),
       setCameraMap: (p) => set((st) => ({ cameraMap: { ...st.cameraMap, ...p } })),
       setMasks: (key, polygons) =>
         set((st) => {

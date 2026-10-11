@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PackagesCard } from '@/components/review/packages-card';
 import { SavedPanel } from '@/components/review/saved-panel';
 import { SearchPanel } from '@/components/review/search-panel';
 import { Chip, T } from '@/components/ui/primitives';
@@ -125,6 +126,7 @@ export default function ReviewScreen() {
             Review
           </T>
           {modeTabs}
+          <PackagesCard names={names} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             <Chip label="Alerts" selected={filter === 'alert'} onPress={() => setFilter('alert')} />
             <Chip label="Detections" selected={filter === 'detection'} onPress={() => setFilter('detection')} />

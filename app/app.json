@@ -45,6 +45,7 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true,
         "com.apple.security.application-groups": [
           "group.com.zachadams.sightline",
           "group.com.zachadams.sightline",

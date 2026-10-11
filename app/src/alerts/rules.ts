@@ -62,6 +62,12 @@ export function selectNotifications(
   for (const item of [...items].sort((a, b) => a.startTime - b.startTime)) {
     const key = `${item.systemId}:${item.cameraId}`;
     if (isSnoozed(settings, key, now) || mutedAtHome(settings, key)) continue;
+    // A doorbell ring is someone asking for attention: it skips the object/zone/severity
+    // filters, known-people quieting and the cooldown, but a camera turned off stays off.
+    if (isDoorbell(item)) {
+      if (ruleFor(settings, key).enabled) out.push(item);
+      continue;
+    }
     if (!matchesRule(item, ruleFor(settings, key))) continue;
     if (onlyKnown(item, settings.quietFor ?? [])) continue;
     const last = lastByCamera[key] ?? 0;
@@ -70,6 +76,41 @@ export function selectNotifications(
     out.push(item);
   }
   return out;
+}
+
+/**
+ * Doorbell rings arrive as events whose objects include 'doorbell' (each adapter maps its
+ * brand's ring / visitor / call event to that). Packages are 'package' objects.
+ */
+export function isDoorbell(item: { objects: string[] }): boolean {
+  return item.objects.includes('doorbell');
+}
+
+export function hasPackage(item: { objects: string[] }): boolean {
+  return item.objects.includes('package');
+}
+
+/**
+ * For notifications that don't come from the object rules (package delivered / picked up):
+ * still honors quiet hours, snoozes, Home mode and a camera's notifications being off.
+ */
+export function allowsSpecial(settings: AlertSettings, cameraKey: string, at: Date = new Date()): boolean {
+  if (inQuietHours(settings.quietHours, at)) return false;
+  if (isSnoozed(settings, cameraKey, at.getTime() / 1000) || mutedAtHome(settings, cameraKey)) return false;
+  return ruleFor(settings, cameraKey).enabled;
+}
+
+/** A doorbell ring recent enough to still be worth a full-screen "call" (seconds). */
+export const RING_FRESH_SEC = 120;
+
+export function isFreshRing(item: { objects: string[]; startTime: number }, nowSec: number): boolean {
+  return isDoorbell(item) && nowSec - item.startTime <= RING_FRESH_SEC && item.startTime <= nowSec + 30;
+}
+
+/** Notification title for an event; `label` is the usual "Person & Car" title. Mirrors bridge buildMessage. */
+export function notificationTitle(item: { objects: string[] }, camera: string, label: string): string {
+  if (isDoorbell(item)) return `Someone's at the door · ${camera}`;
+  return `${label} · ${camera}`;
 }
 
 /** Next local occurrence of hh:mm, as unix seconds (for "snooze until morning"). */
