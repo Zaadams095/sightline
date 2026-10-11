@@ -22,6 +22,15 @@ export interface GridView {
 
 export const GRID_COLUMNS = 12;
 
+/** A named set of cameras (Front Yard, Indoors…), shown as chips on the Live tab. */
+export interface CameraGroup {
+  id: string;
+  name: string;
+  cameraKeys: string[];
+  /** Set when imported from a recorder (e.g. Frigate camera_groups). */
+  source?: string;
+}
+
 export interface CameraAlertRule {
   enabled: boolean;
   /** Empty = any object. */
@@ -122,6 +131,9 @@ interface AppState {
   hidden: string[];
   gridViews: GridView[];
   activeGridViewId: string | null;
+  cameraGroups: CameraGroup[];
+  /** Selected group on the Live tab; null = all cameras. */
+  activeGroupId: string | null;
   alerts: AlertSettings;
   security: SecuritySettings;
   cameraMap: CameraMap;
@@ -141,6 +153,10 @@ interface AppState {
   saveGridView(v: GridView): void;
   deleteGridView(id: string): void;
   setActiveGridView(id: string | null): void;
+  saveGroup(g: CameraGroup): void;
+  deleteGroup(id: string): void;
+  moveGroup(id: string, dir: -1 | 1): void;
+  setActiveGroup(id: string | null): void;
   setAlerts(p: Partial<AlertSettings>): void;
   setCameraRule(key: string, rule: CameraAlertRule | null): void;
   setLastNotified(systemId: string, t: number): void;
@@ -163,6 +179,8 @@ export const useApp = create<AppState>()(
       hidden: [],
       gridViews: [],
       activeGridViewId: null,
+      cameraGroups: [],
+      activeGroupId: null,
       alerts: {
         mode: 'built-in',
         rules: {},
@@ -199,6 +217,29 @@ export const useApp = create<AppState>()(
           activeGridViewId: st.activeGridViewId === id ? null : st.activeGridViewId,
         })),
       setActiveGridView: (activeGridViewId) => set({ activeGridViewId }),
+      saveGroup: (g) =>
+        set((st) => {
+          const i = st.cameraGroups.findIndex((x) => x.id === g.id);
+          const cameraGroups = [...st.cameraGroups];
+          if (i >= 0) cameraGroups[i] = g;
+          else cameraGroups.push(g);
+          return { cameraGroups };
+        }),
+      deleteGroup: (id) =>
+        set((st) => ({
+          cameraGroups: st.cameraGroups.filter((g) => g.id !== id),
+          activeGroupId: st.activeGroupId === id ? null : st.activeGroupId,
+        })),
+      moveGroup: (id, dir) =>
+        set((st) => {
+          const i = st.cameraGroups.findIndex((g) => g.id === id);
+          const j = i + dir;
+          if (i < 0 || j < 0 || j >= st.cameraGroups.length) return {};
+          const cameraGroups = [...st.cameraGroups];
+          [cameraGroups[i], cameraGroups[j]] = [cameraGroups[j], cameraGroups[i]];
+          return { cameraGroups };
+        }),
+      setActiveGroup: (activeGroupId) => set({ activeGroupId }),
       setAlerts: (p) => set((st) => ({ alerts: { ...st.alerts, ...p } })),
       setCameraRule: (key, rule) =>
         set((st) => {

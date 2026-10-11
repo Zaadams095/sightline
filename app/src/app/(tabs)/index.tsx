@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View, type ViewToken } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View, type ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { autoLayout, CameraGrid } from '@/components/camera-grid';
@@ -19,11 +19,19 @@ export default function LiveScreen() {
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { entries, isLoading, refetch, isRefetching } = useAllCameras();
+  const { entries: allEntries, isLoading, refetch, isRefetching } = useAllCameras();
+  const groups = useApp((s) => s.cameraGroups);
+  const activeGroupId = useApp((s) => s.activeGroupId);
+  const setActiveGroup = useApp((s) => s.setActiveGroup);
+  const activeGroup = groups.find((g) => g.id === activeGroupId);
+  const entries = useMemo(
+    () => (activeGroup ? allEntries.filter((e) => activeGroup.cameraKeys.includes(e.camera.key)) : allEntries),
+    [allEntries, activeGroup],
+  );
   // Keep Home Screen widget snapshots fresh while the app is open (throttled).
   useEffect(() => {
-    void syncWidgets(entries);
-  }, [entries]);
+    void syncWidgets(allEntries);
+  }, [allEntries]);
   const { phoneColumns, density } = useApp((s) => s.appearance);
   const gridViews = useApp((s) => s.gridViews);
   const activeId = useApp((s) => s.activeGridViewId);
@@ -34,14 +42,44 @@ export default function LiveScreen() {
     router.push({ pathname: '/camera/[key]', params: { key: e.camera.key, poster: poster ?? '' } });
   }, []);
 
+  // One chip row: All, camera groups, and (on iPad) custom grid layouts.
+  const select = (kind: 'all' | 'group' | 'layout', id: string | null = null) => {
+    setActiveGroup(kind === 'group' ? id : null);
+    setActive(kind === 'layout' ? id : null);
+  };
+  const chips: { key: string; label: string; selected: boolean; onPress: () => void }[] = [
+    { key: 'all', label: 'All', selected: !activeGroupId && !(tablet && activeId), onPress: () => select('all') },
+    ...groups.map((g) => ({ key: g.id, label: g.name, selected: g.id === activeGroupId, onPress: () => select('group', g.id) })),
+    ...(tablet
+      ? gridViews.map((v) => ({ key: `layout-${v.id}`, label: `⊞ ${v.name}`, selected: v.id === activeId && !activeGroupId, onPress: () => select('layout', v.id) }))
+      : []),
+  ];
   const header = (
-    <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-      <T v="title">Live</T>
-      <ConnectionBadge />
+    <View style={{ paddingTop: insets.top + space.sm, paddingBottom: space.sm, gap: space.sm }}>
+      <View style={styles.header}>
+        <T v="title">Live</T>
+        <ConnectionBadge />
+      </View>
+      {allEntries.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.viewTabs}>
+          {chips.map((c) => (
+            <Pressable key={c.key} onPress={c.onPress} style={[styles.viewTab, { backgroundColor: c.selected ? p.accent : p.surfaceRaised }]}>
+              <T v="label" color={c.selected ? p.accentText : p.text}>
+                {c.label}
+              </T>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => router.push('/settings/groups')} style={[styles.viewTab, { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: p.border }]}>
+            <T v="label" muted>
+              {groups.length ? 'Edit groups' : '+ Group'}
+            </T>
+          </Pressable>
+        </ScrollView>
+      )}
     </View>
   );
 
-  if (!isLoading && entries.length === 0) {
+  if (!isLoading && allEntries.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: p.bg }}>
         {header}
@@ -57,25 +95,11 @@ export default function LiveScreen() {
   }
 
   if (tablet) {
-    const view = gridViews.find((v) => v.id === activeId);
+    const view = activeGroupId ? undefined : gridViews.find((v) => v.id === activeId);
     const tiles = view?.tiles ?? autoLayout(entries.map((e) => e.camera.key), width);
     return (
       <View style={{ flex: 1, backgroundColor: p.bg }}>
         {header}
-        {gridViews.length > 0 && (
-          <View style={styles.viewTabs}>
-            {[{ id: null as string | null, name: 'All' }, ...gridViews].map((v) => (
-              <Pressable
-                key={v.id ?? 'all'}
-                onPress={() => setActive(v.id)}
-                style={[styles.viewTab, { backgroundColor: v.id === activeId ? p.accent : p.surfaceRaised }]}>
-                <T v="label" color={v.id === activeId ? p.accentText : p.text}>
-                  {v.name}
-                </T>
-              </Pressable>
-            ))}
-          </View>
-        )}
         <CameraGrid entries={entries} tiles={tiles} width={width - space.lg} onOpen={open} />
       </View>
     );

@@ -35,6 +35,7 @@ interface FrigateCameraConfig {
 interface FrigateConfig {
   cameras: Record<string, FrigateCameraConfig>;
   lpr?: { known_plates?: Record<string, string[]> | null };
+  camera_groups?: Record<string, { cameras: string | string[]; order?: number }>;
 }
 
 interface FrigateReview {
@@ -298,6 +299,20 @@ export class FrigateAdapter implements CameraSystemAdapter {
       endTime: e.end_time,
       thumbnailUrl: this.url(`/api/events/${encodeURIComponent(e.id)}/thumbnail.webp`),
     }));
+  }
+
+  async groups(): Promise<{ name: string; cameraIds: string[] }[]> {
+    const cfg = await this.config_();
+    return Object.entries(cfg.camera_groups ?? {})
+      .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0))
+      .map(([name, g]) => ({
+        name: titleCase(name),
+        // Frigate allows a comma-separated string or a list; birdseye isn't a real camera.
+        cameraIds: (Array.isArray(g.cameras) ? g.cameras : g.cameras.split(','))
+          .map((c) => c.trim())
+          .filter((c) => c && c !== 'birdseye' && cfg.cameras[c]),
+      }))
+      .filter((g) => g.cameraIds.length > 0);
   }
 
   async knownNames(): Promise<string[]> {

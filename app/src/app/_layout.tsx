@@ -72,6 +72,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings/systems" options={{ title: 'Camera systems' }} />
             <Stack.Screen name="settings/cameras" options={{ title: 'Cameras & order' }} />
             <Stack.Screen name="settings/grid" options={{ title: 'Grid layouts' }} />
+            <Stack.Screen name="settings/groups" options={{ title: 'Camera groups' }} />
             <Stack.Screen name="settings/bridge" options={{ title: 'Instant Alerts' }} />
             <Stack.Screen name="settings/masks" options={{ title: 'Alert masks' }} />
             <Stack.Screen name="settings/diagnostics" options={{ title: 'Diagnostics' }} />

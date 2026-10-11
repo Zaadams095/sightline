@@ -63,6 +63,7 @@ export default function SettingsScreen() {
       <Section title="Look & layout">
         <Row label="Appearance" detail="Theme, accent color, tile style" onPress={() => router.push('/settings/appearance')} />
         <Row label="Cameras & order" detail="Reorder or hide cameras" onPress={() => router.push('/settings/cameras')} />
+        <Row label="Camera groups" detail="Front Yard, Back Yard, Indoors…" onPress={() => router.push('/settings/groups')} />
         <Row label="iPad grid layouts" detail="Custom multi-size camera walls" onPress={() => router.push('/settings/grid')} last />
       </Section>
 

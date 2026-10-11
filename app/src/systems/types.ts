@@ -170,6 +170,8 @@ export interface CameraSystemAdapter {
   previewClip?(item: ReviewItem): MediaSource;
   /** Smart search by description or visual similarity. Throws a readable error if unsupported. */
   search?(q: { query: string; type: 'description' | 'thumbnail'; cameras?: string[]; limit?: number }): Promise<SearchHit[]>;
+  /** Camera groups defined on the recorder (camera IDs). */
+  groups?(): Promise<{ name: string; cameraIds: string[] }[]>;
   /** Names the recorder can recognize (faces, known plates), for "unknown only" alerts. */
   knownNames?(): Promise<string[]>;
   health?(): Promise<HealthReport>;

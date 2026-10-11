@@ -8,6 +8,10 @@
   the notification extension) needs a full build: .\scripts\release-ios.ps1
   Phones pick the update up the next time the app is opened (sometimes the launch after).
 
+  Updates only reach builds with the same app version (runtimeVersion policy "appVersion").
+  When a change adds native code, bump "version" in app/app.json before the new build, so
+  JavaScript that needs the new native code is never sent to older installed builds.
+
 .EXAMPLE
   .\scripts\update-ios.ps1 -Message "Fix Frigate connection error"
 #>
