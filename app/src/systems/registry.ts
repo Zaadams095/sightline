@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
-import { useLinks, type SystemLink } from '@/net/connection';
+import { connectSystem, useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { AgentDvrAdapter } from '@/systems/agent-dvr';
 import { BlueIrisAdapter } from '@/systems/blue-iris';
@@ -103,6 +103,9 @@ export interface CameraEntry {
   adapter: CameraSystemAdapter;
 }
 
+/** How soon a camera list with a system that didn't answer tries again. */
+const FAILED_RETRY_MS = 5000;
+
 /** All cameras across all systems, in the user's order, hidden ones removed. */
 export function useAllCameras(opts: { includeHidden?: boolean } = {}) {
   const systems = useApp((st) => st.systems);
@@ -134,11 +137,17 @@ export function useAllCameras(opts: { includeHidden?: boolean } = {}) {
           return cams.map((camera) => ({ camera, adapter }));
         }),
       );
-      return results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+      // A system that didn't answer may be on a stale route (e.g. still its home address just
+      // after leaving Wi-Fi): check its route again now. A new route changes the key above and
+      // refetches; otherwise the list retries every few seconds instead of staying empty.
+      const failed = ready.filter((_, i) => results[i].status === 'rejected').map((s) => s.id);
+      for (const s of ready) if (failed.includes(s.id)) void connectSystem(s);
+      return { entries: results.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])), failed };
     },
+    refetchInterval: (q) => (q.state.data?.failed.length ? FAILED_RETRY_MS : false),
   });
 
-  const entries = sortByOrder(query.data ?? [], order).filter(
+  const entries = sortByOrder(query.data?.entries ?? [], order).filter(
     (e) => opts.includeHidden || !hidden.includes(e.camera.key),
   );
   return { ...query, entries };
