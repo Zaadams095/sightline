@@ -9,7 +9,7 @@ import _ "github.com/zachadams/sightline/bridge/backend/frigate"
 
 // import _ "github.com/zachadams/sightline/bridge/backend/hikvision"
 
-// import _ "github.com/zachadams/sightline/bridge/backend/dahua"
+import _ "github.com/zachadams/sightline/bridge/backend/dahua"
 
 // import _ "github.com/zachadams/sightline/bridge/backend/reolink"
 
