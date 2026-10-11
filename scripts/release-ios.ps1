@@ -1,11 +1,18 @@
 <#
 .SYNOPSIS
-  Builds the iOS app on EAS and submits it to TestFlight.
+  Builds the iOS app (with its Apple Watch app inside) on EAS and submits it to TestFlight.
+  With -TV, builds the Apple TV app (tv/) instead, for the same App Store record.
 
 .PARAMETER FirstRun
   Interactive mode for the first build: EAS asks for your Apple ID, creates the
-  distribution certificate, provisioning profile and push key, and creates the app in
-  App Store Connect. Later builds can run unattended.
+  distribution certificate, provisioning profiles and push key, and creates the app in
+  App Store Connect. Later builds can run unattended. Use it again once whenever a new
+  target appears (e.g. the first build with the Apple Watch app, whose bundle id
+  com.zachadams.sightline.watch needs its own profile) and for the first -TV build
+  (tvOS provisioning profile).
+
+.PARAMETER TV
+  Build and submit the Apple TV app from tv/ (see docs/APPLE_WATCH_TV.md).
 
 .PARAMETER SkipChecks
   Skip local typecheck/lint (not recommended).
@@ -13,14 +20,16 @@
 .EXAMPLE
   .\scripts\release-ios.ps1 -FirstRun
   .\scripts\release-ios.ps1
+  .\scripts\release-ios.ps1 -TV -FirstRun
 #>
 param(
     [switch]$FirstRun,
+    [switch]$TV,
     [switch]$SkipChecks
 )
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
-$app = Join-Path $root 'app'
+$app = Join-Path $root $(if ($TV) { 'tv' } else { 'app' })
 
 # EAS uploads the git tree, so uncommitted changes would not be in the build.
 $dirty = git -C $root status --porcelain
@@ -37,8 +46,10 @@ try {
         Write-Host '== Typecheck & lint ==' -ForegroundColor Cyan
         npx tsc --noEmit
         if ($LASTEXITCODE -ne 0) { throw 'Typecheck failed' }
-        npx expo lint
-        if ($LASTEXITCODE -ne 0) { throw 'Lint failed' }
+        if (-not $TV) {
+            npx expo lint
+            if ($LASTEXITCODE -ne 0) { throw 'Lint failed' }
+        }
     }
 
     Write-Host '== EAS build + submit to TestFlight ==' -ForegroundColor Cyan

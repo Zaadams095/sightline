@@ -94,6 +94,8 @@ export default function RootLayout() {
             {/* Deep links sightline://invite?… and sightline://hub?… redirect to the join screen. */}
             <Stack.Screen name="invite" options={{ headerShown: false }} />
             <Stack.Screen name="hub" options={{ headerShown: false }} />
+            {/* sightline://tv?… (the QR code on the Apple TV app) connects the TV to a Hub. */}
+            <Stack.Screen name="tv" options={{ title: 'Connect Apple TV' }} />
           </Stack>
           <AppLockGate />
           {/* Starts WebKit's web process at launch so the first live view doesn't pay for it. */}

@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Sightline",
+    "slug": "sightline",
+    "owner": "zaadams095",
+    "version": "0.2.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0D12",
+    "platforms": ["ios"],
+    "ios": {
+      "bundleIdentifier": "com.zachadams.sightline",
+      "appleTeamId": "D36CEMNM8Q",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Sign in with your iPhone and show your cameras from your Sightline Hub on your home network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      [
+        "@react-native-tvos/config-tv",
+        {
+          "isTV": true,
+          "tvosDeploymentTarget": "17.0",
+          "appleTVImages": {
+            "icon": "./assets/tv/icon-1280x768.png",
+            "iconSmall": "./assets/tv/icon-400x240.png",
+            "iconSmall2x": "./assets/tv/icon-800x480.png",
+            "topShelf": "./assets/tv/topshelf-1920x720.png",
+            "topShelf2x": "./assets/tv/topshelf-3840x1440.png",
+            "topShelfWide": "./assets/tv/topshelf-wide-2320x720.png",
+            "topShelfWide2x": "./assets/tv/topshelf-wide-4640x1440.png"
+          }
+        }
+      ],
+      "expo-video"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "04a27cc2-1b54-4d42-a1e4-41869a5deea1"
+      }
+    }
+  }
+}

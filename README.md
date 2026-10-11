@@ -2,10 +2,11 @@
 
 A private, local-first mobile app for self-hosted camera systems. It offers live view, recording review, PTZ and alerts, with WireGuard built into the app.
 
-- `app/`: Expo (SDK 57) app, iOS first
+- `app/`: Expo (SDK 57) app, iOS first. The Apple Watch app is in `app/targets/watch`.
+- `tv/`: Apple TV app (a separate Expo project on react-native-tvos; it talks to a Sightline Hub)
 - `tunnel/`: Go userspace WireGuard and the loopback gateway, compiled into the app
 - `bridge/`: optional Instant Alerts container (Frigate MQTT → push)
-- `docs/`: [Architecture](docs/ARCHITECTURE.md), [Frigate API notes](docs/FRIGATE_API.md)
+- `docs/`: [Architecture](docs/ARCHITECTURE.md), [Frigate API notes](docs/FRIGATE_API.md), [Apple Watch & Apple TV](docs/APPLE_WATCH_TV.md)
 - `scripts/`: PowerShell build and release helpers
 
 ## First TestFlight build (Windows / PowerShell)
