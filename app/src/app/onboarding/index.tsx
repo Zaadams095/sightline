@@ -52,6 +52,7 @@ export default function Welcome() {
       <T v="caption" muted style={{ textAlign: 'center', marginTop: -space.sm }}>
         Sightline looks around your home Wi-Fi and finds cameras and recorders for you.
       </T>
+      <Button title="Pick your camera brand" kind="secondary" onPress={() => router.push('/onboarding/brands')} />
 
       <View style={styles.row}>
         <BigOption icon="qrcode.viewfinder" title="Someone shared cameras with me" onPress={() => router.push('/onboarding/invite')} />
@@ -59,7 +60,7 @@ export default function Welcome() {
       </View>
 
       <T v="heading" style={{ marginTop: space.md }}>
-        Or choose your brand
+        Or choose what you record with
       </T>
       {SECTIONS.map((s) => (
         <View key={s.category} style={{ gap: space.sm }}>

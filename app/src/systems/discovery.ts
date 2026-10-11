@@ -1,4 +1,5 @@
 import { CATALOG, discoveryPorts, type ProbeResult, type SystemDescriptor } from '@/systems/catalog';
+import { matchesScan, type StreamTarget, type SystemTarget } from '@/systems/guides';
 import type { SystemKind } from '@/systems/types';
 import { resolveScheme } from '@/util/url';
 import { WgTunnel } from '@modules/wg-tunnel';
@@ -17,11 +18,20 @@ export interface Found {
  * device with a cheap HTTP request per brand fingerprint. Takes ~10–20 s on a /24.
  */
 export async function discover(onProgress?: (msg: string) => void): Promise<Found[]> {
+  const byHost = await scanNetwork(discoveryPorts(), onProgress);
+  onProgress?.(`Checking ${byHost.size} device${byHost.size === 1 ? '' : 's'}…`);
+  const results = await Promise.all(
+    [...byHost].map(async ([host, hostPorts]) => (await identify(host, hostPorts)) ?? null),
+  );
+  return results.filter((r): r is Found => !!r).sort((a, b) => Number(!a.kind) - Number(!b.kind) || a.host.localeCompare(b.host, undefined, { numeric: true }));
+}
+
+/** Every device on the phone's local network with any of these ports open (host → open ports). */
+export async function scanNetwork(ports: number[], onProgress?: (msg: string) => void): Promise<Map<string, Set<number>>> {
   if (!WgTunnel) throw new Error('Finding cameras needs the full app (not Expo Go).');
   const subnets = JSON.parse(WgTunnel.localSubnets()) as string[];
   if (!subnets.length) throw new Error('Connect to your home Wi-Fi first.');
 
-  const ports = discoveryPorts();
   const open: string[] = [];
   for (const cidr of subnets) {
     onProgress?.(`Looking around ${cidr.replace('.0/24', '.x')}…`);
@@ -34,12 +44,23 @@ export async function discover(onProgress?: (msg: string) => void): Promise<Foun
     const host = hp.slice(0, i);
     byHost.set(host, (byHost.get(host) ?? new Set()).add(Number(hp.slice(i + 1))));
   }
+  return byHost;
+}
 
-  onProgress?.(`Checking ${byHost.size} device${byHost.size === 1 ? '' : 's'}…`);
-  const results = await Promise.all(
-    [...byHost].map(async ([host, hostPorts]) => (await identify(host, hostPorts)) ?? null),
-  );
-  return results.filter((r): r is Found => !!r).sort((a, b) => Number(!a.kind) - Number(!b.kind) || a.host.localeCompare(b.host, undefined, { numeric: true }));
+/**
+ * Guided setup: find devices that look like the brand being set up. Stream cameras are matched
+ * by their ports; recorders by the adapter's own fingerprints, so only that brand shows.
+ */
+export async function discoverFor(target: StreamTarget | SystemTarget, onProgress?: (msg: string) => void): Promise<Found[]> {
+  if (target.type === 'system') {
+    const found = await discover(onProgress);
+    return found.filter((f) => f.kind === target.system);
+  }
+  const byHost = await scanNetwork(target.scan.ports, onProgress);
+  return [...byHost]
+    .filter(([, open]) => matchesScan(open, target.scan))
+    .map(([host]) => ({ host, kind: null, label: target.cameraName, address: host }))
+    .sort((a, b) => a.host.localeCompare(b.host, undefined, { numeric: true }));
 }
 
 async function identify(host: string, ports: Set<number>): Promise<Found | null> {
