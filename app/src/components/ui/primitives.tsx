@@ -16,7 +16,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { font, space } from '@/theme/tokens';
+import { fmtTime } from '@/i18n';
+import { useT } from '@/i18n/use-t';
+import { useLargeText, useTextBoost } from '@/theme/text-scale';
+import { font, MAX_SCALE, OVERLAY_MAX_SCALE, space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
 export function Screen({
@@ -49,7 +52,19 @@ export function Screen({
   );
 }
 
-type Variant = 'title' | 'heading' | 'body' | 'label' | 'caption';
+export type Variant = 'title' | 'heading' | 'body' | 'label' | 'caption';
+
+/**
+ * A text style scaled by the in-app "Bigger text" setting, plus the matching cap on the
+ * iPhone's text size so the two together never exceed the style's MAX_SCALE. For the few
+ * places that draw their own <Text>.
+ */
+export function useScaledFont(v: Variant, overlay = false): { style: TextStyle; maxFontSizeMultiplier: number } {
+  const boost = useTextBoost();
+  const b = overlay ? 1 : boost;
+  const max = overlay ? OVERLAY_MAX_SCALE : MAX_SCALE[v];
+  return { style: { ...font[v], fontSize: font[v].fontSize * b }, maxFontSizeMultiplier: Math.max(1, max / b) };
+}
 
 export function T({
   v = 'body',
@@ -58,6 +73,7 @@ export function T({
   style,
   children,
   numberOfLines,
+  overlay,
 }: {
   v?: Variant;
   muted?: boolean;
@@ -65,10 +81,20 @@ export function T({
   style?: TextStyle;
   children: ReactNode;
   numberOfLines?: number;
+  /** Text drawn over video or inside a small badge: grows only a little with the text size. */
+  overlay?: boolean;
 }) {
   const p = usePalette();
+  const scaled = useScaledFont(v, overlay);
+  const appBoost = useTextBoost();
+  const boost = overlay ? 1 : appBoost;
+  // An explicit fontSize in `style` gets the in-app boost too.
+  const own = style?.fontSize && boost !== 1 ? { fontSize: style.fontSize * boost } : null;
   return (
-    <Text numberOfLines={numberOfLines} style={[font[v], { color: color ?? (muted ? p.textMuted : p.text) }, style]}>
+    <Text
+      numberOfLines={numberOfLines}
+      maxFontSizeMultiplier={scaled.maxFontSizeMultiplier}
+      style={[scaled.style, { color: color ?? (muted ? p.textMuted : p.text) }, style, own]}>
       {children}
     </Text>
   );
@@ -123,14 +149,17 @@ export function Row({
   last?: boolean;
 }) {
   const p = usePalette();
+  const large = useLargeText();
+  // At the big accessibility sizes a switch or value moves under the label instead of squeezing it.
+  const stack = large && !!right;
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: stack ? 'column' : 'row',
+        alignItems: stack ? 'flex-start' : 'center',
         gap: space.md,
         paddingHorizontal: space.lg,
         minHeight: 50,
@@ -140,10 +169,10 @@ export function Row({
         borderBottomColor: p.border,
       })}>
       {icon}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={stack ? { alignSelf: 'stretch', gap: 2 } : { flex: 1, gap: 2 }}>
         <T color={destructive ? p.danger : undefined}>{label}</T>
         {detail && (
-          <T v="caption" muted numberOfLines={2}>
+          <T v="caption" muted numberOfLines={large ? undefined : 2}>
             {detail}
           </T>
         )}
@@ -193,6 +222,7 @@ export function Button({
   style?: ViewStyle;
 }) {
   const p = usePalette();
+  const label = useScaledFont('label');
   const bg = { primary: p.accent, secondary: p.surfaceRaised, ghost: 'transparent', danger: p.danger }[kind];
   const fg = kind === 'primary' || kind === 'danger' ? p.accentText : kind === 'ghost' ? p.accent : p.text;
   return (
@@ -209,7 +239,10 @@ export function Button({
         {
           backgroundColor: bg,
           borderRadius: 14,
-          height: 52,
+          // Grows with the text size; the title wraps rather than being cut off.
+          minHeight: 52,
+          paddingVertical: 10,
+          paddingHorizontal: space.md,
           alignItems: 'center',
           justifyContent: 'center',
           opacity: disabled ? 0.45 : pressed ? 0.8 : 1,
@@ -218,13 +251,22 @@ export function Button({
         },
         style,
       ]}>
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={[font.label, { color: fg, fontSize: 16 }]}>{title}</Text>}
+      {loading ? (
+        <ActivityIndicator color={fg} />
+      ) : (
+        <Text
+          maxFontSizeMultiplier={label.maxFontSizeMultiplier}
+          style={[label.style, { color: fg, fontSize: (16 * (label.style.fontSize ?? 13)) / 13, textAlign: 'center' }]}>
+          {title}
+        </Text>
+      )}
     </Pressable>
   );
 }
 
 export function Field({ label, hint, ...props }: TextInputProps & { label: string; hint?: string }) {
   const p = usePalette();
+  const body = useScaledFont('body');
   return (
     <View style={{ gap: 6 }}>
       <T v="label" muted>
@@ -234,9 +276,10 @@ export function Field({ label, hint, ...props }: TextInputProps & { label: strin
         placeholderTextColor={p.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
+        maxFontSizeMultiplier={body.maxFontSizeMultiplier}
         {...props}
         style={[
-          font.body,
+          body.style,
           {
             color: p.text,
             backgroundColor: p.surface,
@@ -376,6 +419,8 @@ function toMinutes(hhmm: string): number {
  */
 export function TimeStepper({ label, value, onChange, last }: { label: string; value: string; onChange: (hhmm: string) => void; last?: boolean }) {
   const p = usePalette();
+  const t = useT();
+  const large = useLargeText();
   const mins = toMinutes(value);
   const set = (m: number) => {
     const v = ((m % 1440) + 1440) % 1440;
@@ -383,7 +428,7 @@ export function TimeStepper({ label, value, onChange, last }: { label: string; v
   };
   const d = new Date();
   d.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
-  const shown = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const shown = fmtTime(d);
   const h = mins - (mins % 60);
   return (
     <View
@@ -395,24 +440,28 @@ export function TimeStepper({ label, value, onChange, last }: { label: string; v
         borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: p.border,
       }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <T style={{ flex: 1 }}>{label}</T>
+      <View style={{ flexDirection: large ? 'column' : 'row', alignItems: large ? 'flex-start' : 'center' }}>
+        <T style={large ? undefined : { flex: 1 }}>{label}</T>
         <T v="heading" style={{ fontVariant: ['tabular-nums'] }}>
           {shown}
         </T>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: space.xs }}>
-        <T v="caption" muted>
-          Hour
-        </T>
-        <IconButton icon="minus.circle" label={`${label}: one hour earlier`} onPress={() => set(mins - 60)} size={22} />
-        <IconButton icon="plus.circle" label={`${label}: one hour later`} onPress={() => set(mins + 60)} size={22} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: space.xs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+          <T v="caption" muted>
+            {t.common.hour}
+          </T>
+          <IconButton icon="minus.circle" label={t.common.hourEarlier(label)} onPress={() => set(mins - 60)} size={22} />
+          <IconButton icon="plus.circle" label={t.common.hourLater(label)} onPress={() => set(mins + 60)} size={22} />
+        </View>
         <View style={{ width: space.md }} />
-        <T v="caption" muted>
-          Minutes
-        </T>
-        <IconButton icon="minus.circle" label={`${label}: 15 minutes earlier`} onPress={() => set(h + ((mins % 60) + 45) % 60)} size={22} />
-        <IconButton icon="plus.circle" label={`${label}: 15 minutes later`} onPress={() => set(h + ((mins % 60) + 15) % 60)} size={22} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+          <T v="caption" muted>
+            {t.common.minutes}
+          </T>
+          <IconButton icon="minus.circle" label={t.common.minutesEarlier(label)} onPress={() => set(h + ((mins % 60) + 45) % 60)} size={22} />
+          <IconButton icon="plus.circle" label={t.common.minutesLater(label)} onPress={() => set(h + ((mins % 60) + 15) % 60)} size={22} />
+        </View>
       </View>
     </View>
   );

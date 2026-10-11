@@ -1,3 +1,5 @@
+import type { LanguagePref } from '../i18n/locales.ts';
+
 export type ThemeMode = 'system' | 'light' | 'dark' | 'oled';
 
 export interface Palette {
@@ -90,6 +92,10 @@ export interface Appearance {
   /** Phone camera stack: 1 or 2 columns. */
   phoneColumns: 1 | 2;
   showTimestamps: boolean;
+  /** App language: 'auto' follows the iPhone. */
+  language: LanguagePref;
+  /** In-app "Bigger text", on top of the iPhone's own text size (for people who don't know that setting). */
+  biggerText: boolean;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -100,6 +106,8 @@ export const DEFAULT_APPEARANCE: Appearance = {
   labelStyle: 'overlay',
   phoneColumns: 1,
   showTimestamps: true,
+  language: 'auto',
+  biggerText: false,
 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
@@ -110,3 +118,14 @@ export const font = {
   label: { fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.1 },
   caption: { fontSize: 12, fontWeight: '500' as const },
 };
+
+/**
+ * Largest text size each style may reach, as a multiple of its normal size (iPhone text
+ * size × in-app "Bigger text" combined). Body text goes all the way up (the biggest
+ * accessibility size is ~3.1×); titles and small labels stop earlier so they don't swamp
+ * the screen. Text drawn over video uses OVERLAY_MAX_SCALE.
+ */
+export const MAX_SCALE = { title: 2, heading: 2.4, body: 3.2, label: 2.6, caption: 2.4 } as const;
+export const OVERLAY_MAX_SCALE = 1.3;
+/** What "Bigger text" multiplies the iPhone's text size by. */
+export const BIGGER_TEXT = 1.25;
