@@ -98,9 +98,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B0D12",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 160
+          "backgroundColor": "#080A14",
+          "image": "./assets/images/splash-logo.png",
+          "imageWidth": 300
         }
       ],
       "expo-video",

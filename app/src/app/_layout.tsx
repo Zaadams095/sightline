@@ -13,6 +13,7 @@ import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHa
 import { watchCheckinCategories } from '@/alerts/checkins-run';
 import { startDoorbellWatch } from '@/alerts/doorbell';
 import { installCrashHandlers } from '@/diagnostics/log';
+import { BrandIntro } from '@/components/brand-intro';
 import { startLiveActivities } from '@/alerts/live-activity';
 import { startLifecycle } from '@/net/connection';
 import { resumeHomeAway } from '@/presence/geofence';
@@ -44,7 +45,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!hydrated) return;
-    void SplashScreen.hideAsync();
+    // The native splash is hidden by BrandIntro, once its identical first frame is on screen.
     void registerBackgroundAlerts();
     void resumeHomeAway();
     // Give the navigator a moment to mount before routing to a tapped notification's clip.
@@ -124,6 +125,7 @@ export default function RootLayout() {
             {/* sightline://tv?… (the QR code on the Apple TV app) connects the TV to a Hub. */}
             <Stack.Screen name="tv" options={{ title: 'Connect Apple TV' }} />
           </Stack>
+          <BrandIntro ready={hydrated} />
           <AppLockGate />
           {/* Starts WebKit's web process at launch so the first live view doesn't pay for it. */}
           <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} pointerEvents="none">
