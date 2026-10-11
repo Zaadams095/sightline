@@ -17,6 +17,7 @@ export function VpnSetup({ onSaved }: { onSaved: () => void }) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [showOther, setShowOther] = useState(false);
   const [perm, requestPerm] = useCameraPermissions();
 
   const save = async (conf: string) => {
@@ -46,22 +47,27 @@ export function VpnSetup({ onSaved }: { onSaved: () => void }) {
 
   return (
     <View style={{ gap: space.md }}>
-      <View style={styles.row}>
-        <Button title="Scan QR code" kind="secondary" onPress={scan} style={{ flex: 1 }} />
-        <Button title="Choose .conf file" kind="secondary" onPress={pickFile} style={{ flex: 1 }} />
-      </View>
-      <Field
-        label="Or paste config"
-        value={text}
-        onChangeText={setText}
-        multiline
-        placeholder={'[Interface]\nPrivateKey = …\nAddress = 10.6.0.2/32\n\n[Peer]\nPublicKey = …\nEndpoint = home.example.com:51820\nAllowedIPs = 192.168.1.0/24'}
-      />
-      {error && <T color={p.danger}>{error}</T>}
-      <Button title="Save VPN" onPress={() => save(text)} disabled={!text.trim()} />
+      <Button title="Scan the QR code from my router" onPress={scan} />
       <T v="caption" muted>
-        Tip: set AllowedIPs to just your camera network (for example 192.168.1.0/24). Only camera traffic uses the
-        VPN, and nothing else on your phone changes.
+        In your router’s app, open its VPN (WireGuard) settings and add a device or “client”: it shows a QR code.
+      </T>
+      {error && <T color={p.danger}>{error}</T>}
+      <Button title={showOther ? 'Hide other ways' : 'Other ways (file or text)'} kind="ghost" onPress={() => setShowOther((v) => !v)} />
+      {showOther && (
+        <View style={{ gap: space.md }}>
+          <Button title="Choose a .conf file" kind="secondary" onPress={pickFile} />
+          <Field
+            label="Or paste the configuration text"
+            value={text}
+            onChangeText={setText}
+            multiline
+            placeholder={'[Interface]\nPrivateKey = …\n…\n[Peer]\nEndpoint = …'}
+          />
+          <Button title="Save" onPress={() => save(text)} disabled={!text.trim()} />
+        </View>
+      )}
+      <T v="caption" muted>
+        Only Sightline uses this connection, and only when you’re away. The rest of your phone isn’t affected.
       </T>
 
       <Modal visible={scanning} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setScanning(false)}>
