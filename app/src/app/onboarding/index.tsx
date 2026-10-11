@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { WelcomeBack } from '@/components/backup/welcome-back';
 import { Button, Screen, T } from '@/components/ui/primitives';
 import { useApp } from '@/state/store';
 import { CATALOG, type Category, type SystemDescriptor } from '@/systems/catalog';
@@ -47,6 +48,7 @@ export default function Welcome() {
         )}
         <T muted>Watch live, look back at recordings and get alerts, straight from your own system. Nothing goes through the cloud.</T>
       </View>
+      {!adding && <WelcomeBack />}
 
       <Button title="Find my cameras" onPress={() => router.push('/onboarding/discover')} />
       <T v="caption" muted style={{ textAlign: 'center', marginTop: -space.sm }}>

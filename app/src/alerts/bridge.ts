@@ -20,6 +20,9 @@ const SCOPE = 'bridge';
 export async function bridgeSecret(): Promise<string> {
   let s = await secrets.get(SCOPE, 'secret');
   if (!s) {
+    // Already paired, so the real secret exists: on a phone restored from iCloud it may still
+    // be on its way through iCloud Keychain. A new random one would replace it everywhere.
+    if (useApp.getState().alerts.bridge) throw new Error('Waiting for your Instant Alerts key from iCloud Keychain. Try again in a few minutes.');
     const bytes = Crypto.getRandomBytes(24);
     s = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
     await secrets.set(SCOPE, 'secret', s);

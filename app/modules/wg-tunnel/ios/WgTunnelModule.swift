@@ -113,5 +113,27 @@ public class WgTunnelModule: Module {
     AsyncFunction("login") { (port: Int) -> String in
       WgtunnelLogin(port)
     }
+
+    // Phone-to-phone transfer: serve one encrypted bundle on the home Wi-Fi (see tunnel/wgtunnel/transfer.go).
+    AsyncFunction("transferServe") { (token: String, payload: String, ttlSec: Int) -> String in
+      WgtunnelTransferServe(token, payload, ttlSec)
+    }
+
+    Function("transferStatus") { () -> String in
+      WgtunnelTransferStatus()
+    }
+
+    Function("transferStop") {
+      WgtunnelTransferStop()
+    }
+
+    AsyncFunction("transferFetch") { (url: String, timeoutMs: Int) -> String in
+      WgtunnelTransferFetch(url, timeoutMs)
+    }
+
+    // PBKDF2-SHA256 for passcode-protected backup files.
+    AsyncFunction("deriveKey") { (passcode: String, saltB64: String, iterations: Int) -> String in
+      WgtunnelDeriveKey(passcode, saltB64, iterations)
+    }
   }
 }

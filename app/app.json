@@ -58,7 +58,14 @@
           "group.com.zachadams.sightline",
           "group.com.zachadams.sightline",
           "group.com.zachadams.sightline"
-        ]
+        ],
+        "com.apple.developer.icloud-container-identifiers": [
+          "iCloud.com.zachadams.sightline"
+        ],
+        "com.apple.developer.icloud-services": [
+          "CloudKit"
+        ],
+        "com.apple.developer.ubiquity-kvstore-identifier": "$(TeamIdentifierPrefix)com.zachadams.sightline"
       },
       "appleTeamId": "D36CEMNM8Q",
       "runtimeVersion": {

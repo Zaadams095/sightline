@@ -51,6 +51,19 @@ interface NativeWgTunnel {
   probeTalk?(kind: string, url: string, viaTunnel: boolean, timeoutMs: number): Promise<string>;
   setShared(name: string, value: string): void;
   removeShared(name: string): void;
+  /**
+   * Phone-to-phone transfer. Missing on builds made before it existed (an OTA update can
+   * reach them), so check with `typeof … === 'function'`.
+   * JSON {port, hosts, error}: serves `payload` once at http://host:port/move/<token>.
+   */
+  transferServe?(token: string, payload: string, ttlSec: number): Promise<string>;
+  /** JSON {active, served}. */
+  transferStatus?(): string;
+  transferStop?(): void;
+  /** JSON {status, body, error}; plain http to private addresses only. */
+  transferFetch?(url: string, timeoutMs: number): Promise<string>;
+  /** PBKDF2-SHA256 → base64 32-byte key ('' on bad input). */
+  deriveKey?(passcode: string, saltB64: string, iterations: number): Promise<string>;
 }
 
 /** null in Expo Go / web, where the native tunnel isn't available. */
