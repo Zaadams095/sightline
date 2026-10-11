@@ -17,6 +17,9 @@ import {
 } from '@/alerts/packages-notify';
 import { isDoorbell, nextTimeOfDay, notificationTitle, selectNotifications } from '@/alerts/rules';
 import { recognizeItems } from '@/familiar/recognize';
+import { checkCheckinsBuiltIn, handleCheckinResponse } from '@/alerts/checkins-run';
+import { FEEDBACK_ACTIONS, featureData, filterSmart, handleSmartResponse, registerLearnedCategory } from '@/alerts/smart';
+import { useSmart } from '@/state/smart';
 import { connectSystem, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { bundleAlerts, storySummary, storyTitle, type Story } from '@/stories/group';
@@ -55,7 +58,10 @@ export function setupNotificationHandling() {
   void Notifications.setNotificationCategoryAsync(ALERT_CATEGORY, [
     { identifier: ACTION_SNOOZE_HOUR, buttonTitle: 'Snooze this camera for 1 hour', options: { opensAppToForeground: false } },
     { identifier: ACTION_SNOOZE_MORNING, buttonTitle: 'Snooze this camera until 7 AM', options: { opensAppToForeground: false } },
+    // "Not important" / "Always tell me about this" teach Sightline (smart.ts).
+    ...FEEDBACK_ACTIONS,
   ]).catch(() => {});
+  registerLearnedCategory();
   registerDoorbellCategory();
   registerPackageCategory();
 
@@ -73,6 +79,8 @@ export async function handleResponse(resp: Notifications.NotificationResponse) {
   // Background actions (snooze) can launch the app without the UI: write into the saved
   // settings, not the empty defaults that would then overwrite them.
   if (!useApp.persist.hasHydrated()) await useApp.persist.rehydrate();
+  // Feedback ("Not important"), what-was-learned and check-in notifications.
+  if ((await handleSmartResponse(resp)) || (await handleCheckinResponse(resp))) return;
 
   const d = resp.notification.request.content.data as Partial<Record<string, string>>;
   if (!d.systemId || !d.cameraId) return;
@@ -166,6 +174,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 /** Pull new review items from every system and post local notifications for matches. */
 export async function checkForAlerts(): Promise<number> {
   await useApp.persist.rehydrate();
+  await useSmart.persist.rehydrate();
   const state = useApp.getState();
   let posted = 0;
 
@@ -180,6 +189,8 @@ export async function checkForAlerts(): Promise<number> {
     } catch {}
   }
   posted += await checkHealth().catch(() => 0);
+  // Family check-ins no Hub runs (best effort: iOS decides when this runs).
+  posted += await checkCheckinsBuiltIn().catch(() => 0);
   await refreshWidgetsInBackground();
   return posted;
 }
@@ -218,7 +229,8 @@ async function alertsFor(system: SystemConfig, state: ReturnType<typeof useApp.g
 
   const lastByCamera: Record<string, number> = {};
   // An event announced as "Package delivered" doesn't also alert as "Package".
-  const matched = selectNotifications(fresh.filter((i) => !pkg.deliveredIds.has(i.id)), state.alerts, lastByCamera);
+  // Learned "not important" alerts and likely rain/wind/headlights stay quiet (smart.ts).
+  const matched = selectNotifications(filterSmart(fresh.filter((i) => !pkg.deliveredIds.has(i.id)), items), state.alerts, lastByCamera);
   // Activity zones: judged by where the objects' feet were, when the system can say. Doorbell
   // rings skip zones; unknown positions never suppress (same as the Hub, bridge/zones.go).
   const unmasked: ReviewItem[] = [];
@@ -375,7 +387,7 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
         cameraId: item.cameraId,
         start: String(Math.floor(item.startTime - 5)),
         reviewId: item.id,
-        ...(ring ? { kind: 'doorbell' } : {}),
+        ...(ring ? { kind: 'doorbell' } : featureData(item, camera)),
       },
       attachments,
       // Rings break through Focus (Time Sensitive entitlement) and open the call screen.

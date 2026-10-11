@@ -6,6 +6,7 @@ import { checkForAlerts, registerBackgroundAlerts, requestNotificationPermission
 import { ruleFor } from '@/alerts/rules';
 import { zoneSupportFor, type ZoneSupport } from '@/alerts/zones';
 import { DoorbellPackagesSection, HealthSection, KnownPeopleSection, LockScreenSection, SnoozedSection } from '@/components/alerts/alert-extras';
+import { SmartAlertsSection } from '@/components/alerts/smart-section';
 import { Button, Chip, Row, Screen, Section, T, TimeStepper, ToggleRow } from '@/components/ui/primitives';
 import { useFamiliar } from '@/familiar/store';
 import { useApp, type CameraAlertRule } from '@/state/store';
@@ -57,6 +58,8 @@ export default function AlertSettings() {
       </Section>
 
       <SnoozedSection entries={entries} />
+
+      <SmartAlertsSection />
 
       <LockScreenSection />
 

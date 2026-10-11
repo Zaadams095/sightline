@@ -69,6 +69,9 @@ type device struct {
 	GrantID string `json:"grantId,omitempty"`
 	// Hub: per-phone key for the encrypted inline thumbnail (legacy pairings use BRIDGE_SECRET).
 	ThumbKey string `json:"thumbKey,omitempty"`
+
+	// Learned quieting and family check-ins (learning.go, checkins.go).
+	deviceSmart
 }
 
 type healthPrefs struct {
@@ -95,6 +98,8 @@ type engine struct {
 	pointsMu sync.Mutex
 	points   map[string][][2]float64 // object id -> pixel foot positions seen so far
 	seenAt   map[string]time.Time
+
+	smart smartEngine // learning.go
 
 	mu       sync.Mutex
 	notified map[string]bool             // deviceID|eventID already pushed
@@ -180,6 +185,9 @@ func pointInPolygon(p pt, poly []pt) bool {
 
 // OnEvent applies every device's rules to a new or updated event and pushes (backend.Sink).
 func (e *engine) OnEvent(r backend.Event) {
+	if e.smartHold(r) {
+		return // re-evaluated in a few seconds (rain/wind/headlights check)
+	}
 	now := time.Now()
 
 	var msgs []pushMessage
@@ -194,7 +202,7 @@ func (e *engine) OnEvent(r backend.Event) {
 			continue
 		}
 		// A doorbell ring is someone asking for attention: zones don't apply (as in the app).
-		if !shouldNotify(d, r, now) || (!isDoorbell(r) && e.zoneBlocked(d, r)) {
+		if !shouldNotify(d, r, now) || (!isDoorbell(r) && e.zoneBlocked(d, r)) || e.smartQuiet(d, r, now) {
 			continue
 		}
 		cams := e.lastCam[d.ID]
@@ -371,6 +379,7 @@ func buildMessage(d device, r backend.Event) pushMessage {
 		m.Title = "Package delivered · " + name
 		m.Data["kind"] = "package"
 	}
+	addAlertFeatures(m.Data, r)
 	return m
 }
 
