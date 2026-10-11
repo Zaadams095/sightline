@@ -45,7 +45,10 @@ export async function finishHubJoin(): Promise<void> {
     st.setAlerts({ mode: 'instant' });
     await requestNotificationPermission().catch(() => false);
     await registerBackgroundAlerts().catch(() => {});
-    st.setOnboarded(true);
+    void syncHubDevices().catch(() => {});
+    // Setup ends with the Face ID offer, which marks onboarding done.
+    router.push('/onboarding/lock');
+    return;
   }
   void syncHubDevices().catch(() => {});
   router.replace('/');

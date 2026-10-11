@@ -24,7 +24,8 @@ export default function OnboardingAlerts() {
     if (!onboarded) setAlerts({ mode: mode === 'instant' && !hasHub ? 'built-in' : mode });
     await requestNotificationPermission();
     await registerBackgroundAlerts();
-    setOnboarded(true);
+    // First-time setup ends by offering the Face ID lock; adding a system later just returns.
+    if (!onboarded) return router.push('/onboarding/lock');
     router.replace('/');
   };
 
