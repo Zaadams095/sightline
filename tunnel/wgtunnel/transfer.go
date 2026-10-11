@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 )
@@ -215,32 +214,12 @@ func DeriveKey(passcode, saltB64 string, iterations int) string {
 // lanHostsFn is swapped in tests (CI machines may have no private address).
 var lanHostsFn = lanHosts
 
-// lanHosts lists the phone's private IPv4 addresses, Wi-Fi (en0) first.
+// lanHosts lists the phone's private IPv4 addresses, Wi-Fi first (see localaddr.go).
 func lanHosts() []string {
-	var wifi, other []string
-	ifaces, _ := net.Interfaces()
-	for _, ifc := range ifaces {
-		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := ifc.Addrs()
-		for _, a := range addrs {
-			ipn, ok := a.(*net.IPNet)
-			if !ok {
-				continue
-			}
-			ip := ipn.IP.To4()
-			if ip == nil || !ip.IsPrivate() {
-				continue
-			}
-			if strings.HasPrefix(ifc.Name, "en0") {
-				wifi = append(wifi, ip.String())
-			} else {
-				other = append(other, ip.String())
-			}
-		}
+	var out []string
+	for _, a := range localAddrs() {
+		out = append(out, a.ip.String())
 	}
-	out := append(wifi, other...)
 	if len(out) > 3 {
 		out = out[:3]
 	}

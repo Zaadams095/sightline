@@ -9,8 +9,18 @@
       "ios": {
         "resourceClass": "default"
       },
+      "android": {
+        "buildType": "app-bundle"
+      },
       "node": "24.16.0",
       "channel": "production"
+    },
+    "preview": {
+      "extends": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {

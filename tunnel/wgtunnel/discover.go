@@ -21,32 +21,18 @@ import (
 func LocalSubnets() string {
 	seen := map[string]bool{}
 	var out []string
-	ifaces, _ := net.Interfaces()
-	for _, ifc := range ifaces {
-		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := ifc.Addrs()
-		for _, a := range addrs {
-			ipn, ok := a.(*net.IPNet)
-			if !ok {
-				continue
-			}
-			ip := ipn.IP.To4()
-			if ip == nil || !ip.IsPrivate() {
-				continue
-			}
-			cidr := net.IPv4(ip[0], ip[1], ip[2], 0).String() + "/24"
-			if !seen[cidr] {
-				seen[cidr] = true
-				out = append(out, cidr)
-			}
+	// Wi-Fi first; on Android the addresses can come from SetLocalAddresses (localaddr.go).
+	for _, a := range localAddrs() {
+		cidr := net.IPv4(a.ip[0], a.ip[1], a.ip[2], 0).String() + "/24"
+		if !seen[cidr] {
+			seen[cidr] = true
+			out = append(out, cidr)
 		}
 	}
-	b, _ := json.Marshal(out)
 	if out == nil {
 		return "[]"
 	}
+	b, _ := json.Marshal(out)
 	return string(b)
 }
 

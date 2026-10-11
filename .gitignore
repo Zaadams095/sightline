@@ -44,6 +44,9 @@ app/android/
 
 # built by scripts/build-tunnel-ios.sh
 app/modules/wg-tunnel/ios/Wgtunnel.xcframework/
+# built by scripts/build-tunnel-android.sh (wgtunnel.aar and its unpacked jar + .so files)
+app/modules/wg-tunnel/android/libs/
+app/modules/*/android/build/
 
 # Claude Code local state (agent worktrees, settings)
 .claude/

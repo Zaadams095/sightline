@@ -1,0 +1,36 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.zachadams.sightline'
+version = '0.1.0'
+
+// The Go tunnel (/tunnel) is built by app/scripts/build-tunnel-android.sh (EAS pre-install
+// hook and .github/workflows/android-compile.yml) into libs/wgtunnel.aar, then unpacked into
+// libs/wgtunnel-classes.jar (Java bindings) and libs/jni/<abi>/libgojni.so. A library module
+// can't depend on a local .aar directly (AGP won't bundle it), so we use the unpacked parts.
+def tunnelJar = file('libs/wgtunnel-classes.jar')
+if (!tunnelJar.exists()) {
+  throw new GradleException(
+    "wg-tunnel: ${tunnelJar} is missing. Build the Go tunnel first: bash app/scripts/build-tunnel-android.sh"
+  )
+}
+
+android {
+  namespace "expo.modules.wgtunnel"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+    consumerProguardFiles 'proguard-rules.pro'
+  }
+  sourceSets {
+    main {
+      jniLibs.srcDirs += ['libs/jni']
+    }
+  }
+}
+
+dependencies {
+  implementation files('libs/wgtunnel-classes.jar')
+}

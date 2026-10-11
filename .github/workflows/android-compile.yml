@@ -1,0 +1,74 @@
+# Free compile check on a GitHub Linux runner before spending an EAS Android build credit.
+# Mirrors the EAS Android build (tunnel .aar, prebuild, Gradle) minus signing and the JS bundle.
+# The runner image already has the Android SDK + NDK (ANDROID_HOME / ANDROID_NDK_HOME set).
+name: Android compile check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'tunnel/**'
+      - '.github/workflows/android-compile.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0 # keep in sync with app/eas.json build.production.node
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tunnel/go.mod
+          cache-dependency-path: tunnel/go.sum
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install JS dependencies (same as EAS)
+        run: npm ci --include=dev
+
+      - name: Build WireGuard tunnel .aar (all ABIs)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME ANDROID_NDK_HOME=${ANDROID_NDK_HOME:-}"
+          EAS_BUILD_PLATFORM=android bash scripts/build-tunnel-android.sh
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -s "modules/wg-tunnel/android/libs/jni/$abi/libgojni.so" || { echo "::error::no libgojni.so for $abi"; exit 1; }
+          done
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install --clean
+
+      # Debug build: compiles every Kotlin/Java/C++ module including wg-tunnel, without
+      # bundling JS. One ABI keeps the React Native C++ build short.
+      - name: Compile app (debug, arm64)
+        working-directory: app/android
+        run: ./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a --no-daemon --stacktrace
+
+      - name: Check the APK carries the tunnel
+        run: |
+          APK=$(ls android/app/build/outputs/apk/debug/*.apk | head -1)
+          echo "Built $APK ($(du -h "$APK" | cut -f1))"
+          unzip -l "$APK" | grep -E 'lib/arm64-v8a/libgojni\.so' || { echo "::error::libgojni.so missing from the APK"; exit 1; }
+          unzip -p "$APK" 'classes*.dex' | grep -aq 'Lwgtunnel/Wgtunnel;' || { echo "::error::wgtunnel Java bindings missing from the APK"; exit 1; }
+          unzip -p "$APK" 'classes*.dex' | grep -aq 'Lexpo/modules/wgtunnel/WgTunnelModule;' || { echo "::error::WgTunnelModule missing from the APK"; exit 1; }
+          echo "Tunnel library and module are in the APK"
