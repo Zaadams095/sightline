@@ -31,7 +31,7 @@ func TestGatewayDigestAuth(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{Name: "session", Value: "abc"})
+		http.SetCookie(w, &http.Cookie{Name: "session", Value: "abc", Path: "/"})
 		b, _ := io.ReadAll(r.Body)
 		fmt.Fprintf(w, "ok %s %s cookie=%s", r.URL.Path, b, r.Header.Get("Cookie"))
 	}))
@@ -56,13 +56,16 @@ func TestGatewayDigestAuth(t *testing.T) {
 		if string(b) != want {
 			t.Fatalf("GET %d: %d %q", i, resp.StatusCode, b)
 		}
-		if resp.Header.Get("Set-Cookie") == "" {
-			t.Error("Set-Cookie should pass through for non-Frigate routes")
+		// Sessions stay inside the gateway (iOS shares one cookie store across loopback ports).
+		if resp.Header.Get("Set-Cookie") != "" {
+			t.Error("Set-Cookie must not reach the phone")
 		}
 	}
 
+	// A cookie the client sends is ignored (it may belong to another system); the
+	// gateway's own session is replayed, and the POST body survives the Digest retry.
 	req, _ := http.NewRequest(http.MethodPost, base+"/cgi-bin/x", strings.NewReader("payload"))
-	req.Header.Set("Cookie", "session=abc")
+	req.Header.Set("Cookie", "session=from-another-system")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)

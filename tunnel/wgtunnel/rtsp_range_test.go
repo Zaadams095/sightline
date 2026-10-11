@@ -38,3 +38,16 @@ func TestPlaybackRangeLeavesLiveAndExistingRangeAlone(t *testing.T) {
 		}
 	}
 }
+
+func TestPlaybackRangeIgnoresOtherFormats(t *testing.T) {
+	for _, q := range []string{"starttime=2026_10_11_14_30_00", "starttime=20261011T143000Z%0D%0AEvil:%201"} {
+		in := "PLAY rtsp://h/cam/playback?channel=1&" + q + " RTSP/1.0\r\nCSeq: 5\r\n\r\n"
+		var out bytes.Buffer
+		if err := copyWithPlaybackRange(&out, strings.NewReader(in)); err != nil {
+			t.Fatal(err)
+		}
+		if out.String() != in {
+			t.Errorf("%s: modified to %q", q, out.String())
+		}
+	}
+}

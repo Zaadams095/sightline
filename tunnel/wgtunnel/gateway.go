@@ -33,6 +33,14 @@ type route struct {
 	token    string
 	tokenExp time.Time
 
+	// Remembered login outcomes so a wrong password or a recorder without logins doesn't
+	// trigger a login attempt on every request (and trip the recorder's rate limit).
+	authFailedUntil time.Time
+	authErr         error
+	authDisabled    bool
+
+	conns *connSet
+
 	// Session cookies for other brands (e.g. UniFi OS's TOKEN), kept per route. They are often
 	// marked Secure, so iOS would never send them back over this plain-HTTP loopback; the
 	// gateway replays them upstream itself, which also covers images and video players.
@@ -52,7 +60,7 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 		return 0, fmt.Errorf("invalid target URL %q", target)
 	}
-	r := &route{target: u, user: user, pass: pass}
+	r := &route{target: u, user: user, pass: pass, conns: newConnSet()}
 	if authKind != "frigate" {
 		r.jar, _ = cookiejar.New(nil) // never fails with nil options
 	}
@@ -74,15 +82,13 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(u)
 			pr.Out.Host = u.Host
-			// Requests come from our own loopback clients; drop browser-origin headers so
-			// Frigate's CSRF / origin checks see a plain API client.
+			// guardLoopback has already verified any Origin is our own; drop browser headers so
+			// the recorder's CSRF / origin checks see a plain API client.
 			pr.Out.Header.Del("Origin")
 			pr.Out.Header.Del("Referer")
-			// Frigate auth is the gateway's Bearer token; other brands keep their own session
-			// cookies (UniFi, Blue Iris), which must pass through.
-			if authKind == "frigate" {
-				pr.Out.Header.Del("Cookie")
-			}
+			// Sessions live in the gateway's per-route jar only. iOS shares one cookie store for
+			// every 127.0.0.1 port, so client cookies could belong to another camera system.
+			pr.Out.Header.Del("Cookie")
 			if r.jar != nil {
 				addJarCookies(pr.Out, r.jar.Cookies(pr.Out.URL))
 			}
@@ -107,14 +113,13 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 			if resp.StatusCode == http.StatusUnauthorized && authKind == "frigate" {
 				r.clearToken()
 			}
-			if authKind == "frigate" {
-				resp.Header.Del("Set-Cookie")
-			}
 			if r.jar != nil && resp.Request != nil {
 				if cs := resp.Cookies(); len(cs) > 0 {
 					r.jar.SetCookies(resp.Request.URL, cs)
 				}
 			}
+			// Never hand session cookies to the phone's shared cookie store (see above).
+			resp.Header.Del("Set-Cookie")
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
@@ -126,8 +131,12 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 	if err != nil {
 		return 0, err
 	}
-	r.server = &http.Server{Handler: proxy, ReadHeaderTimeout: 10 * time.Second}
 	port := ln.Addr().(*net.TCPAddr).Port
+	r.server = &http.Server{
+		Handler:           guardLoopback(port, proxy),
+		ReadHeaderTimeout: 10 * time.Second,
+		ConnState:         r.conns.track,
+	}
 
 	routesMu.Lock()
 	routes[port] = r
@@ -154,6 +163,7 @@ func RemoveRoute(port int) {
 	routesMu.Unlock()
 	if r != nil {
 		r.server.Close()
+		r.conns.closeAll() // includes WebSocket streams, which Close leaves running
 		r.transport.CloseIdleConnections()
 	}
 }
@@ -167,7 +177,9 @@ func Login(port int) string {
 	if r == nil {
 		return "unknown route"
 	}
-	r.clearToken()
+	r.authMu.Lock()
+	r.token, r.authErr, r.authFailedUntil = "", nil, time.Time{}
+	r.authMu.Unlock()
 	if _, err := r.login(context.Background()); err != nil {
 		return err.Error()
 	}
@@ -210,9 +222,22 @@ func (r *route) login(ctx context.Context) (string, error) {
 	if r.token != "" && time.Until(r.tokenExp) > 5*time.Minute {
 		return r.token, nil
 	}
-	if r.user == "" {
-		return "", nil // unauthenticated port (5000)
+	if r.user == "" || r.authDisabled {
+		return "", nil // unauthenticated port (5000) or logins turned off
 	}
+	if time.Now().Before(r.authFailedUntil) {
+		return "", r.authErr
+	}
+	tok, err := r.loginOnce(ctx)
+	if err != nil {
+		// Back off so a wrong password doesn't hammer the recorder on every tile refresh.
+		r.authErr, r.authFailedUntil = err, time.Now().Add(30*time.Second)
+	}
+	return tok, err
+}
+
+// loginOnce performs the POST /api/login exchange. Called with authMu held.
+func (r *route) loginOnce(ctx context.Context) (string, error) {
 	body, _ := json.Marshal(map[string]string{"user": r.user, "password": r.pass})
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -233,7 +258,8 @@ func (r *route) login(ctx context.Context) (string, error) {
 	case http.StatusTooManyRequests:
 		return "", fmt.Errorf("too many login attempts, try again later")
 	case http.StatusNotFound:
-		return "", nil // auth disabled on this Frigate
+		r.authDisabled = true // logins turned off on this Frigate
+		return "", nil
 	default:
 		return "", fmt.Errorf("login failed: HTTP %d", resp.StatusCode)
 	}

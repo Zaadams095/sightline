@@ -4,8 +4,12 @@ import (
 	"bufio"
 	"io"
 	"net/url"
+	"regexp"
 	"strings"
 )
+
+// clockTime is the RTSP "clock" format (e.g. 20261011T143000Z); nothing else may be injected.
+var clockTime = regexp.MustCompile(`^\d{8}T\d{6}(\.\d+)?Z$`)
 
 // copyWithPlaybackRange copies client→camera RTSP traffic, adding a `Range: clock=<start>-`
 // header to PLAY when the request URL carries `starttime=` and has no Range of its own.
@@ -79,7 +83,9 @@ func addRangeHeader(head string) string {
 		return head
 	}
 	start := u.Query().Get("starttime")
-	if start == "" {
+	// Only the "clock" format Range understands (e.g. 20261011T143000Z). Other brands put their
+	// own formats in starttime (Dahua: 2026_10_11_14_30_00) and seek by URL alone.
+	if !clockTime.MatchString(start) {
 		return head
 	}
 	// starttime is already in the device's clock format (e.g. 20261011T143000Z).

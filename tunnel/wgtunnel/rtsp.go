@@ -27,9 +27,12 @@ import (
 
 type rtspSource struct {
 	rawURL    string
+	tls       bool // rtsps: the forwarder must pass the TLS stream through untouched
+	port      int
 	viaTunnel atomic.Bool
 	fwd       net.Listener
 	server    *http.Server
+	conns     *connSet
 }
 
 var (
@@ -37,10 +40,13 @@ var (
 	rtspSources = map[int]*rtspSource{}
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 64 << 10,
-	CheckOrigin:     func(*http.Request) bool { return true }, // loopback only
+// upgrader accepts only our own player page (loopback origin of this listener); see loopback.go.
+func (s *rtspSource) upgrader() *websocket.Upgrader {
+	return &websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 64 << 10,
+		CheckOrigin:     func(r *http.Request) bool { return loopbackOrigin(r.Header.Get("Origin"), s.port) },
+	}
 }
 
 // AddRTSPSource registers an RTSP camera and returns the loopback port serving /api/ws.
@@ -51,10 +57,14 @@ func AddRTSPSource(rawURL string, viaTunnel bool) (int, error) {
 	}
 	target := u.Host
 	if u.Port() == "" {
-		target = net.JoinHostPort(u.Hostname(), "554")
+		defPort := "554"
+		if u.Scheme == "rtsps" {
+			defPort = "322"
+		}
+		target = net.JoinHostPort(u.Hostname(), defPort)
 	}
 
-	s := &rtspSource{rawURL: rawURL}
+	s := &rtspSource{rawURL: rawURL, tls: u.Scheme == "rtsps", conns: newConnSet()}
 	s.viaTunnel.Store(viaTunnel)
 
 	if s.fwd, err = net.Listen("tcp", "127.0.0.1:0"); err != nil {
@@ -67,12 +77,13 @@ func AddRTSPSource(rawURL string, viaTunnel bool) (int, error) {
 		s.fwd.Close()
 		return 0, err
 	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	s.port = port
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/ws", s.serveWS)
-	s.server = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	s.server = &http.Server{Handler: guardLoopback(port, mux), ReadHeaderTimeout: 10 * time.Second, ConnState: s.conns.track}
 	go s.server.Serve(ln) //nolint:errcheck // returns on RemoveRTSPSource
 
-	port := ln.Addr().(*net.TCPAddr).Port
 	rtspMu.Lock()
 	rtspSources[port] = s
 	rtspMu.Unlock()
@@ -96,6 +107,7 @@ func RemoveRTSPSource(port int) {
 	if s != nil {
 		s.server.Close()
 		s.fwd.Close()
+		s.conns.closeAll() // live WebSockets and camera connections
 	}
 }
 
@@ -106,7 +118,9 @@ func (s *rtspSource) forward(target string) {
 		if err != nil {
 			return
 		}
+		s.conns.add(c)
 		go func() {
+			defer s.conns.remove(c)
 			defer c.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			up, err := dial(ctx, "tcp", target, s.viaTunnel.Load())
@@ -116,7 +130,14 @@ func (s *rtspSource) forward(target string) {
 			}
 			defer up.Close()
 			done := make(chan struct{}, 2)
-			go func() { copyWithPlaybackRange(up, c); done <- struct{}{} }()
+			go func() {
+				if s.tls {
+					io.Copy(up, c) // encrypted: can't (and needn't) inspect requests
+				} else {
+					copyWithPlaybackRange(up, c)
+				}
+				done <- struct{}{}
+			}()
 			go func() { io.Copy(c, up); done <- struct{}{} }()
 			<-done
 		}()
@@ -151,7 +172,7 @@ func (w wsWriter) Write(p []byte) (int, error) {
 }
 
 func (s *rtspSource) serveWS(w http.ResponseWriter, r *http.Request) {
-	ws, err := upgrader.Upgrade(w, r, nil)
+	ws, err := s.upgrader().Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
@@ -164,9 +185,15 @@ func (s *rtspSource) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var prod *rtsp.Conn
+	var cons *mp4.Consumer
 	defer func() {
 		if prod != nil {
 			_ = prod.Stop()
+		}
+		// Stopping the consumer unblocks its WriteTo goroutine; without it every closed
+		// stream would leak a goroutine and its muxer.
+		if cons != nil {
+			_ = cons.Stop()
 		}
 	}()
 
@@ -178,19 +205,19 @@ func (s *rtspSource) serveWS(w http.ResponseWriter, r *http.Request) {
 		if msg.Type != "mse" || prod != nil {
 			continue
 		}
-		cons, p, err := s.startMSE(msg.Value)
+		c, p, err := s.startMSE(msg.Value)
 		if err != nil {
 			sendJSON(wsMessage{Type: "error", Value: err.Error()})
 			return
 		}
-		prod = p
-		sendJSON(wsMessage{Type: "mse", Value: mp4.ContentType(cons.Codecs())})
+		prod, cons = p, c
+		sendJSON(wsMessage{Type: "mse", Value: mp4.ContentType(c.Codecs())})
 		go func() {
 			_ = p.Start() // blocks until the stream ends
 			ws.Close()
 		}()
 		go func() {
-			_, _ = cons.WriteTo(wsWriter{mu: &writeMu, conn: ws})
+			_, _ = c.WriteTo(wsWriter{mu: &writeMu, conn: ws})
 			ws.Close()
 		}()
 	}
