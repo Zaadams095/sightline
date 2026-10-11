@@ -1,3 +1,5 @@
+import type { CheckIn } from '@/alerts/checkins';
+import type { Feedback, LearningState } from '@/alerts/learning';
 import type { AlertZones } from '@/alerts/zones';
 import type { AlertMasks, AlertSettings, CameraGroup, CameraMap, GridView, SavedClip } from '@/state/store';
 import type { SystemConfig } from '@/systems/types';
@@ -8,15 +10,32 @@ import type { Appearance } from '@/theme/tokens';
  * it's covered by `npm test`. Used by both the iCloud backup and the phone-to-phone transfer.
  *
  * Included: systems (no passwords), camera order/groups/grid layouts, alert rules, Home/Away,
- * activity zones, map layout, appearance, saved-clip bookmarks.
+ * activity zones, map layout, appearance, saved-clip bookmarks, and smart alerts (what
+ * Sightline learned from "Not important" / "Always tell me", the rain/wind setting, family
+ * check-ins).
  * Never included: video files (offline downloads, the map's background picture), per-device
  * state (push registration marks, snoozes, "at home" right now, app lock, notification
- * bookkeeping). Passwords travel separately: iCloud Keychain, or inside the encrypted transfer.
+ * bookkeeping, check-in progress). Passwords travel separately: iCloud Keychain, or inside the
+ * encrypted transfer.
  */
 
-export const SECTIONS = ['systems', 'layout', 'alerts', 'zones', 'map', 'appearance', 'clips'] as const;
+export const SECTIONS = ['systems', 'layout', 'alerts', 'zones', 'map', 'appearance', 'clips', 'smart'] as const;
 export type SectionName = (typeof SECTIONS)[number];
 export type Sections = Partial<Record<SectionName, unknown>>;
+
+/**
+ * The backed-up part of the smart-alerts store (state/smart.ts). Its `checkinStates` (today's
+ * activity counts, "Mom's fine" taps, what was already notified) are per-device runtime state
+ * and are never included: the new phone, or the Hub, starts watching afresh.
+ */
+export interface SmartSource {
+  learning: LearningState;
+  conditions: boolean;
+  checkins: CheckIn[];
+}
+
+/** Mirrors alerts/learning.ts MAX_FEEDBACK (not imported: this file stays import-free for tests). */
+const MAX_FEEDBACK = 300;
 
 /** The parts of the app state a backup is made from (structurally the persisted store). */
 export interface BackupSource {
@@ -30,6 +49,8 @@ export interface BackupSource {
   cameraMap: CameraMap;
   alertZones: AlertZones;
   savedClips: SavedClip[];
+  /** The smart-alerts store (a separate zustand store; the caller passes it in). */
+  smart: SmartSource;
 }
 
 /** System `extra` keys that describe this phone, not the system. */
@@ -144,6 +165,58 @@ export function extractSections(st: BackupSource): Required<Sections> {
     map: omit(st.cameraMap, ['background']),
     appearance: st.appearance,
     clips: st.savedClips.map((c) => omit(c, ['localUri'])),
+    smart: extractSmart(st.smart),
+  };
+}
+
+/**
+ * Only the user's own choices, field by field (never `checkinStates` or anything added to the
+ * store later by accident). A check-in may hold a phone number ("Call Mom"): that's contact
+ * info the user typed in, like a camera's name, and is fine to back up. Nothing secret lives
+ * here: Hub access is a system token, which travels with the other secrets.
+ */
+function extractSmart(s: SmartSource): SmartSource {
+  return {
+    learning: { feedback: s.learning?.feedback ?? [], confirmed: s.learning?.confirmed ?? [] },
+    conditions: s.conditions !== false,
+    checkins: s.checkins ?? [],
+  };
+}
+
+const feedbackKey = (f: Pick<Feedback, 'id' | 'camera'>) => `${f.camera}\u0000${f.id}`;
+
+/**
+ * Smart alerts from a backup on top of this phone's. On a fresh phone that's simply the
+ * backup. Otherwise nothing this phone has is lost: feedback is merged per alert (one opinion
+ * per event, the most recent wins, as in alerts/learning.ts addFeedback), confirmed rules are
+ * combined, the backup's check-ins replace same-ID ones and check-ins only made here are kept.
+ * Check-in progress (`checkinStates`) isn't touched: it's not in the patch.
+ */
+export function applySmart(backup: unknown, current: SmartSource): SmartSource | null {
+  if (!isObj(backup)) return null;
+  const b = backup as Partial<SmartSource>;
+  const learning = isObj(b.learning) ? (b.learning as Partial<LearningState>) : {};
+  const fb = new Map<string, Feedback>();
+  for (const f of [...(current.learning?.feedback ?? []), ...(Array.isArray(learning.feedback) ? learning.feedback : [])]) {
+    if (!isObj(f) || typeof f.id !== 'string' || typeof f.camera !== 'string' || typeof f.at !== 'number') continue;
+    const prev = fb.get(feedbackKey(f));
+    if (!prev || f.at >= prev.at) fb.set(feedbackKey(f), f);
+  }
+  const feedback = [...fb.values()].sort((x, y) => x.at - y.at).slice(-MAX_FEEDBACK);
+  const confirmed = [
+    ...new Set([...(current.learning?.confirmed ?? []), ...(Array.isArray(learning.confirmed) ? learning.confirmed : [])]),
+  ].filter((k): k is string => typeof k === 'string');
+
+  const incoming = (Array.isArray(b.checkins) ? b.checkins : []).filter(
+    (c): c is CheckIn => isObj(c) && typeof c.id === 'string' && typeof c.systemId === 'string',
+  );
+  const ids = new Set(incoming.map((c) => c.id));
+  const checkins = [...(current.checkins ?? []).filter((c) => !ids.has(c.id)), ...incoming];
+
+  return {
+    learning: { feedback, confirmed },
+    conditions: typeof b.conditions === 'boolean' ? b.conditions : current.conditions,
+    checkins,
   };
 }
 
@@ -170,7 +243,7 @@ export function applySections(
   migrateMasks: MigrateMasks,
 ): Partial<BackupSource> {
   const patch: Partial<BackupSource> = {};
-  const { systems, layout, alerts, zones, masks, map, appearance, clips } = sections;
+  const { systems, layout, alerts, zones, masks, map, appearance, clips, smart } = sections;
 
   if (Array.isArray(systems)) {
     patch.systems = (systems as SystemConfig[]).filter((s) => isObj(s) && typeof s.id === 'string' && typeof s.kind === 'string').map(stripSystem);
@@ -206,6 +279,9 @@ export function applySections(
         return mine ? { ...omit(c, ['localUri']), localUri: mine } : omit(c, ['localUri']);
       });
   }
+  // `patch.smart` belongs to the smart-alerts store, not the main one (backup/restore.ts).
+  const sm = applySmart(smart, current.smart);
+  if (sm) patch.smart = sm;
   return patch;
 }
 
@@ -274,11 +350,20 @@ export function countCameras(sections: Sections): number {
   return keys.size;
 }
 
+/** Family check-ins in a backup. */
+export function countCheckins(sections: Sections): number {
+  const s = isObj(sections.smart) ? (sections.smart as Partial<SmartSource>) : {};
+  return Array.isArray(s.checkins) ? s.checkins.length : 0;
+}
+
 export function summaryText(sections: Sections): string {
   const systems = Array.isArray(sections.systems) ? sections.systems.length : 0;
   const cameras = countCameras(sections);
-  const sys = `${systems} ${systems === 1 ? 'system' : 'systems'}`;
-  return cameras > 0 ? `${sys}, ${cameras} ${cameras === 1 ? 'camera' : 'cameras'}` : sys;
+  const checkins = countCheckins(sections);
+  const parts = [`${systems} ${systems === 1 ? 'system' : 'systems'}`];
+  if (cameras > 0) parts.push(`${cameras} ${cameras === 1 ? 'camera' : 'cameras'}`);
+  if (checkins > 0) parts.push(`${checkins} ${checkins === 1 ? 'check-in' : 'check-ins'}`);
+  return parts.join(', ');
 }
 
 // ---------------------------------------------------------------------------
@@ -385,6 +470,26 @@ export function planUpload(
     }
   }
   return { write, meta: next };
+}
+
+/**
+ * Sections where this phone's copy is newer than the backup's (the same last-writer-wins rule
+ * as planUpload): it has backup history for the section and either changed it since its last
+ * upload (an edit planUpload would stamp "now") or uploaded it after the backup's copy was made.
+ * A phone with no history for a section (a new phone) never counts as newer.
+ */
+export function localNewerSections(
+  localHashes: Partial<Record<SectionName, string>>,
+  meta: UploadMeta,
+  stamps: Partial<Record<SectionName, SectionStamp>>,
+): SectionName[] {
+  return SECTIONS.filter((s) => {
+    const m = meta[s];
+    const r = stamps[s];
+    const hash = localHashes[s];
+    if (!m || !r || hash === undefined || hash === r.hash) return false;
+    return m.hash !== hash || m.updatedAt > r.updatedAt;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -496,19 +601,40 @@ export function utf8Bytes(s: string): number {
 }
 
 /**
- * Keeps the backup inside iCloud's key-value limit: if it's too big, the oldest saved-clip
- * bookmarks are left out first (the only part that grows without bound).
+ * Keeps the backup inside iCloud's key-value limit. If it's too big:
+ * 1. the oldest saved-clip bookmarks are left out first: they're the only part that grows
+ *    without bound, so they're what made it too big;
+ * 2. only if that's still not enough, the oldest alert feedback. Feedback is capped (300
+ *    alerts, 4 months; roughly 100 KB at most) and dropping it quietly changes which alerts the
+ *    new phone stays silent about, so it goes last. Check-ins, confirmed rules and the
+ *    rain/wind setting are tiny and always kept.
  */
-export function fitToBudget(sections: Required<Sections>, budget = KV_BUDGET_BYTES): { sections: Required<Sections>; trimmedClips: number; fits: boolean } {
+export function fitToBudget(
+  sections: Required<Sections>,
+  budget = KV_BUDGET_BYTES,
+): { sections: Required<Sections>; trimmedClips: number; trimmedFeedback: number; fits: boolean } {
   const size = (s: Required<Sections>) => SECTIONS.reduce((n, k) => n + utf8Bytes(JSON.stringify(s[k])) + 200, 0);
-  if (size(sections) <= budget) return { sections, trimmedClips: 0, fits: true };
+  if (size(sections) <= budget) return { sections, trimmedClips: 0, trimmedFeedback: 0, fits: true };
+  const halve = <T>(all: T[], make: (kept: T[]) => Required<Sections>): { out: Required<Sections>; keep: number } => {
+    let keep = all.length;
+    let out = make(all);
+    while (keep > 0) {
+      keep = Math.floor(keep / 2);
+      out = make(all.slice(0, keep));
+      if (size(out) <= budget) break;
+    }
+    return { out, keep };
+  };
+
   const clips = [...((sections.clips as SavedClip[]) ?? [])].sort((a, b) => b.savedAt - a.savedAt);
-  let keep = clips.length;
-  let out = sections;
-  while (keep > 0) {
-    keep = Math.floor(keep / 2);
-    out = { ...sections, clips: clips.slice(0, keep) };
-    if (size(out) <= budget) break;
-  }
-  return { sections: out, trimmedClips: clips.length - keep, fits: size(out) <= budget };
+  const c = halve(clips, (kept) => ({ ...sections, clips: kept }));
+  if (size(c.out) <= budget) return { sections: c.out, trimmedClips: clips.length - c.keep, trimmedFeedback: 0, fits: true };
+
+  const smart = (isObj(sections.smart) ? sections.smart : {}) as Partial<SmartSource>;
+  const feedback = [...(smart.learning?.feedback ?? [])].sort((a, b) => b.at - a.at);
+  const f = halve(feedback, (kept) => ({
+    ...c.out,
+    smart: { ...smart, learning: { ...smart.learning, confirmed: smart.learning?.confirmed ?? [], feedback: [...kept].reverse() } },
+  }));
+  return { sections: f.out, trimmedClips: clips.length - c.keep, trimmedFeedback: feedback.length - f.keep, fits: size(f.out) <= budget };
 }

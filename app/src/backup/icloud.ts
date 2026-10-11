@@ -10,6 +10,7 @@ import {
   KV_PREFIX,
   KV_SUMMARY,
   LEGACY_SECTIONS,
+  localNewerSections,
   planUpload,
   readHeader,
   secretRefs,
@@ -24,6 +25,7 @@ import {
 import { applyBackup, type RestoreResult } from '@/backup/restore';
 import { backupDeviceId, backupHydrated, useBackup } from '@/backup/settings';
 import { copySecretsToCloud, removeCloudSecrets } from '@/state/secrets';
+import { smartBackupSource, smartHydrated, useSmart } from '@/state/smart';
 import { useApp } from '@/state/store';
 import { migrateStreamCredentials } from '@/systems/stream-credentials';
 import { CLOUD_CHANGE, CloudBackup } from '@modules/cloud-backup';
@@ -111,7 +113,9 @@ async function doBackup(): Promise<void> {
     }
   }
 
-  const fit = fitToBudget(extractSections(st));
+  // Never back up the smart-alerts defaults in place of what's still loading from disk.
+  await smartHydrated();
+  const fit = fitToBudget(extractSections({ ...st, smart: smartBackupSource() }));
   const sections = fit.sections;
   const hashes = Object.fromEntries(SECTIONS.map((s) => [s, hashSection(sections[s])])) as Record<SectionName, string>;
   const remote = Object.fromEntries(SECTIONS.map((s) => [s, readHeader(s, kvGet)]));
@@ -166,6 +170,10 @@ export function startCloudBackup(): () => void {
     )
       soon(4000);
   });
+  // Learned feedback, the rain/wind setting and check-ins (not check-in progress: per device).
+  const unsubSmart = useSmart.subscribe((st, prev) => {
+    if (st.learning !== prev.learning || st.conditions !== prev.conditions || st.checkins !== prev.checkins) soon(4000);
+  });
   const unsubBackup = useBackup.subscribe((b, prev) => {
     if (b.enabled && !prev.enabled) soon(300);
   });
@@ -177,6 +185,7 @@ export function startCloudBackup(): () => void {
   return () => {
     if (timer) clearTimeout(timer);
     unsubApp();
+    unsubSmart();
     unsubBackup();
     sub.remove();
   };
@@ -198,7 +207,15 @@ export async function deleteCloudBackup(): Promise<void> {
 
 /** Restores this phone from the iCloud backup. */
 export async function restoreFromCloud(info: CloudBackupInfo): Promise<RestoreResult> {
-  const result = await applyBackup(info.sections);
+  // Smart alerts keep learning on this phone between backups (every "Not important" tap): if
+  // this phone's copy is newer than iCloud's (last writer wins, as for uploads), keep it rather
+  // than rolling it back. The meta below still marks it as changed, so it's uploaded next.
+  await Promise.all([backupHydrated(), smartHydrated()]);
+  const local = fitToBudget(extractSections({ ...useApp.getState(), smart: smartBackupSource() })).sections;
+  const keep = localNewerSections({ smart: hashSection(local.smart) }, useBackup.getState().meta, info.stamps);
+  const sections = { ...info.sections };
+  if (keep.includes('smart')) delete sections.smart;
+  const result = await applyBackup(sections);
   // What's here now *is* the backup: don't upload it again as if it were a new edit.
   const meta = Object.fromEntries(Object.entries(info.stamps).map(([s, st]) => [s, { hash: st.hash, updatedAt: st.updatedAt }]));
   useBackup.getState().set({ meta, restoreDismissed: true, enabled: true });

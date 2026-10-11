@@ -7,6 +7,7 @@ import { makeBundle, type Bundle } from '@/backup/bundle';
 import { applySections, extractSections, secretRefs, SECTIONS, type LegacySections, type SecretRef, type SecretValue, type Sections } from '@/backup/sections';
 import { useBackup } from '@/backup/settings';
 import { pullSecretsFromCloud, readSecrets, SECRET, writeSecrets } from '@/state/secrets';
+import { smartBackupSource, smartHydrated, useSmart } from '@/state/smart';
 import { useApp } from '@/state/store';
 import { migrateStreamCredentials, restoreSnapshotCredentials } from '@/systems/stream-credentials';
 import type { SystemConfig } from '@/systems/types';
@@ -16,8 +17,9 @@ import { WgTunnel } from '@modules/wg-tunnel';
 export async function buildBundle(): Promise<Bundle> {
   // Stream-link passwords travel as secrets, never inside the settings.
   await migrateStreamCredentials();
+  await smartHydrated();
   const st = useApp.getState();
-  const sections = extractSections(st);
+  const sections = extractSections({ ...st, smart: smartBackupSource() });
   const values = await readSecrets(secretRefs(st.systems));
   return makeBundle(sections, values, Device.deviceName ?? undefined);
 }
@@ -43,8 +45,14 @@ function expectedSecrets(systems: SystemConfig[]): (SecretRef & { system: string
  * finishes setup, so the cameras connect as soon as the Live tab opens.
  */
 export async function applyBackup(sections: Sections & LegacySections, received?: SecretValue[]): Promise<RestoreResult> {
-  const before = useApp.getState();
-  useApp.setState(applySections(sections, before, migrateMasks));
+  // A late load of the smart-alerts store from disk would undo the restore: wait for it.
+  await smartHydrated();
+  const { smart, ...patch } = applySections(sections, { ...useApp.getState(), smart: smartBackupSource() }, migrateMasks);
+  useApp.setState(patch);
+  // Learned feedback, the rain/wind setting and check-ins. Changing the store re-syncs them to
+  // the Hub (alerts/bridge.ts watchBridgeSync); the syncHubDevices / syncBridge calls below
+  // cover a restore during first-run setup, before that watcher runs.
+  if (smart) useSmart.setState(smart);
   if (received?.length) await writeSecrets(received);
   await restoreSnapshotCredentials().catch(() => {});
 
