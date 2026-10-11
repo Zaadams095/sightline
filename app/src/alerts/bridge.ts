@@ -2,10 +2,13 @@ import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 
+import type { CheckInState } from '@/alerts/checkins';
+import { hubLearningFor } from '@/alerts/smart';
 import { connectSystem } from '@/net/connection';
 import { secrets } from '@/state/secrets';
 import { WgTunnel } from '@modules/wg-tunnel';
 import { useApp } from '@/state/store';
+import { useSmart } from '@/state/smart';
 import { HubAdapter } from '@/systems/hub';
 import { getAdapter } from '@/systems/registry';
 import type { SystemConfig } from '@/systems/types';
@@ -125,6 +128,9 @@ async function deviceBody(system: SystemConfig, token: string) {
     packageAlerts: st.alerts.packages.enabled,
     atHome: st.alerts.presence.enabled && st.alerts.presence.atHome,
     alertWhenHome: st.alerts.presence.alertWhenHome.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)),
+    // Learned quieting and family check-ins (smart.ts, checkins-run.ts).
+    learning: hubLearningFor(system.id),
+    checkins: useSmart.getState().checkins.filter((c) => c.systemId === system.id),
   };
 }
 
@@ -201,8 +207,45 @@ export function watchBridgeSync() {
     if (syncTimer) clearTimeout(syncTimer);
     syncTimer = setTimeout(() => void syncBridge().catch(() => {}), 1500);
   });
+  // Feedback, learned rules and check-ins live in their own store; Hubs need them too.
+  const unsubSmart = useSmart.subscribe((st, prev) => {
+    if (st.learning === prev.learning && st.conditions === prev.conditions && st.checkins === prev.checkins) return;
+    if (useApp.getState().systems.some((s) => s.kind === 'hub')) syncHubsSoon(1500);
+    const a = useApp.getState().alerts;
+    if (a.mode !== 'instant' || !a.bridge) return;
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => void syncBridge().catch(() => {}), 1500);
+  });
   return () => {
     unsub();
+    unsubSmart();
     if (hubTimer) clearTimeout(hubTimer);
   };
+}
+
+/** The Hub adapter for a Sightline Hub system, or null. */
+async function hubAdapter(systemId: string): Promise<HubAdapter | null> {
+  const system = useApp.getState().systems.find((s) => s.id === systemId);
+  if (!system || system.kind !== 'hub') return null;
+  const adapter = getAdapter(system, await connectSystem(system));
+  return adapter instanceof HubAdapter ? adapter : null;
+}
+
+/** "Mom's fine" on a check-in the Hub (or the Instant Alerts bridge) runs. */
+export async function checkinOkOnHub(systemId: string, checkinId: string): Promise<void> {
+  const id = await deviceId(await pushToken());
+  const hub = await hubAdapter(systemId);
+  if (hub) {
+    await hub.request('POST', `/v1/devices/${id}/checkins/${encodeURIComponent(checkinId)}/ok`);
+    return;
+  }
+  await request('POST', `/devices/${id}/checkins/${encodeURIComponent(checkinId)}/ok`);
+}
+
+/** Today's check-in state as the Hub sees it (for the Check-ins screen), keyed by check-in ID. */
+export async function hubCheckinStates(systemId: string): Promise<Record<string, CheckInState>> {
+  const hub = await hubAdapter(systemId);
+  if (!hub) return {};
+  const id = await deviceId(await pushToken());
+  return (await (await hub.request('GET', `/v1/devices/${id}/checkins`)).json()) as Record<string, CheckInState>;
 }

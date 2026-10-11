@@ -216,6 +216,12 @@ Push registration, same body as the original bridge (`app/src/alerts/bridge.ts`)
 - `thumbKey` encrypts the inline push thumbnail (AES-256-GCM, key `SHA256("sightline-thumb-v1:" + thumbKey)`).
 - The iOS notification extension can also fetch a full frame from the legacy `GET /snapshot/{camera}` with `X-Bridge-Secret: <thumbKey>` (LAN only).
 - Another grant's registration can't be overwritten or deleted (403), except by an owner.
+- Optional `learning` ("fewer false alarms that learn", `bridge/learning.go`, mirrors `app/src/alerts/learning.ts`):
+  `{"feedback": [{"id": "<event>", "at": 1760000000, "verdict": "not-important"|"important", "camera": "driveway", "objects": ["car"], "zones": [], "subLabels": [], "severity": "detection", "hour": "evening", "light": "night", "duration": "short"}], "confirmed": ["driveway|person|night"], "conditions": true, "sun": {"lat": 39.7, "lon": -105.0}}`.
+  The Hub derives the same learned rules as the app and quiets matching alerts (never doorbell rings; person rules only when listed in `confirmed`). `conditions` turns on the rain/wind/headlights check for motion-only events, which holds such events for 10 s before deciding. `sun` is rounded to ~10 km and only used for sunrise/sunset.
+- Optional `checkins` (family check-ins, `bridge/checkins.go`, mirrors `app/src/alerts/checkins.ts`): `[{"id", "enabled", "who": "Mom", "cameras": ["kitchen"], "zones": {}, "peopleOnly": false, "byTime": "10:00", "quietLimitHours": 6, "dayStart": "08:00", "dayEnd": "21:00", "summaryTime": "20:00", "timezone": "America/Chicago", "duringQuietHours": true, "cameraNames": {}}]`. Only cameras the grant can see count. State lives in `checkins.json`, survives restarts (gaps are filled from the recorder's events), and the Hub asks the recorder again before any "no activity" notice. Pushes use category `checkin-<id>`.
+- `GET /v1/devices/{id}/checkins` → today's state per check-in (`firstToday`, `momentsToday`, `lastActivity`, `lastCamera`, …). `POST /v1/devices/{id}/checkins/{cid}/ok` → "Mom's fine" (quiets no-activity notices for the rest of the day and restarts the quiet-spell clock). Legacy: `POST /devices/{id}/checkins/{cid}/ok` with `X-Bridge-Secret`.
+- `GET /v1/info` includes `timezone` (the Hub's IANA zone, from `TZ`) when known; check-in times default to it.
 
 ### Grants: `GET /v1/grants`, `POST /v1/grants`, `DELETE /v1/grants/{id}`, `POST /v1/grants/{id}/invite`
 These require an owner or full grant.

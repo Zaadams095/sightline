@@ -41,6 +41,7 @@ type hub struct {
 	playbacks playbackCache
 	hls       hlsSessions
 	talks     talkProbeCache
+	checkins  *checkinRunner // checkins.go
 
 	mu      sync.RWMutex
 	systems []*system
@@ -82,6 +83,11 @@ func newHub(cfg config, s *store, e *engine, p pusher) (*hub, error) {
 			return nil, fmt.Errorf("settings.json: %w", err)
 		}
 	}
+	if h.checkins, err = openCheckins(cfg.dataDir, s, p); err != nil {
+		return nil, err
+	}
+	h.checkins.allow = h.allowAlert
+	h.checkins.recent = h.recentEvents
 	h.pairing = newPairing(!g.hasOwner())
 	h.remote = newRemote(h)
 	e.snapshot = h.alertSnapshot
@@ -126,6 +132,7 @@ func (h *hub) start(ctx context.Context) {
 	if h.remoteWanted() {
 		h.remote.enable()
 	}
+	go h.checkins.run(ctx, 30*time.Second)
 	go func() {
 		t := time.NewTicker(time.Minute)
 		defer t.Stop()
@@ -141,6 +148,7 @@ func (h *hub) start(ctx context.Context) {
 }
 
 func (h *hub) shutdown() {
+	_ = h.checkins.save()
 	h.grants.flush()
 	h.remote.disable(false)
 }
@@ -279,6 +287,7 @@ func (k *systemSink) OnEvent(e backend.Event) {
 	}
 	e.Detections = dets
 	k.h.engine.OnEvent(e)
+	k.h.checkins.observe(e)
 }
 
 func (k *systemSink) OnPosition(id string, x, y float64) {

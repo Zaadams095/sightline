@@ -55,6 +55,8 @@ export interface HubInfo {
   systems?: { id: string; kind: string; label: string; name: string; capabilities?: HubCapabilities }[];
   capabilities?: HubCapabilities;
   grant?: HubGrant;
+  /** IANA time zone the Hub runs in (newer Hubs, when set). */
+  timezone?: string;
 }
 
 export interface HubInvite {
@@ -416,6 +418,8 @@ function refreshHubConfig(s: SystemConfig, info: HubInfo) {
     hubName: info.name,
     role: info.grant?.role ?? s.extra?.role ?? '',
     expiresAt: info.grant?.expiresAt != null ? String(info.grant.expiresAt) : '',
+    // The Hub's (their house's) time zone: check-in times default to it.
+    timezone: info.timezone ?? s.extra?.timezone ?? '',
   };
   const changed = (Object.keys(extra) as (keyof typeof extra)[]).some((k) => (s.extra?.[k] ?? '') !== extra[k]);
   if (changed) useApp.getState().upsertSystem({ ...s, extra });

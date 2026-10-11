@@ -50,6 +50,8 @@ func (h *hub) routes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /v1/devices/{id}", h.authed(needPush, h.handleDevicePut))
 	mux.HandleFunc("DELETE /v1/devices/{id}", h.authed(needPush, h.handleDeviceDelete))
 	mux.HandleFunc("POST /v1/devices/{id}/test", h.authed(needPush, h.handleDeviceTest))
+	mux.HandleFunc("GET /v1/devices/{id}/checkins", h.authed(needPush, h.handleCheckinStates))
+	mux.HandleFunc("POST /v1/devices/{id}/checkins/{cid}/ok", h.authed(needPush, h.handleCheckinOK))
 
 	mux.HandleFunc("GET /v1/grants", h.authed(needManager, h.handleGrantList))
 	mux.HandleFunc("POST /v1/grants", h.authed(needManager, h.handleGrantCreate))
@@ -146,6 +148,9 @@ func (h *hub) handleInfo(w http.ResponseWriter, r *http.Request) {
 		}
 		out["capabilities"] = capsFor(g, anyCaps(list))
 		out["grant"] = g.view(time.Now())
+		if tz := hubTimezone(); tz != "" {
+			out["timezone"] = tz // check-in times default to the Hub's (their house's) zone
+		}
 		writeJSON(w, http.StatusOK, out)
 	})(w, r)
 }

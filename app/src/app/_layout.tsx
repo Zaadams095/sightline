@@ -9,6 +9,7 @@ import { WebView } from 'react-native-webview';
 
 import { watchBridgeSync } from '@/alerts/bridge';
 import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
+import { watchCheckinCategories } from '@/alerts/checkins-run';
 import { startDoorbellWatch } from '@/alerts/doorbell';
 import { startLiveActivities } from '@/alerts/live-activity';
 import { startLifecycle } from '@/net/connection';
@@ -50,7 +51,10 @@ export default function RootLayout() {
     const stopDoorbell = startDoorbellWatch();
     const stopLive = startLiveActivities();
     const stopWatch = startWatchSync();
+    // "Watch Kitchen" / "Call Mom" / "Mom's fine" buttons for each family check-in.
+    const stopCheckins = watchCheckinCategories();
     return () => {
+      stopCheckins();
       clearTimeout(launchTimer);
       stopBridge();
       stopLifecycle();
@@ -94,6 +98,9 @@ export default function RootLayout() {
             <Stack.Screen name="settings/home-away" options={{ title: 'Home & Away' }} />
             <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />
             <Stack.Screen name="settings/sharing" options={{ title: 'Sharing' }} />
+            <Stack.Screen name="settings/learned" options={{ title: 'What Sightline learned' }} />
+            <Stack.Screen name="settings/checkins" options={{ title: 'Family check-ins' }} />
+            <Stack.Screen name="settings/checkin" options={{ title: 'Check-in' }} />
             {/* Deep links sightline://invite?… and sightline://hub?… redirect to the join screen. */}
             <Stack.Screen name="invite" options={{ headerShown: false }} />
             <Stack.Screen name="hub" options={{ headerShown: false }} />

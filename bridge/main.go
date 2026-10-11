@@ -272,6 +272,9 @@ func api(cfg config, store *store, engine *engine, h *hub) http.Handler {
 		_, _ = w.Write(img)
 	})
 
+	// POST /devices/{id}/checkins/{cid}/ok: "Mom's fine" (check-ins.go).
+	mux.HandleFunc("POST /devices/{id}/checkins/{cid}/ok", authed(legacyCheckinOK(h)))
+
 	// POST /test/{id}: send a test notification to one device.
 	mux.HandleFunc("POST /test/{id}", authed(func(w http.ResponseWriter, r *http.Request) {
 		d, ok := store.get(r.PathValue("id"))

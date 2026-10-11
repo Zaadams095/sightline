@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { checkForAlerts, registerBackgroundAlerts, requestNotificationPermission } from '@/alerts/background';
 import { ruleFor } from '@/alerts/rules';
 import { DoorbellPackagesSection, HealthSection, KnownPeopleSection, LockScreenSection, SnoozedSection } from '@/components/alerts/alert-extras';
+import { SmartAlertsSection } from '@/components/alerts/smart-section';
 import { Button, Chip, Row, Screen, Section, T, TimeStepper, ToggleRow } from '@/components/ui/primitives';
 import { useApp, type CameraAlertRule } from '@/state/store';
 import { useFeatureSupport } from '@/systems/caps';
@@ -53,6 +54,8 @@ export default function AlertSettings() {
       </Section>
 
       <SnoozedSection entries={entries} />
+
+      <SmartAlertsSection />
 
       <LockScreenSection />
 
