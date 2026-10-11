@@ -47,9 +47,36 @@ func New(cfg backend.Config) *Frigate {
 	}
 }
 
+func init() {
+	backend.Register(backend.Descriptor{
+		Kind:        "frigate",
+		Label:       "Frigate",
+		Description: "Frigate NVR, version 0.14 or newer.",
+		Fields: []backend.Field{
+			{Key: backend.FieldURL, Label: "Frigate address", Hint: "192.168.1.10:5000",
+				Help: "Use Frigate's internal port 5000 (not the 8971 login page)."},
+			{Key: backend.FieldMQTTURL, Label: "MQTT broker address", Hint: "192.168.1.10:1883", Optional: true,
+				Section: "Instant alerts (optional)", Scheme: "tcp", DefaultPort: 1883,
+				Help: "The broker Frigate sends its events to. Without it, alerts can't be instant."},
+			{Key: backend.FieldMQTTUser, Label: "MQTT username", Optional: true, Section: "Instant alerts (optional)"},
+			{Key: backend.FieldMQTTPassword, Label: "MQTT password", Optional: true, Section: "Instant alerts (optional)"},
+		},
+		DefaultPorts: []int{5000},
+		New:          func(c backend.Config) (backend.Backend, error) { return New(c), nil },
+		Probe:        func(ctx context.Context, c backend.Config) error { return New(c).Probe(ctx) },
+	})
+}
+
 func (f *Frigate) ID() string    { return f.cfg.ID }
 func (f *Frigate) Kind() string  { return "frigate" }
 func (f *Frigate) Label() string { return "Frigate" }
+
+func (f *Frigate) Capabilities() backend.Capabilities {
+	return backend.Capabilities{
+		Snapshots: true, Events: true, Recordings: true, Clips: true, PTZ: true,
+		Alerts: f.cfg.MQTTURL != "",
+	}
+}
 
 var safeName = regexp.MustCompile(`^[A-Za-z0-9_.\-]+$`)
 

@@ -11,13 +11,14 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"rsc.io/qr"
 
 	"github.com/zachadams/sightline/bridge/backend"
-	"github.com/zachadams/sightline/bridge/backend/frigate"
+	"github.com/zachadams/sightline/bridge/backend/httpx"
 )
 
 // The setup page (GET /) is the Hub's only "settings screen": plain HTML forms, no scripts,
@@ -114,7 +115,58 @@ func sameOrigin(r *http.Request) bool {
 type pageSystem struct {
 	ID, Name, Kind, URL, Status string
 	OK, FromEnv                 bool
-	Events                      bool
+	Alerts                      bool
+}
+
+// pageBrand is one choice under "Add a camera system", with its form fields.
+type pageBrand struct {
+	Kind, Label, Description string
+	Fields                   []pageField
+	Sections                 []pageSection
+}
+
+type pageSection struct {
+	Title  string
+	Fields []pageField
+}
+
+type pageField struct {
+	Name, Label, Hint, Help, Default string
+	InputType, InputMode             string
+	Required                         bool
+}
+
+func pageBrands() ([]pageBrand, bool) {
+	var out []pageBrand
+	onvif := false
+	for _, d := range backend.Descriptors() {
+		onvif = onvif || d.Kind == "onvif"
+		b := pageBrand{Kind: d.Kind, Label: d.Label, Description: d.Description}
+		for _, f := range d.Fields {
+			pf := pageField{Name: "f-" + f.Key, Label: f.Label, Hint: f.Hint, Help: f.Help, Default: f.Default,
+				InputType: "text", Required: !f.Optional && f.Default == ""}
+			switch f.Type {
+			case backend.FieldSecret:
+				pf.InputType = "password"
+			case backend.FieldAddress:
+				pf.InputMode = "url"
+			case backend.FieldNumber:
+				pf.InputMode = "numeric"
+			}
+			if f.Section == "" {
+				b.Fields = append(b.Fields, pf)
+				continue
+			}
+			i := slices.IndexFunc(b.Sections, func(s pageSection) bool { return s.Title == f.Section })
+			if i < 0 {
+				b.Sections = append(b.Sections, pageSection{Title: f.Section})
+				i = len(b.Sections) - 1
+			}
+			b.Sections[i].Fields = append(b.Sections[i].Fields, pf)
+		}
+		out = append(out, b)
+	}
+	return out, onvif
 }
 
 type pageGrant struct {
@@ -137,6 +189,8 @@ type setupData struct {
 	RestartToPair bool
 
 	Systems   []pageSystem
+	Brands    []pageBrand
+	HasONVIF  bool
 	Cameras   int
 	SystemsOK bool
 	NoSystems bool
@@ -242,11 +296,12 @@ func (h *hub) handleSetupPage(w http.ResponseWriter, r *http.Request) {
 		}
 		d.Systems = append(d.Systems, pageSystem{
 			ID: s.cfg.ID, Name: name, Kind: s.b.Label(), URL: s.cfg.URL, Status: status, OK: ok,
-			FromEnv: s.cfg.FromEnv, Events: s.cfg.MQTTURL != "",
+			FromEnv: s.cfg.FromEnv, Alerts: s.b.Capabilities().Alerts,
 		})
 		d.SystemsOK = d.SystemsOK && ok
 	}
 	d.NoSystems = len(d.Systems) == 0
+	d.Brands, d.HasONVIF = pageBrands()
 
 	for _, g := range h.grants.list() {
 		pg := pageGrant{ID: g.ID, Name: g.Name, Kind: roleLabel(g.Role), Detail: grantDetail(g, now)}
@@ -350,46 +405,160 @@ func (h *hub) handleSetupAction(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// normalizeURL accepts "192.168.1.10", "frigate:5000" or a full URL.
-func normalizeURL(raw, scheme string, defPort string) (string, error) {
+// addressCandidates turns a typed address ("192.168.1.10", "nvr.local:8000" or a full URL)
+// into the URLs to try, in order: as typed when it has a port, otherwise one per default port
+// (port 443 means https unless a scheme was typed; the scheme's own port is left out).
+func addressCandidates(raw, scheme string, ports []int) ([]string, error) {
 	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "", nil
+	if scheme == "" {
+		scheme = "http"
 	}
-	if !strings.Contains(raw, "://") {
+	typedScheme := strings.Contains(raw, "://")
+	if !typedScheme {
 		raw = scheme + "://" + raw
 	}
 	u, err := url.Parse(raw)
-	if err != nil || u.Hostname() == "" {
-		return "", fmt.Errorf("%q isn't an address", raw)
+	if err != nil || u.Hostname() == "" || strings.ContainsAny(u.Hostname(), " /") {
+		return nil, fmt.Errorf("%q isn't an address", raw)
 	}
-	if u.Port() == "" && defPort != "" {
-		u.Host = net.JoinHostPort(u.Hostname(), defPort)
+	u.User, u.Path, u.RawQuery, u.Fragment = nil, strings.TrimRight(u.Path, "/"), "", ""
+	if u.Port() != "" || len(ports) == 0 {
+		return []string{u.String()}, nil
 	}
-	u.Path, u.RawQuery, u.Fragment = strings.TrimRight(u.Path, "/"), "", ""
-	return u.String(), nil
+	var out []string
+	for _, p := range ports {
+		c := *u
+		if !typedScheme && p == 443 {
+			c.Scheme = "https"
+		}
+		if (c.Scheme == "http" && p == 443) || (c.Scheme == "https" && p == 80) {
+			continue // the typed scheme rules this port out
+		}
+		if !(c.Scheme == "http" && p == 80) && !(c.Scheme == "https" && p == 443) {
+			c.Host = net.JoinHostPort(u.Hostname(), strconv.Itoa(p))
+		}
+		out = append(out, c.String())
+	}
+	if len(out) == 0 {
+		out = []string{u.String()}
+	}
+	return out, nil
 }
 
-func (h *hub) addSystem(w http.ResponseWriter, r *http.Request) {
-	addr, err := normalizeURL(r.PostFormValue("url"), "http", "5000")
-	if err != nil || addr == "" {
-		redirectBack(w, r, "Enter Frigate's address, for example 192.168.1.10:5000.", true)
-		return
+// normalizeURL is addressCandidates for one default port ("" stays "").
+func normalizeURL(raw, scheme string, defPort int) (string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return "", nil
 	}
-	mqttURL, err := normalizeURL(r.PostFormValue("mqtt_url"), "tcp", "1883")
+	var ports []int
+	if defPort > 0 {
+		ports = []int{defPort}
+	}
+	c, err := addressCandidates(raw, scheme, ports)
 	if err != nil {
-		redirectBack(w, r, "The MQTT address doesn't look right.", true)
+		return "", err
+	}
+	return c[0], nil
+}
+
+// systemForm reads the "Add" form for a brand into a config and the addresses to try.
+func systemForm(d backend.Descriptor, form func(string) string) (backend.Config, []string, error) {
+	cfg := backend.Config{Kind: d.Kind, Name: trimName(form("name"))}
+	var candidates []string
+	for _, f := range d.Fields {
+		v := form("f-" + f.Key)
+		if f.Type != backend.FieldSecret {
+			v = strings.TrimSpace(v)
+		}
+		if v == "" {
+			v = f.Default
+		}
+		if v == "" {
+			if !f.Optional {
+				return cfg, nil, fmt.Errorf("Please fill in %q.", f.Label)
+			}
+			continue
+		}
+		switch f.Type {
+		case backend.FieldNumber:
+			if _, err := strconv.Atoi(v); err != nil {
+				return cfg, nil, fmt.Errorf("%s should be a number.", f.Label)
+			}
+		case backend.FieldAddress:
+			if f.Key == backend.FieldURL {
+				c, err := addressCandidates(v, d.Scheme, d.DefaultPorts)
+				if err != nil {
+					return cfg, nil, fmt.Errorf("%s doesn't look like an address. Try something like %s.", f.Label, hintOr(f.Hint, "192.168.1.64"))
+				}
+				candidates, v = c, c[0]
+			} else {
+				u, err := normalizeURL(v, f.Scheme, f.DefaultPort)
+				if err != nil {
+					return cfg, nil, fmt.Errorf("%s doesn't look like an address. Try something like %s.", f.Label, hintOr(f.Hint, "192.168.1.64"))
+				}
+				v = u
+			}
+		}
+		cfg.Set(f.Key, v)
+	}
+	if len(candidates) == 0 {
+		candidates = []string{cfg.URL}
+	}
+	return cfg, candidates, nil
+}
+
+func hintOr(h, def string) string {
+	if h != "" {
+		return h
+	}
+	return def
+}
+
+// probeTimeout bounds one connection check; probeBudget bounds trying every default port.
+var probeTimeout, probeBudget = 8 * time.Second, 25 * time.Second
+
+func (h *hub) addSystem(w http.ResponseWriter, r *http.Request) {
+	d, ok := backend.Lookup(r.PostFormValue("kind"))
+	if !ok {
+		redirectBack(w, r, "Pick the kind of camera system first.", true)
 		return
 	}
-	cfg := backend.Config{
-		Kind: "frigate", Name: trimName(r.PostFormValue("name")), URL: addr,
-		MQTTURL: mqttURL, MQTTUser: r.PostFormValue("mqtt_user"), MQTTPassword: r.PostFormValue("mqtt_password"),
-		TopicPrefix: "frigate",
+	cfg, candidates, err := systemForm(d, r.PostFormValue)
+	if err != nil {
+		redirectBack(w, r, err.Error(), true)
+		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 6*time.Second)
+	// Try each likely address until one answers; keep the most useful failure (a real answer
+	// such as "wrong password" beats "nothing answered" on another port).
+	ctx, cancel := context.WithTimeout(r.Context(), probeBudget)
 	defer cancel()
-	if err := frigate.New(cfg).Probe(ctx); err != nil {
-		redirectBack(w, r, "Couldn't reach Frigate at "+addr+": "+err.Error()+". Use the address of Frigate's port 5000.", true)
+	var probeErr error
+	failedAt := candidates[0]
+	for _, addr := range candidates {
+		try := cfg
+		if addr != "" {
+			try.URL = addr
+		}
+		pctx, pcancel := context.WithTimeout(ctx, probeTimeout)
+		err := backend.Probe(pctx, try)
+		pcancel()
+		if err == nil {
+			cfg, probeErr = try, nil
+			break
+		}
+		if probeErr == nil || (httpx.Unreachable(probeErr) && !httpx.Unreachable(err)) {
+			probeErr, failedAt = err, addr
+		}
+		if !httpx.Unreachable(err) || ctx.Err() != nil {
+			break
+		}
+	}
+	if probeErr != nil {
+		where := ""
+		if failedAt != "" {
+			where = " at " + failedAt
+		}
+		redirectBack(w, r, "Couldn't connect to "+d.Label+where+": "+sentence(httpx.Explain(probeErr).Error()), true)
 		return
 	}
 	existing := map[string]bool{}
@@ -397,9 +566,9 @@ func (h *hub) addSystem(w http.ResponseWriter, r *http.Request) {
 		existing[c.ID] = true
 	}
 	for n := 1; ; n++ {
-		id := fmt.Sprintf("frigate%d", n)
-		if n == 1 {
-			id = "frigate"
+		id := d.Kind
+		if n > 1 {
+			id = fmt.Sprintf("%s%d", d.Kind, n)
 		}
 		if !existing[id] {
 			cfg.ID = id
@@ -408,7 +577,20 @@ func (h *hub) addSystem(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = h.saveSettings(func(s *hubSettings) { s.Systems = append(s.Systems, cfg) })
 	h.reloadSystems()
-	redirectBack(w, r, "Added "+addr+".", false)
+	name := cfg.Name
+	if name == "" {
+		name = d.Label
+	}
+	redirectBack(w, r, "Added "+name+".", false)
+}
+
+// sentence ends a plain-language fragment with a period.
+func sentence(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || strings.HasSuffix(s, ".") || strings.HasSuffix(s, "?") || strings.HasSuffix(s, "!") {
+		return s
+	}
+	return s + "."
 }
 
 // ---- invite landing page (works over the public link) ----
@@ -450,6 +632,7 @@ button.ghost{background:transparent;color:var(--accent);padding:6px 4px}button.d
 input{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);margin:4px 0 10px}
 label{font-size:14px;color:var(--muted)}details summary{cursor:pointer;color:var(--accent);margin:6px 0}
 code{font-size:15px;word-break:break-all}a{color:var(--accent)}form{margin:0}
+.help{margin:-6px 0 10px}details.brand{border-top:1px solid var(--line);padding:2px 0}details.brand>summary{font-weight:600}
 `
 
 var setupTmpl = template.Must(template.New("setup").Parse(`<!doctype html>
@@ -494,24 +677,27 @@ var setupTmpl = template.Must(template.New("setup").Parse(`<!doctype html>
   <div class="row"><div>
     <div><span class="dot{{if not .OK}} bad{{end}}"></span><b>{{.Name}}</b> <span class="muted small">{{.Kind}}</span></div>
     <div class="small muted"><code>{{.URL}}</code></div>
-    <div class="small">{{.Status}}{{if not .Events}} · instant alerts off (no MQTT){{end}}</div>
+    <div class="small">{{.Status}}{{if not .Alerts}} · instant alerts off{{end}}</div>
   </div>
   {{if .FromEnv}}<span class="small muted">From Hub settings</span>{{else}}
   <form method="post" action="setup/systems/remove"><input type="hidden" name="id" value="{{.ID}}"><button class="danger">Remove</button></form>{{end}}
   </div>
   {{end}}
-  <details{{if .NoSystems}} open{{end}}><summary>Add Frigate</summary>
+  <details{{if .NoSystems}} open{{end}}><summary>Add a camera system</summary>
+  <p class="small muted">Pick what your cameras record to. The Hub needs the same address, username and password you use to sign in to it.</p>
+  {{range .Brands}}
+  <details class="brand"><summary>{{.Label}}</summary>
+  {{if .Description}}<p class="small muted">{{.Description}}</p>{{end}}
   <form method="post" action="setup/systems/add">
-    <label>Frigate address (its port 5000)</label><input name="url" placeholder="192.168.1.10:5000" inputmode="url" autocapitalize="off" required>
-    <label>Name (optional)</label><input name="name" placeholder="Frigate">
-    <details><summary>Instant alerts (MQTT, optional)</summary>
-      <label>MQTT broker address</label><input name="mqtt_url" placeholder="192.168.1.10:1883" autocapitalize="off">
-      <label>MQTT username</label><input name="mqtt_user" autocapitalize="off">
-      <label>MQTT password</label><input name="mqtt_password" type="password">
-    </details>
+    <input type="hidden" name="kind" value="{{.Kind}}">
+    {{range .Fields}}{{template "field" .}}{{end}}
+    <label>Name (optional)</label><input name="name" placeholder="{{.Label}}" maxlength="60">
+    {{range .Sections}}<details><summary>{{.Title}}</summary>{{range .Fields}}{{template "field" .}}{{end}}</details>{{end}}
     <button>Add</button>
   </form></details>
-  <p class="small muted">More brands (Hikvision, Dahua, Reolink, UniFi, ONVIF cameras) are coming.</p>
+  {{end}}
+  {{if .HasONVIF}}<p class="small muted">Brand not listed? Most cameras and recorders also work as <b>Other camera (ONVIF)</b>.</p>{{end}}
+  </details>
 </section>
 
 <section class="card">
@@ -561,7 +747,9 @@ var setupTmpl = template.Must(template.New("setup").Parse(`<!doctype html>
   <form method="post" action="setup/name"><input name="name" value="{{.Name}}" maxlength="60"><button>Save</button></form>
 </section>
 <p class="small muted">Your video never leaves your home except to your own phones.</p>
-</main></body></html>`))
+</main></body></html>
+{{define "field"}}<label>{{.Label}}{{if not .Required}} (optional){{end}}</label><input name="{{.Name}}"{{if ne .InputType "text"}} type="{{.InputType}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Hint}} placeholder="{{.Hint}}"{{end}}{{if .Default}} value="{{.Default}}"{{end}} autocapitalize="off" autocomplete="off"{{if .Required}} required{{end}}>
+{{if .Help}}<div class="small muted help">{{.Help}}</div>{{end}}{{end}}`))
 
 var inviteTmpl = template.Must(template.New("invite").Parse(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

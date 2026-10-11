@@ -1,5 +1,6 @@
 // Package backend defines the brand-neutral contract between the Sightline Hub and the camera
-// systems it wraps (Frigate today; NVR brands and ONVIF cameras later, see todo.go).
+// systems it wraps (Frigate, NVR brands, ONVIF cameras…). Each brand is a package that
+// registers itself (registry.go); todo.go explains how to add one.
 //
 // The Hub's HTTP API (docs/HUB_API.md) only ever talks to this interface, so nothing above a
 // backend knows which brand it is serving. Camera IDs here are the backend's native IDs; the
@@ -110,6 +111,9 @@ type Backend interface {
 	Kind() string
 	// Label is a plain-language name for the setup page and notifications ("Frigate").
 	Label() string
+	// Capabilities says which optional features this system really has, so the app only
+	// shows what works (reported per system in /v1/info).
+	Capabilities() Capabilities
 
 	Cameras(ctx context.Context) ([]Camera, error)
 	Snapshot(ctx context.Context, camera string, height int) (body []byte, contentType string, err error)
@@ -154,6 +158,105 @@ type Config struct {
 	MQTTUser     string `json:"mqttUser,omitempty"`
 	MQTTPassword string `json:"mqttPassword,omitempty"`
 	TopicPrefix  string `json:"topicPrefix,omitempty"`
+	// Extra holds brand-specific settings from the setup page, keyed by the Descriptor's field
+	// keys (e.g. "channels", "rtspPath"). Persisted with the rest of the config.
+	Extra map[string]string `json:"extra,omitempty"`
 	// FromEnv marks the system configured by the container/add-on (not removable on the page).
 	FromEnv bool `json:"-"`
+}
+
+// Get returns a setting by field key: one of the Field* keys (url, username, …) or an Extra key.
+func (c Config) Get(key string) string {
+	switch key {
+	case FieldURL:
+		return c.URL
+	case FieldUsername:
+		return c.Username
+	case FieldPassword:
+		return c.Password
+	case FieldMQTTURL:
+		return c.MQTTURL
+	case FieldMQTTUser:
+		return c.MQTTUser
+	case FieldMQTTPassword:
+		return c.MQTTPassword
+	case FieldTopicPrefix:
+		return c.TopicPrefix
+	}
+	return c.Extra[key]
+}
+
+// Set stores a setting by field key (see Get).
+func (c *Config) Set(key, value string) {
+	switch key {
+	case FieldURL:
+		c.URL = value
+	case FieldUsername:
+		c.Username = value
+	case FieldPassword:
+		c.Password = value
+	case FieldMQTTURL:
+		c.MQTTURL = value
+	case FieldMQTTUser:
+		c.MQTTUser = value
+	case FieldMQTTPassword:
+		c.MQTTPassword = value
+	case FieldTopicPrefix:
+		c.TopicPrefix = value
+	default:
+		if value == "" {
+			delete(c.Extra, key)
+			return
+		}
+		if c.Extra == nil {
+			c.Extra = map[string]string{}
+		}
+		c.Extra[key] = value
+	}
+}
+
+// Capabilities are the optional features a system offers. Live view is always available.
+type Capabilities struct {
+	// Snapshots: Snapshot returns a current frame.
+	Snapshots bool `json:"snapshots"`
+	// Events: Events, Event and EventThumbnail work (the app's timeline and review list).
+	Events bool `json:"events"`
+	// Recordings: Segments plus VOD or Player.Playback work.
+	Recordings bool `json:"recordings"`
+	// Clips: Clip exports an MP4 of any window (download / share).
+	Clips bool `json:"clips"`
+	// PTZ: some cameras can move (each Camera.PTZ still says which).
+	PTZ bool `json:"ptz"`
+	// Alerts: Watch delivers real-time events, so Instant Alerts work.
+	Alerts bool `json:"alerts"`
+}
+
+// Player is optional. Backends whose recorder can't serve HLS VOD (most NVRs replay as an RTSP
+// URL with a start time; UniFi Protect and Reolink hand out MP4 files) implement it instead of
+// VOD, and the Hub then uses it for every recording playback. Return ErrUnsupported to fall
+// back to VOD, ErrNotFound when nothing was recorded at start.
+type Player interface {
+	Playback(ctx context.Context, camera string, start, end float64) (Playback, error)
+}
+
+// Playback is one recorded window. Set exactly one of Live or File.
+//
+// The Hub enforces the caller's grant: it only asks for windows the caller may see, cuts Live
+// streams off at end, and refuses Files that may reach outside a time-limited grant (unless
+// StartTime/EndTime show they don't, or Clip can cut the exact window instead).
+type Playback struct {
+	// Live is a replay stream the Hub restreams to the app exactly like live view (LiveRTSP is
+	// remuxed to fMP4 over the MSE WebSocket; LiveMSE is piped through). It should begin at
+	// start and stop at end (pass both to the recorder).
+	Live *LiveSource
+	// File opens an MP4 the Hub proxies to the app. It is called once per player request
+	// (players fetch byte ranges): pass hdr's Range/If-Range through and return the upstream
+	// response unchanged (200 or 206).
+	File func(ctx context.Context, hdr http.Header) (*http.Response, error)
+	// StartTime is the wall clock (unix seconds) of the first frame when it isn't exactly the
+	// requested start: a file that begins earlier, or a replay whose nearest clip starts later.
+	StartTime float64
+	// EndTime is the wall clock of the last frame, when known (files). Time-limited guests can
+	// only be given a file whose StartTime and EndTime are both inside their window.
+	EndTime float64
 }

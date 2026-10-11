@@ -1,10 +1,76 @@
 /**
  * Pure helpers for the Sightline Hub (no React Native imports, so `npm test` covers them):
- * deep-link parsing, plain-language grant summaries, and sharing date windows.
+ * deep-link parsing, plain-language grant summaries, sharing date windows, and mapping the
+ * Hub's capabilities and playback answers to the app's types.
  * API shapes: docs/HUB_API.md.
  */
 
+import type { PlaybackSource, SystemCapabilities } from './types';
+
 export type HubRole = 'owner' | 'full' | 'household' | 'temporary' | 'live';
+
+/** What the caller can use on a Hub (GET /v1/info `capabilities`, already narrowed by the grant). */
+export interface HubCapabilities {
+  live: boolean;
+  snapshots: boolean;
+  events: boolean;
+  recordings: boolean;
+  clips: boolean;
+  ptz: boolean;
+  /** Instant Alerts can be delivered (newer Hubs). */
+  alerts?: boolean;
+  push: boolean;
+  sharing: boolean;
+}
+
+/**
+ * The app's capabilities for a Hub, from what the Hub reports about its systems (any brand),
+ * never assuming Frigate's features. Before /v1/info has answered: live and snapshots only.
+ */
+export function hubSystemCapabilities(c: HubCapabilities | undefined): SystemCapabilities {
+  return {
+    live: c?.live ?? true,
+    snapshots: c?.snapshots ?? true,
+    review: !!c?.events,
+    events: !!c?.events,
+    ptz: !!c?.ptz,
+    twoWayAudio: false,
+  };
+}
+
+/** GET /v1/recordings/{cam}/playback (docs/HUB_API.md). URLs are relative to the Hub. */
+export interface HubPlayback {
+  kind: 'vod' | 'stream';
+  url?: string;
+  source?: { kind: 'mse' | 'file'; url: string; startTime?: number };
+  start: number;
+  end: number;
+  startTime?: number;
+}
+
+/**
+ * Maps the Hub's playback answer to the player's source. `media` turns a Hub-relative URL into
+ * an absolute one carrying the token (players can't send headers).
+ */
+export function hubPlaybackSource(p: HubPlayback, media: (relative: string) => string): PlaybackSource {
+  if (p.kind === 'stream' && p.source?.kind === 'mse') {
+    const wsUrl = media(p.source.url).replace(/^http/, 'ws');
+    return { kind: 'stream', source: { kind: 'mse', wsUrl }, ...(p.startTime ? { startTime: p.startTime } : {}) };
+  }
+  if (p.kind === 'stream' && p.source?.kind === 'file') {
+    const file = { kind: 'file' as const, uri: media(p.source.url), ...(p.source.startTime ? { startTime: p.source.startTime } : {}) };
+    return { kind: 'stream', source: file };
+  }
+  if (p.kind === 'vod' && p.url) return { kind: 'vod', uri: media(p.url) };
+  throw new Error('The Hub sent a recording this version of Sightline can’t play. Update the app.');
+}
+
+/** Adds `token` to a URL that may already have a query. */
+export function withToken(url: string, token: string | undefined): string {
+  if (!token) return url;
+  if (/[?&]token=/.test(url)) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+}
 export type GuestRole = Exclude<HubRole, 'owner'>;
 
 export interface HubGrant {

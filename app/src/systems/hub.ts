@@ -1,7 +1,17 @@
 import type { SystemLink } from '@/net/connection';
 import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
-import { hubAddresses, type GuestRole, type HubGrant, type HubLink } from '@/systems/hub-links';
+import {
+  hubAddresses,
+  hubPlaybackSource,
+  hubSystemCapabilities,
+  withToken,
+  type GuestRole,
+  type HubCapabilities,
+  type HubGrant,
+  type HubLink,
+  type HubPlayback,
+} from '@/systems/hub-links';
 import type {
   Camera,
   CameraSystemAdapter,
@@ -28,16 +38,7 @@ import { fetchWithTimeout } from '@/util/fetch';
  * media URLs carry the token as `?token=`.
  */
 
-export interface HubCapabilities {
-  live: boolean;
-  snapshots: boolean;
-  events: boolean;
-  recordings: boolean;
-  clips: boolean;
-  ptz: boolean;
-  push: boolean;
-  sharing: boolean;
-}
+export type { HubCapabilities };
 
 export interface HubInfo {
   sightline: 'hub';
@@ -47,7 +48,8 @@ export interface HubInfo {
   paired: boolean;
   lanUrl?: string;
   remoteUrl?: string | null;
-  systems?: { id: string; kind: string; label: string; name: string }[];
+  /** Each wrapped system and what it can do (capabilities: newer Hubs). */
+  systems?: { id: string; kind: string; label: string; name: string; capabilities?: HubCapabilities }[];
   capabilities?: HubCapabilities;
   grant?: HubGrant;
 }
@@ -163,9 +165,9 @@ export class HubAdapter implements CameraSystemAdapter {
     void hubToken(config.id);
   }
 
+  /** What the Hub says its systems can do for this phone (whatever brands are behind it). */
   get capabilities(): SystemCapabilities {
-    const c = this.info?.capabilities;
-    return { live: true, snapshots: true, review: !!c?.events, events: !!c?.events, ptz: !!c?.ptz, twoWayAudio: false };
+    return hubSystemCapabilities(this.info?.capabilities);
   }
 
   get hubName(): string {
@@ -271,12 +273,24 @@ export class HubAdapter implements CameraSystemAdapter {
     );
   }
 
-  /** Seekable HLS for the window (the Hub caps a playlist at 2 h, like Frigate). */
+  /**
+   * Asks the Hub how to play the window (capped at 2 h): seekable HLS for recorders with VOD,
+   * otherwise a replay stream (MSE WebSocket) or the recorder's MP4 file.
+   */
   async playback(cameraId: string, start: number, end: number): Promise<PlaybackSource> {
-    await hubToken(this.config.id);
+    const token = await hubToken(this.config.id);
     const s = Math.floor(start);
     const e = Math.min(Math.ceil(end), s + 7200);
-    return { kind: 'vod', uri: this.mediaUrl(`/v1/recordings/${enc(cameraId)}/vod.m3u8`, { start: s, end: e }) };
+    try {
+      const p = await this.json<HubPlayback>('GET', `/v1/recordings/${enc(cameraId)}/playback${query({ start: s, end: e })}`);
+      return hubPlaybackSource(p, (rel) => withToken(`${this.baseUrl}${rel}`, token));
+    } catch (err) {
+      // Hubs older than the playback route only had HLS VOD (an unknown route is a bare 404).
+      if (err instanceof HubError && err.status === 404 && err.code !== 'not_found') {
+        return { kind: 'vod', uri: this.mediaUrl(`/v1/recordings/${enc(cameraId)}/vod.m3u8`, { start: s, end: e }) };
+      }
+      throw err;
+    }
   }
 
   clip(cameraId: string, start: number, end: number): MediaSource {

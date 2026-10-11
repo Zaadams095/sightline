@@ -2,8 +2,8 @@
 
 The Hub is a small always-on service that connects the Sightline app to your camera system. It gives you:
 
-- **One API for any brand.** The app talks to the Hub the same way whatever is behind it (see [docs/HUB_API.md](../docs/HUB_API.md)). Frigate is supported today. Hikvision, Dahua, Reolink, UniFi Protect and ONVIF backends plug into the same interface (`backend/`, see `backend/todo.go`).
-- **Instant Alerts.** It listens to the system's event stream (Frigate: MQTT), applies each phone's alert rules, and sends a push through the free Expo Push Service with a tiny end-to-end encrypted thumbnail.
+- **One API for any brand.** The app talks to the Hub the same way whatever is behind it (see [docs/HUB_API.md](../docs/HUB_API.md)). Each brand is a small package under `backend/` that registers itself, so the setup page lists every brand this Hub knows and asks only for what that brand needs (usually the address, username and password). Adding a brand is described in `backend/todo.go`.
+- **Instant Alerts.** It listens to each system's event stream (for example Frigate's MQTT), applies each phone's alert rules, and sends a push through the free Expo Push Service with a tiny end-to-end encrypted thumbnail.
 - **Sharing.** Full, Household, Temporary and Live-only access, enforced by the Hub on every request.
 - **Remote access** without port forwarding: one Tailscale sign-in from the setup page, then a public `https://<hub>.<tailnet>.ts.net` link (Tailscale Funnel). TLS ends on the Hub.
 - **A setup page** at `http://<hub-address>:8086`. It has a pairing QR code, camera systems, remote access and who has access. No terminal or config files needed.
@@ -16,7 +16,7 @@ Video only leaves your network to go to phones you've paired or shared with. The
 
 Add `https://github.com/Zaadams095/sightline` under **Settings → Add-ons → Add-on Store → ⋮ → Repositories**. Install **Sightline Hub**, start it, and open its Web UI. See [homeassistant/sightline_hub/DOCS.md](../homeassistant/sightline_hub/DOCS.md).
 
-### Docker Compose (next to Frigate)
+### Docker Compose
 
 ```yaml
 services:
@@ -27,16 +27,15 @@ services:
     ports:
       - "8086:8086"
     environment:
-      FRIGATE_URL: http://frigate:5000   # Frigate's internal port on this compose network
-      MQTT_URL: tcp://mqtt:1883          # the broker Frigate publishes to
-      # MQTT_USER: frigate
-      # MQTT_PASSWORD: change-me
       TZ: America/Denver
+      # Optional, Frigate on the same compose network only (otherwise add it on the setup page):
+      # FRIGATE_URL: http://frigate:5000
+      # MQTT_URL: tcp://mqtt:1883
     volumes:
       - ./sightline-hub:/data
 ```
 
-Then open `http://<this computer's IP>:8086` on any device on your network and follow the page.
+Then open `http://<this computer's IP>:8086` on any device on your network, tap **Add a camera system**, pick your brand and type its address, username and password.
 
 Existing `sightline-bridge` installs keep working unchanged. It's the same image, and `BRIDGE_SECRET` still enables the original `/devices` API. To get the Hub features, open the setup page on port 8086.
 
@@ -47,7 +46,7 @@ Existing `sightline-bridge` installs keep working unchanged. It's the same image
 - **Network type:** `bridge`
 - **Port:** container `8086` → host `8086`
 - **Path:** container `/data` → host `/mnt/user/appdata/sightline-hub`
-- **Variables:** `FRIGATE_URL` = `http://<unraid-ip>:5000` and `MQTT_URL` = `tcp://<unraid-ip>:1883`. Both are optional; you can add Frigate on the setup page instead.
+- **Variables:** none needed. Add your camera system on the setup page. (For Frigate you can optionally set `FRIGATE_URL` = `http://<unraid-ip>:5000` and `MQTT_URL` = `tcp://<unraid-ip>:1883`.)
 
 Then open the WebUI at `http://<unraid-ip>:8086`.
 
@@ -56,7 +55,7 @@ Then open the WebUI at `http://<unraid-ip>:8086`.
 **Registry → search `ghcr.io/zaadams095/sightline-hub`**. Alternatively, create a **Project** with the compose file above.
 - Map local port `8086` to container port `8086`.
 - Map the folder `docker/sightline-hub` to `/data`.
-- Set `FRIGATE_URL` if Frigate runs on the NAS.
+- No variables are needed; add your camera system on the setup page (or set `FRIGATE_URL` if Frigate runs on the NAS).
 
 Then open `http://<nas-ip>:8086`.
 

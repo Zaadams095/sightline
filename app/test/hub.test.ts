@@ -5,6 +5,8 @@ import {
   endsText,
   grantSummary,
   hubAddresses,
+  hubPlaybackSource,
+  hubSystemCapabilities,
   inviteMessage,
   looksLikePairingCode,
   normalizeHubAddress,
@@ -12,6 +14,7 @@ import {
   parseLocalDateTime,
   presetWindow,
   sharedByText,
+  withToken,
   type HubGrant,
 } from '../src/systems/hub-links.ts';
 
@@ -113,4 +116,35 @@ test('invite message carries the links, never a token', () => {
   assert.match(m, /https:\/\/h\.ts\.net\/invite\?code=A/);
   assert.match(m, /sightline:\/\/invite\?code=A/);
   assert.doesNotMatch(m, /slh_/);
+});
+
+test('maps every kind of Hub playback answer to a player source', () => {
+  const media = (rel: string) => withToken(`http://192.168.1.20:8086${rel}`, 'slh_t');
+  assert.deepEqual(hubPlaybackSource({ kind: 'vod', url: '/v1/recordings/front/vod.m3u8?start=1&end=2', start: 1, end: 2 }, media), {
+    kind: 'vod',
+    uri: 'http://192.168.1.20:8086/v1/recordings/front/vod.m3u8?start=1&end=2&token=slh_t',
+  });
+  assert.deepEqual(
+    hubPlaybackSource(
+      { kind: 'stream', source: { kind: 'mse', url: '/v1/recordings/nvr~ch1/playback/stream?start=1&end=2' }, start: 1, end: 2, startTime: 5 },
+      media,
+    ),
+    { kind: 'stream', source: { kind: 'mse', wsUrl: 'ws://192.168.1.20:8086/v1/recordings/nvr~ch1/playback/stream?start=1&end=2&token=slh_t' }, startTime: 5 },
+  );
+  assert.deepEqual(
+    hubPlaybackSource({ kind: 'stream', source: { kind: 'file', url: '/v1/recordings/c/playback/file.mp4?start=1&end=2', startTime: 0.5 }, start: 1, end: 2 }, media),
+    { kind: 'stream', source: { kind: 'file', uri: 'http://192.168.1.20:8086/v1/recordings/c/playback/file.mp4?start=1&end=2&token=slh_t', startTime: 0.5 } },
+  );
+  // A token already in the URL (the Hub echoes ?token= when the request used one) isn't doubled.
+  assert.equal(withToken('https://h.ts.net/x?start=1&token=a', 'a'), 'https://h.ts.net/x?start=1&token=a');
+  assert.equal(withToken('https://h.ts.net/x', 'a b'), 'https://h.ts.net/x?token=a%20b');
+  assert.throws(() => hubPlaybackSource({ kind: 'stream', start: 1, end: 2 }, media), /can’t play/);
+});
+
+test('Hub capabilities come from what the Hub reports, not from Frigate', () => {
+  const none = { live: true, snapshots: true, events: false, recordings: false, clips: false, ptz: false, push: true, sharing: true };
+  assert.deepEqual(hubSystemCapabilities(none), { live: true, snapshots: true, review: false, events: false, ptz: false, twoWayAudio: false });
+  assert.equal(hubSystemCapabilities({ ...none, events: true, ptz: true }).review, true);
+  assert.equal(hubSystemCapabilities({ ...none, snapshots: false }).snapshots, false);
+  assert.deepEqual(hubSystemCapabilities(undefined), { live: true, snapshots: true, review: false, events: false, ptz: false, twoWayAudio: false });
 });

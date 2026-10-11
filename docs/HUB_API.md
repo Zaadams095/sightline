@@ -1,6 +1,6 @@
 # Sightline Hub API v1
 
-This is the brand-neutral API the app's `HubAdapter` (`app/src/systems/hub.ts`) uses. The implementation lives in `bridge/` (`api_v1.go`, `grants.go`, `live.go`, `vod.go`), and the behavior is pinned by `bridge/hub_test.go`. Background is in [PLATFORM.md](PLATFORM.md) §4–5.
+This is the brand-neutral API the app's `HubAdapter` (`app/src/systems/hub.ts`) uses. The implementation lives in `bridge/` (`api_v1.go`, `grants.go`, `live.go`, `vod.go`, `playback.go`), and the behavior is pinned by `bridge/hub_test.go` and `bridge/playback_test.go`. Brands plug in behind it through `bridge/backend` (see `backend/todo.go`). Background is in [PLATFORM.md](PLATFORM.md) §4–5.
 
 - The base URL is the LAN address (`http://192.168.1.20:8086`) or the public Funnel URL (`https://sightline-hub.<tailnet>.ts.net`). It's the same API on both, except `/v1/pair`, which is LAN only.
 - Authentication is `Authorization: Bearer <token>`. Routes used by players that can't set headers (WebSocket, images, HLS, MP4) also accept `?token=<token>`. Every route accepts it.
@@ -60,7 +60,8 @@ Camera and event IDs are the backend's native IDs for the first configured syste
 
 - **Cameras outside the grant** return 404 on every camera, event and recording route, and are filtered out of lists. Asking `/v1/events?cameras=<not granted>` returns `[]`.
 - **Window clamping.** `events` and `segments` queries are clamped to `recordings.from/to`. Events are kept only if they *start* inside the window. Segments are trimmed to it.
-- **`vod.m3u8` and `clip.mp4`.** A request entirely outside the window returns 403. One that partly overlaps is clamped to the overlap. VOD media files (`/vod/{start}/{end}/{file}`) must lie entirely inside the window, which they do when they come from a Hub-issued playlist.
+- **`playback`, `vod.m3u8` and `clip.mp4`.** A request entirely outside the window returns 403. One that partly overlaps is clamped to the overlap. VOD media files (`/vod/{start}/{end}/{file}`) and playback media (`/playback/stream`, `/playback/file.mp4`) must lie entirely inside the window, which they do when they come from a Hub-issued URL.
+- **Replays and recorder files.** Replay streams are cut off at the window's end even if the recorder keeps sending. A recorder file that may begin before or end after a time-limited guest's window is never handed out: the Hub exports exactly the window as `clip.mp4` instead (or answers 403 if the system can't export).
 - **Live-only** grants get 403 on every recordings route.
 - **Expired or revoked** grants get 401 on every route, including WebSockets and media. Revoking also unregisters the guest's phones from push. Alerts check the grant at send time, so an expired guest stops getting alerts immediately.
 
@@ -74,14 +75,15 @@ Without a token, this is the public part, used for discovery and the pairing scr
 With a token, it adds:
 ```json
 {
-  "systems": [{"id": "frigate", "kind": "frigate", "label": "Frigate", "name": "Frigate"}],
+  "systems": [{"id": "frigate", "kind": "frigate", "label": "Frigate", "name": "Frigate",
+               "capabilities": {…same keys as below, for this system only…}}],
   "lanUrl": "http://192.168.1.20:8086",
   "remoteUrl": "https://sightline-hub.tail1234.ts.net" | null,
-  "capabilities": {"live": true, "snapshots": true, "events": true, "recordings": true, "clips": true, "ptz": true, "push": true, "sharing": true},
+  "capabilities": {"live": true, "snapshots": true, "events": true, "recordings": true, "clips": true, "ptz": true, "alerts": true, "push": true, "sharing": true},
   "grant": { …grant… }
 }
 ```
-`capabilities` already reflect the caller's grant.
+`capabilities` combine what the systems can do (each backend reports its own features; top level = at least one system can) with what the caller's grant allows. A brand without an event API reports `events: false`, one without recordings `recordings: false`, and so on; the app hides those features instead of assuming Frigate's. `alerts` means Instant Alerts can be delivered (a system has an event stream); `push` means the grant may register for them. Routes for a feature a system lacks answer 501 `unsupported`.
 
 ### `POST /v1/pair` (LAN only, rate-limited)
 ```json
@@ -117,7 +119,7 @@ This route uses go2rtc's MSE protocol:
 2. The Hub replies `{"type":"mse","value":"<mime>"}`, then sends binary fMP4 fragments.
 3. Errors arrive as `{"type":"error","value":"…"}`.
 
-For Frigate, the Hub pipes Frigate's internal go2rtc (`/live/mse/api/ws?src=<stream>`). For RTSP sources, it restreams with go2rtc's `pkg/rtsp` and `pkg/mp4`.
+For Frigate, the Hub pipes Frigate's internal go2rtc (`/live/mse/api/ws?src=<stream>`). For RTSP sources (NVRs and cameras of every other brand), it restreams with go2rtc's `pkg/rtsp` and `pkg/mp4`.
 
 ### `GET /v1/cameras/{id}/ptz` / `POST /v1/cameras/{id}/ptz`
 `GET` returns `{"canMove": true, "canZoom": false, "presets": ["door"]}`. `POST` takes `{"action": "MOVE_LEFT"}` and returns 204. The actions are `MOVE_UP|MOVE_DOWN|MOVE_LEFT|MOVE_RIGHT|ZOOM_IN|ZOOM_OUT|STOP|preset_<name>`. Moves continue until `STOP`.
@@ -137,6 +139,26 @@ The event's still image. It may be WebP; trust `Content-Type`.
 
 ### `GET /v1/recordings/{cam}/segments?after=&before=`
 Returns `[{"start": 1760000000, "end": 1760000600}]`. Back-to-back files are merged (≤0.5 s gaps), and spans are clamped to the window.
+
+### `GET /v1/recordings/{cam}/playback?start=&end=`
+How to play a recorded window (unix seconds, capped at 2 h, clamped to the grant). Recorders differ: some serve seekable HLS, most NVRs only replay as a live-style stream from a start time, and others hand out whole MP4 files. The app calls this first and plays whatever it says. URLs are relative to the base URL and carry `?token=` only when the request used one.
+```json
+{"kind": "vod", "url": "/v1/recordings/front/vod.m3u8?start=S&end=E", "start": S, "end": E}
+
+{"kind": "stream", "source": {"kind": "mse", "url": "/v1/recordings/front/playback/stream?start=S&end=E"},
+ "start": S, "end": E, "startTime": 1760000012}
+
+{"kind": "stream", "source": {"kind": "file", "url": "/v1/recordings/front/playback/file.mp4?start=S&end=E", "startTime": 1759999800},
+ "start": S, "end": E}
+```
+- `vod`: seekable HLS, exactly as `vod.m3u8` below (Frigate and any backend with HLS VOD).
+- `stream` + `mse`: a WebSocket speaking the same MSE protocol as live view (`/live`). It plays forward from `start`; to seek, ask for a new window. `startTime` (optional) is when the first frame really is, if the recorder's nearest recording starts later.
+- `stream` + `file`: an MP4 (`Range` supported). `source.startTime` (optional) is when the file begins if earlier than `start`: seek to `start − startTime`.
+
+Backends choose by implementing `backend.Player` (RTSP replay or MP4 files) or `VOD` (HLS). 501 when the system has no recordings.
+
+### `GET /v1/recordings/{cam}/playback/stream?start=&end=` (WebSocket) · `GET /v1/recordings/{cam}/playback/file.mp4?start=&end=`
+The media behind a `stream` answer. Only use URLs returned by `playback`.
 
 ### `GET /v1/recordings/{cam}/vod.m3u8?start=&end=`
 Seekable HLS (fMP4) for the window, capped at 2 h, with gaps removed. Every URI in the playlist is rewritten to a relative Hub URL:

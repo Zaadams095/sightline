@@ -50,6 +50,9 @@ func (f *fakeBackend) has(cam string) bool {
 func (f *fakeBackend) ID() string    { return f.id }
 func (f *fakeBackend) Kind() string  { return "fake" }
 func (f *fakeBackend) Label() string { return "Fake NVR" }
+func (f *fakeBackend) Capabilities() backend.Capabilities {
+	return backend.Capabilities{Snapshots: true, Events: true, Recordings: true, Clips: true, PTZ: true}
+}
 func (f *fakeBackend) Cameras(context.Context) ([]backend.Camera, error) {
 	var out []backend.Camera
 	for _, c := range f.cams {

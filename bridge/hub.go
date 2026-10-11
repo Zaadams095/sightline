@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/zachadams/sightline/bridge/backend"
-	"github.com/zachadams/sightline/bridge/backend/frigate"
+	"github.com/zachadams/sightline/bridge/backend/httpx"
 )
 
 // hub holds the wrapped systems, grants, pairing state and remote access.
@@ -37,6 +37,8 @@ type hub struct {
 
 	settingsMu sync.Mutex
 	settings   hubSettings
+
+	playbacks playbackCache
 
 	mu      sync.RWMutex
 	systems []*system
@@ -157,14 +159,9 @@ func (h *hub) systemConfigs() []backend.Config {
 	return out
 }
 
-// newBackend creates a backend for a config. Add new brands here (see backend/todo.go).
+// newBackend creates a backend for a config through the brand registry (brands.go).
 func newBackend(c backend.Config) (backend.Backend, error) {
-	switch c.Kind {
-	case "frigate":
-		return frigate.New(c), nil
-	default:
-		return nil, fmt.Errorf("%s isn't supported yet", c.Kind)
-	}
+	return backend.New(c)
 }
 
 // reloadSystems (re)starts every backend's event stream and health monitor.
@@ -185,7 +182,9 @@ func (h *hub) reloadSystems() {
 	h.mu.Unlock()
 
 	for _, s := range old {
-		s.cancel()
+		if s.cancel != nil {
+			s.cancel()
+		}
 	}
 	for _, s := range cur {
 		ctx, cancel := context.WithCancel(h.ctx)
@@ -244,7 +243,7 @@ func (s *system) setStatus(err error, cameras int) {
 	defer s.statusMu.Unlock()
 	s.checkedAt = time.Now()
 	if err != nil {
-		s.status = "Can't reach it: " + err.Error()
+		s.status = "Can't reach it: " + httpx.Explain(err).Error()
 		return
 	}
 	s.status = fmt.Sprintf("Connected · %d camera%s", cameras, plural(cameras))

@@ -1,6 +1,6 @@
 // sightline-hub (formerly sightline-bridge).
 //
-// The Hub wraps one or more camera systems (Frigate today) behind a single brand-neutral API
+// The Hub wraps one or more camera systems of any registered brand (brands.go) behind a single brand-neutral API
 // (/v1, docs/HUB_API.md) with pairing, shared access (grants), Instant Alerts push, and
 // optional remote access through Tailscale Funnel. A plain setup page is served at /.
 //

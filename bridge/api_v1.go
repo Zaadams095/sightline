@@ -38,6 +38,9 @@ func (h *hub) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/recordings/{cam}/vod.m3u8", h.authed(needRecordings, h.handleVODMaster))
 	mux.HandleFunc("GET /v1/recordings/{cam}/vod/{start}/{end}/{file}", h.authed(needRecordings, h.handleVODFile))
 	mux.HandleFunc("GET /v1/recordings/{cam}/clip.mp4", h.authed(needRecordings, h.handleClip))
+	mux.HandleFunc("GET /v1/recordings/{cam}/playback", h.authed(needRecordings, h.handlePlayback))
+	mux.HandleFunc("GET /v1/recordings/{cam}/playback/stream", h.authed(needRecordings, h.handlePlaybackStream))
+	mux.HandleFunc("GET /v1/recordings/{cam}/playback/file.mp4", h.authed(needRecordings, h.handlePlaybackFile))
 
 	mux.HandleFunc("PUT /v1/devices/{id}", h.authed(needPush, h.handleDevicePut))
 	mux.HandleFunc("DELETE /v1/devices/{id}", h.authed(needPush, h.handleDeviceDelete))
@@ -52,10 +55,11 @@ func (h *hub) routes(mux *http.ServeMux) {
 // ---- info ----
 
 type systemInfo struct {
-	ID    string `json:"id"`
-	Kind  string `json:"kind"`
-	Label string `json:"label"`
-	Name  string `json:"name"`
+	ID           string       `json:"id"`
+	Kind         string       `json:"kind"`
+	Label        string       `json:"label"`
+	Name         string       `json:"name"`
+	Capabilities capabilities `json:"capabilities"`
 }
 
 type capabilities struct {
@@ -65,16 +69,35 @@ type capabilities struct {
 	Recordings bool `json:"recordings"`
 	Clips      bool `json:"clips"`
 	PTZ        bool `json:"ptz"`
-	Push       bool `json:"push"`
-	Sharing    bool `json:"sharing"`
+	// Alerts: Instant Alerts can be delivered (the system has an event stream).
+	Alerts  bool `json:"alerts"`
+	Push    bool `json:"push"`
+	Sharing bool `json:"sharing"`
 }
 
-func capsFor(g *grant) capabilities {
+// capsFor is what the caller can use: the systems' features narrowed by the grant.
+func capsFor(g *grant, sys backend.Capabilities) capabilities {
 	rec := g.canRecordings()
 	return capabilities{
-		Live: true, Snapshots: true, Events: rec, Recordings: rec, Clips: rec,
-		PTZ: g.canPTZ(), Push: g.canPush(), Sharing: g.manager(),
+		Live: true, Snapshots: sys.Snapshots, Events: rec && sys.Events, Recordings: rec && sys.Recordings,
+		Clips: rec && sys.Clips, PTZ: g.canPTZ() && sys.PTZ, Alerts: g.canPush() && sys.Alerts,
+		Push: g.canPush(), Sharing: g.manager(),
 	}
+}
+
+// anyCaps is the union of every system's features (what at least one camera can do).
+func anyCaps(systems []*system) backend.Capabilities {
+	var u backend.Capabilities
+	for _, s := range systems {
+		c := s.b.Capabilities()
+		u.Snapshots = u.Snapshots || c.Snapshots
+		u.Events = u.Events || c.Events
+		u.Recordings = u.Recordings || c.Recordings
+		u.Clips = u.Clips || c.Clips
+		u.PTZ = u.PTZ || c.PTZ
+		u.Alerts = u.Alerts || c.Alerts
+	}
+	return u
 }
 
 func (h *hub) handleInfo(w http.ResponseWriter, r *http.Request) {
@@ -93,12 +116,14 @@ func (h *hub) handleInfo(w http.ResponseWriter, r *http.Request) {
 	h.authed(nil, func(w http.ResponseWriter, r *http.Request) {
 		g := grantFrom(r)
 		systems := []systemInfo{}
-		for _, s := range h.systemList() {
+		list := h.systemList()
+		for _, s := range list {
 			name := s.cfg.Name
 			if name == "" {
 				name = s.b.Label()
 			}
-			systems = append(systems, systemInfo{ID: s.cfg.ID, Kind: s.b.Kind(), Label: s.b.Label(), Name: name})
+			systems = append(systems, systemInfo{ID: s.cfg.ID, Kind: s.b.Kind(), Label: s.b.Label(), Name: name,
+				Capabilities: capsFor(g, s.b.Capabilities())})
 		}
 		out["systems"] = systems
 		out["lanUrl"] = h.lanURL(r)
@@ -107,7 +132,7 @@ func (h *hub) handleInfo(w http.ResponseWriter, r *http.Request) {
 		} else {
 			out["remoteUrl"] = nil
 		}
-		out["capabilities"] = capsFor(g)
+		out["capabilities"] = capsFor(g, anyCaps(list))
 		out["grant"] = g.view(time.Now())
 		writeJSON(w, http.StatusOK, out)
 	})(w, r)
