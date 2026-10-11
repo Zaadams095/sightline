@@ -29,7 +29,7 @@ test('one activity per ring and per camera', () => {
 // copies must stay identical.
 test('Live Activity attributes match between the app module and the widget', () => {
   const extract = (path: string) => {
-    const src = readFileSync(new URL(path, import.meta.url), 'utf8');
+    const src = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     const start = src.indexOf('struct SightlineActivityAttributes');
     assert.ok(start >= 0, path);
     const end = src.indexOf('\n}\n', start);
