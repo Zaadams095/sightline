@@ -28,6 +28,8 @@ func (h *hub) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/cameras", h.authed(nil, h.handleCameras))
 	mux.HandleFunc("GET /v1/cameras/{id}/snapshot.jpg", h.authed(nil, h.handleSnapshot))
 	mux.HandleFunc("GET /v1/cameras/{id}/live", h.authed(nil, h.handleLive))
+	mux.HandleFunc("GET /v1/cameras/{id}/live.m3u8", h.authed(nil, h.handleLiveHLS))
+	mux.HandleFunc("GET /v1/cameras/{id}/hls/{sid}/{file}", h.authed(nil, h.handleLiveHLSFile))
 	mux.HandleFunc("GET /v1/cameras/{id}/ptz", h.authed(needPTZ, h.handlePTZInfo))
 	mux.HandleFunc("POST /v1/cameras/{id}/ptz", h.authed(needPTZ, h.handlePTZ))
 
