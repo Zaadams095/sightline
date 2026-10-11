@@ -557,7 +557,7 @@ type storageXML struct {
 }
 
 // storageHealth reports each disk. A disk that stopped working (status other than ok, idle or
-// standby) can't take recordings, so it's reported as full, with the reason in its name.
+// standby) can't take recordings; it's reported with Problem set.
 func storageHealth(x storageXML) []backend.Storage {
 	var out []backend.Storage
 	for _, d := range x.HDDs {
@@ -566,7 +566,7 @@ func storageHealth(x storageXML) []backend.Storage {
 		switch status {
 		case "ok", "idle", "standby", "sleeping", "":
 		default:
-			out = append(out, backend.Storage{Path: name + ", which has stopped working (" + status + ")", UsedPct: 100})
+			out = append(out, backend.Storage{Path: name, Problem: status})
 			continue
 		}
 		capMB, _ := strconv.ParseFloat(strings.TrimSpace(d.Capacity), 64)

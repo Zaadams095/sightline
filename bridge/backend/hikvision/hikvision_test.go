@@ -428,7 +428,7 @@ func TestHealth(t *testing.T) {
 	if len(hl.Storage) != 2 || hl.Storage[0].UsedPct != 50 || hl.Storage[0].FreeGB < 976 || hl.Storage[0].Path != "Disk 1" {
 		t.Fatalf("storage = %+v", hl.Storage)
 	}
-	if s := hl.Storage[1]; s.UsedPct != 100 || !strings.Contains(s.Path, "stopped working") {
+	if s := hl.Storage[1]; s.Problem == "" || s.Path != "Disk 2" {
 		t.Errorf("failed disk = %+v", s)
 	}
 }

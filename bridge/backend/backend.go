@@ -82,6 +82,9 @@ type Storage struct {
 	Path    string
 	UsedPct int
 	FreeGB  float64
+	// Problem is set when the disk has failed or can't record (the device's own status word);
+	// UsedPct/FreeGB are then meaningless.
+	Problem string
 }
 
 type Health struct {

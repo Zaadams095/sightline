@@ -96,6 +96,14 @@ func (h *healthMonitor) evaluateHealth(report backend.Health, pollErr error) {
 			issues = append(issues, issue{key: "offline:" + cam, camera: cam, title: native + " is offline", body: "No video from this camera."})
 		}
 		for _, s := range report.Storage {
+			if s.Problem != "" {
+				// Always worth a push when health alerts are on, whatever the fullness threshold.
+				issues = append(issues, issue{
+					key: "disk:" + s.Path, title: s.Path + " has stopped working",
+					body: "The recorder can't save video to this disk (" + s.Problem + "). Check it in the recorder's storage settings.",
+				})
+				continue
+			}
 			issues = append(issues, issue{
 				key: "storage:" + s.Path, storagePct: s.UsedPct,
 				title: fmt.Sprintf("Recorder storage is %d%% full", s.UsedPct),

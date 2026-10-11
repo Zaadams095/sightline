@@ -190,7 +190,7 @@ func TestPTZAndHealthParsing(t *testing.T) {
 		"list.info[0].Detail[0].Path=/dev/sda1",
 		"list.info[0].Detail[0].TotalBytes=2000000000000.000000",
 		"list.info[0].Detail[0].UsedBytes=1500000000000.000000")))
-	if fmt.Sprint(disks) != "[{/dev/sda1 75 500}]" {
+	if fmt.Sprint(disks) != "[{/dev/sda1 75 500 }]" {
 		t.Fatalf("disks = %v", disks)
 	}
 }
