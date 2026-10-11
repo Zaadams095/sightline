@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { PackageState } from '@/alerts/packages';
+import { migrateMasks, type AlertZone, type AlertZones } from '@/alerts/zones';
 import type { Severity, SystemConfig } from '@/systems/types';
 import { DEFAULT_APPEARANCE, type Appearance } from '@/theme/tokens';
 
@@ -98,7 +99,10 @@ export interface CameraMap {
   links: CameraLink[];
 }
 
-/** Alert mask polygons per camera, normalized 0–1 points. Detections whose feet fall inside are ignored. */
+/**
+ * Legacy alert masks (app versions before activity zones): polygons to ignore per camera key.
+ * Only read when loading old settings/backups; migrated into `alertZones` (see alerts/zones.ts).
+ */
 export type AlertMasks = Record<string, { x: number; y: number }[][]>;
 
 /** A bookmarked moment, optionally downloaded for offline viewing. */
@@ -144,7 +148,11 @@ interface AppState {
   alerts: AlertSettings;
   security: SecuritySettings;
   cameraMap: CameraMap;
-  masks: AlertMasks;
+  /**
+   * Activity zones per camera key (`${systemId}:${cameraId}`): named polygons, normalized 0–1,
+   * each "alert only here" or "ignore here" for some kinds of objects. See alerts/zones.ts.
+   */
+  alertZones: AlertZones;
   savedClips: SavedClip[];
   /** Health issues already notified (issue key -> unix seconds), cleared when resolved. */
   healthAlerted: Record<string, number>;
@@ -171,7 +179,7 @@ interface AppState {
   setLastNotified(systemId: string, t: number): void;
   setSecurity(p: Partial<SecuritySettings>): void;
   setCameraMap(p: Partial<CameraMap>): void;
-  setMasks(cameraKey: string, polygons: { x: number; y: number }[][]): void;
+  setZones(cameraKey: string, zones: AlertZone[]): void;
   snooze(cameraKey: string, until: number | null): void;
   saveClip(c: SavedClip): void;
   removeClip(id: string): void;
@@ -210,7 +218,7 @@ export const useApp = create<AppState>()(
       lastNotified: {},
       packages: {},
       cameraMap: { aspect: 4 / 3, placements: {}, links: [] },
-      masks: {},
+      alertZones: {},
       security: { lockEnabled: false, method: 'device', biometricsWithPin: true, relockAfterSec: 60, hideAppSwitcherPreview: true },
 
       setOnboarded: (onboarded) => set({ onboarded }),
@@ -274,12 +282,12 @@ export const useApp = create<AppState>()(
       setHealthAlerted: (healthAlerted) => set({ healthAlerted }),
       setPackages: (packages) => set({ packages }),
       setCameraMap: (p) => set((st) => ({ cameraMap: { ...st.cameraMap, ...p } })),
-      setMasks: (key, polygons) =>
+      setZones: (key, zones) =>
         set((st) => {
-          const masks = { ...st.masks };
-          if (polygons.length) masks[key] = polygons;
-          else delete masks[key];
-          return { masks };
+          const alertZones = { ...st.alertZones };
+          if (zones.length) alertZones[key] = zones;
+          else delete alertZones[key];
+          return { alertZones };
         }),
       setSecurity: (p) => set((st) => ({ security: { ...st.security, ...p } })),
       setLastNotified: (systemId, t) =>
@@ -292,10 +300,12 @@ export const useApp = create<AppState>()(
       // Settings saved by older app versions lack newer fields: fill them from defaults
       // one level deep so updates never load half-empty settings objects.
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<AppState>;
+        const { masks, ...p } = (persisted ?? {}) as Partial<AppState> & { masks?: AlertMasks };
         return {
           ...current,
           ...p,
+          // Older versions saved "ignored areas" as masks: they become "ignore here" zones.
+          alertZones: migrateMasks(masks, p.alertZones),
           alerts: { ...current.alerts, ...p.alerts },
           appearance: { ...current.appearance, ...p.appearance },
           security: { ...current.security, ...p.security },

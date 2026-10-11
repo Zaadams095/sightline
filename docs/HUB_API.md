@@ -212,6 +212,7 @@ Push registration, same body as the original bridge (`app/src/alerts/bridge.ts`)
  "atHome": false, "alertWhenHome": [],
  "thumbKey": "<per-phone secret ≥16 chars>"}
 ```
+- `zones` (newer apps): activity zones per camera ID, `[{"id", "name", "mode": "include"|"exclude", "points": [{"x","y"}…], "objects": ["person"|"vehicle"|"animal"|"package"]}]`, points normalized 0..1 from the top-left. Include = "only alert about things here", exclude = "ignore things here"; `objects` empty = anything. Applied to object foot positions (systems that report them; today Frigate), normalized with `detectSizes`; events without positions are never suppressed, and doorbell rings skip zones. When `zones` is present it replaces `masks`; older phones send only `masks` (polygons treated as exclude zones), and newer phones still send their plain exclude zones as `masks` for older Hubs.
 - The device is bound to the caller's grant. Alerts and health notices only cover cameras the grant can see, and only while it's active. Storage and "system down" notices go only to owner, full and household.
 - `thumbKey` encrypts the inline push thumbnail (AES-256-GCM, key `SHA256("sightline-thumb-v1:" + thumbKey)`).
 - The iOS notification extension can also fetch a full frame from the legacy `GET /snapshot/{camera}` with `X-Bridge-Secret: <thumbKey>` (LAN only).

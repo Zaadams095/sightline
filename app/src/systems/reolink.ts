@@ -1,3 +1,4 @@
+import { gridFromZones, type AlertZone } from '@/alerts/zones';
 import { useLinks } from '@/net/connection';
 import { secrets, SECRET } from '@/state/secrets';
 import {
@@ -317,6 +318,47 @@ export class ReolinkAdapter implements CameraSystemAdapter {
         aspect: main?.width && main?.height ? main.width / main.height : 16 / 9,
       };
     });
+  }
+
+  /**
+   * Reolink reports no object positions, but its motion area and (on AI cameras) person /
+   * vehicle / animal areas are an 80×60-ish grid (`scope.table`) the camera itself applies.
+   * Each grid is read first and only rewritten in the same shape; areas the camera doesn't
+   * have are skipped. The motion area is read back to make sure the camera kept it.
+   */
+  async applyZones(cameraId: string, zones: AlertZone[]): Promise<string> {
+    const channel = this.channelOf(cameraId);
+    const done: string[] = [];
+
+    const md = (await this.one('GetMdAlarm', { channel }).catch(() => null))?.MdAlarm;
+    const mdGrid = gridFromZones(md?.scope, zones);
+    if (mdGrid) {
+      await this.one('SetMdAlarm', { MdAlarm: { channel, scope: { cols: mdGrid.cols, rows: mdGrid.rows, table: mdGrid.table } } });
+      const back = (await this.one('GetMdAlarm', { channel }).catch(() => null))?.MdAlarm?.scope?.table;
+      if (back !== mdGrid.table) throw new ReolinkError('The camera didn’t keep the new motion area. Try again, or set it in the Reolink app.');
+      done.push('motion');
+    }
+
+    const ai: [string, string][] = [
+      ['people', 'person'],
+      ['vehicle', 'vehicle'],
+      ['dog_cat', 'animal'],
+    ];
+    for (const [type, label] of ai) {
+      const cur = (await this.one('GetAiAlarm', { channel, ai_type: type }).catch(() => null))?.AiAlarm;
+      const grid = gridFromZones(cur?.scope, zones);
+      if (!grid) continue;
+      const ok = await this.one('SetAiAlarm', { AiAlarm: { channel, ai_type: type, scope: { cols: grid.cols, rows: grid.rows, table: grid.table } } })
+        .then(() => true)
+        .catch(() => false);
+      if (ok) done.push(label);
+    }
+
+    if (!done.length) throw new ReolinkError('This camera didn’t let Sightline change its detection area. You can draw it in the Reolink app instead.');
+    const list = done.length === 1 ? done[0] : `${done.slice(0, -1).join(', ')} and ${done[done.length - 1]}`;
+    return zones.length
+      ? `Saved to the camera. It now only watches the highlighted area for ${list} detection.`
+      : `Saved to the camera. It watches the whole picture again for ${list} detection.`;
   }
 
   private channelOf(cameraId: string): number {

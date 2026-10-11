@@ -1,3 +1,4 @@
+import type { ZoneSupport } from '@/alerts/zones';
 import type { SystemLink } from '@/net/connection';
 import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
@@ -55,6 +56,8 @@ export interface HubInfo {
   systems?: { id: string; kind: string; label: string; name: string; capabilities?: HubCapabilities }[];
   capabilities?: HubCapabilities;
   grant?: HubGrant;
+  /** Optional behaviors of newer Hubs ("zones": enforces activity zones in device rules). */
+  features?: string[];
 }
 
 export interface HubInvite {
@@ -230,6 +233,14 @@ export class HubAdapter implements CameraSystemAdapter {
       aspect: c.aspect || 16 / 9,
       detectSize: c.detectSize ?? undefined,
     }));
+  }
+
+  /**
+   * Zones are enforced by the Hub's alert engine, which knows where objects were only when the
+   * system behind it reports positions (it then publishes a detect size for the camera).
+   */
+  zoneSupport(camera: Camera): ZoneSupport {
+    return camera.detectSize && this.info?.features?.includes('zones') && this.info.capabilities?.push ? 'precise' : false;
   }
 
   snapshot(cameraId: string, opts?: { height?: number }): MediaSource {

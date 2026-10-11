@@ -119,6 +119,8 @@ func (h *hub) handleInfo(w http.ResponseWriter, r *http.Request) {
 		"version":    version,
 		"apiVersion": 1,
 		"paired":     h.grants.hasOwner(),
+		// Optional behaviors newer apps can rely on ("zones": activity zones in device rules).
+		"features": []string{"zones"},
 	}
 	tok := requestToken(r)
 	if tok == "" {

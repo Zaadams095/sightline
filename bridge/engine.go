@@ -45,7 +45,10 @@ type device struct {
 	DefaultRule rule              `json:"defaultRule"`
 	Rules       map[string]rule   `json:"rules"` // keyed by camera ID
 	CameraNames map[string]string `json:"cameraNames"`
+	// Masks are the older "ignore here" polygons per camera (newer phones still send them for
+	// older Hubs); Zones (zones.go) supersede them when present.
 	Masks       map[string][][]pt `json:"masks"`
+	Zones       map[string][]zone `json:"zones,omitempty"`
 	DetectSizes map[string]size   `json:"detectSizes"`
 	QuietHours  quietHours        `json:"quietHours"`
 	CooldownSec int64             `json:"cooldownSec"`
@@ -125,7 +128,7 @@ func (e *engine) handle(payload []byte) {
 	}
 }
 
-// OnPosition records where each tracked object's feet were, for alert masks (backend.Sink).
+// OnPosition records where each tracked object's feet were, for activity zones (backend.Sink).
 func (e *engine) OnPosition(id string, x, y float64) {
 	e.pointsMu.Lock()
 	defer e.pointsMu.Unlock()
@@ -142,37 +145,23 @@ func (e *engine) OnPosition(id string, x, y float64) {
 	}
 }
 
-// masked reports whether every known position of the event's objects is inside a mask.
-func (e *engine) masked(d device, r backend.Event) bool {
-	polys := d.Masks[r.Camera]
+// zoneBlocked reports whether the camera's activity zones rule the event out, judged by where
+// its objects' feet were (see zones.go). Unknown positions never block.
+func (e *engine) zoneBlocked(d device, r backend.Event) bool {
+	zones := d.zonesFor(r.Camera)
 	sz, ok := d.DetectSizes[r.Camera]
-	if len(polys) == 0 || !ok || sz.Width == 0 || sz.Height == 0 {
+	if len(zones) == 0 || !ok || sz.Width == 0 || sz.Height == 0 {
 		return false
 	}
 	e.pointsMu.Lock()
-	defer e.pointsMu.Unlock()
 	var pts []pt
 	for _, id := range r.Detections {
 		for _, p := range e.points[id] {
 			pts = append(pts, pt{p[0] / sz.Width, p[1] / sz.Height})
 		}
 	}
-	if len(pts) == 0 {
-		return false
-	}
-	for _, p := range pts {
-		inside := false
-		for _, poly := range polys {
-			if pointInPolygon(p, poly) {
-				inside = true
-				break
-			}
-		}
-		if !inside {
-			return false
-		}
-	}
-	return true
+	e.pointsMu.Unlock()
+	return !zonesAllow(zones, r.Objects, pts)
 }
 
 func pointInPolygon(p pt, poly []pt) bool {
@@ -204,7 +193,8 @@ func (e *engine) OnEvent(r backend.Event) {
 		if e.allow != nil && !e.allow(d, r.Camera) {
 			continue
 		}
-		if !shouldNotify(d, r, now) || e.masked(d, r) {
+		// A doorbell ring is someone asking for attention: zones don't apply (as in the app).
+		if !shouldNotify(d, r, now) || (!isDoorbell(r) && e.zoneBlocked(d, r)) {
 			continue
 		}
 		cams := e.lastCam[d.ID]

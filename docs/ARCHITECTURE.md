@@ -121,11 +121,15 @@ Rules: per camera, object label, zone, severity (alert/detection), quiet hours, 
 - The VOD window is ±30 min around the playhead and re-centers on seek. Wall↔player time mapping skips recording gaps (`util/vod-time.ts`).
 - Share exports this event, 30 s or 2 min to MP4 (`/api/<cam>/start/<s>/end/<e>/clip.mp4`) and opens the iOS share sheet.
 
-## Alert masks
+## Activity zones (alert zones)
 
-- Polygons are drawn per camera on a snapshot (`settings/masks`).
-- An alert is suppressed only if every observed foot position of its objects is inside a mask; unknown positions never suppress.
-- Built-in alerts use Frigate `path_data` or the box from `/api/events/<id>`. The bridge tracks boxes from MQTT `frigate/events`, normalized with the camera's detect size, which the app syncs.
+- One model for "only alert me about the driveway" and the older "ignore this area" masks: `alertZones` in the store (`app/src/alerts/zones.ts`), per camera key, each `{id, name, mode: 'include'|'exclude', points (0..1), objects}`. Old `masks` are migrated to exclude zones when settings load (`migrateMasks`, idempotent; also usable on restored backups).
+- Drawn on the live picture (snapshot fallback) in `settings/zones`: tap points, drag handles, undo, presets.
+- Per camera, `zoneSupportFor` says how zones can work:
+  - `precise`: the system reports where objects were (Frigate direct: `path_data` / box; a Hub camera with a detect size: the Hub tracks MQTT boxes). Alerts are filtered by the objects' foot points: exclude zones drop events whose objects never left them; with include zones, an object must have been inside one that's about its kind. Unknown positions never suppress; doorbell rings skip zones.
+  - `device`: no positions, but Sightline can write the area to the camera's own motion detection (Reolink `SetMdAlarm` / `SetAiAlarm` scope grid, read-modify-write). Per-zone object choices don't apply there.
+  - `false`: the screen explains that this recorder can't tell Sightline where things happened.
+- Instant Alerts: zones go to the Hub in the device body (`zones`, plus plain exclude zones as legacy `masks`), enforced in `bridge/zones.go`.
 
 ## Rich notifications
 

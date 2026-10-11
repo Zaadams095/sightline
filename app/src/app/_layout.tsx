@@ -89,7 +89,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings/grid" options={{ title: 'Grid layouts' }} />
             <Stack.Screen name="settings/groups" options={{ title: 'Camera groups' }} />
             <Stack.Screen name="settings/bridge" options={{ title: 'Instant Alerts' }} />
-            <Stack.Screen name="settings/masks" options={{ title: 'Ignored areas' }} />
+            <Stack.Screen name="settings/zones" options={{ title: 'Alert zones', presentation: 'fullScreenModal' }} />
             <Stack.Screen name="settings/diagnostics" options={{ title: 'Connection check' }} />
             <Stack.Screen name="settings/home-away" options={{ title: 'Home & Away' }} />
             <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />

@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { checkForAlerts, registerBackgroundAlerts, requestNotificationPermission } from '@/alerts/background';
 import { ruleFor } from '@/alerts/rules';
+import { zoneSupportFor, type ZoneSupport } from '@/alerts/zones';
 import { DoorbellPackagesSection, HealthSection, KnownPeopleSection, LockScreenSection, SnoozedSection } from '@/components/alerts/alert-extras';
 import { Button, Chip, Row, Screen, Section, T, TimeStepper, ToggleRow } from '@/components/ui/primitives';
 import { useApp, type CameraAlertRule } from '@/state/store';
@@ -108,7 +109,7 @@ export default function AlertSettings() {
                 custom={custom}
                 onChange={(r) => setRule(camera.key, r)}
                 onReset={() => setRule(camera.key, null)}
-                canMask={!!adapter.detectionPoints}
+                zones={zoneSupportFor(adapter, camera)}
               />
             )}
           </Section>
@@ -135,14 +136,14 @@ function RuleEditor({
   custom,
   onChange,
   onReset,
-  canMask,
+  zones,
 }: {
   camera: Camera;
   rule: CameraAlertRule;
   custom: boolean;
   onChange: (r: CameraAlertRule) => void;
   onReset: () => void;
-  canMask: boolean;
+  zones: ZoneSupport;
 }) {
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const severities: { v: Severity; label: string }[] = [
@@ -180,11 +181,12 @@ function RuleEditor({
           </View>
         </>
       )}
-      {canMask ? (
-        <MaskButton cameraKey={camera.key} />
+      {zones ? (
+        <ZonesButton cameraKey={camera.key} />
       ) : (
         <T v="caption" muted>
-          To ignore part of this camera’s view (like the street), set up motion zones in the camera’s or recorder’s own app.
+          This recorder can’t tell Sightline where things happened in the picture, so alert zones can’t work for this camera. To
+          ignore part of its view (like the street), set a motion area in the camera’s or recorder’s own app.
         </T>
       )}
       {custom && <Button title="Use default rule" kind="ghost" onPress={onReset} />}
@@ -192,13 +194,13 @@ function RuleEditor({
   );
 }
 
-function MaskButton({ cameraKey }: { cameraKey: string }) {
-  const count = useApp((s) => s.masks[cameraKey]?.length ?? 0);
+function ZonesButton({ cameraKey }: { cameraKey: string }) {
+  const count = useApp((s) => s.alertZones[cameraKey]?.length ?? 0);
   return (
     <Button
-      title={count ? `Ignored areas (${count})` : 'Ignore an area of the picture'}
+      title={count ? `Alert zones (${count})` : 'Alert zones: only part of the picture'}
       kind="secondary"
-      onPress={() => router.push({ pathname: '/settings/masks', params: { key: cameraKey } })}
+      onPress={() => router.push({ pathname: '/settings/zones', params: { key: cameraKey } })}
     />
   );
 }

@@ -6,7 +6,7 @@ import * as TaskManager from 'expo-task-manager';
 
 import { ACTION_WATCH, DOORBELL_CATEGORY, openDoorbell, registerDoorbellCategory, ringParamsFrom } from '@/alerts/doorbell';
 import { endEvent, showEvent, showRing } from '@/alerts/live-activity';
-import { isMasked } from '@/alerts/masks';
+import { zonesAllow } from '@/alerts/zones';
 import {
   ACTION_GOT_IT,
   packageHandled,
@@ -206,11 +206,15 @@ async function alertsFor(system: SystemConfig, state: ReturnType<typeof useApp.g
   const lastByCamera: Record<string, number> = {};
   // An event announced as "Package delivered" doesn't also alert as "Package".
   const matched = selectNotifications(fresh.filter((i) => !pkg.deliveredIds.has(i.id)), state.alerts, lastByCamera);
-  // Drop items whose objects stayed entirely inside the camera's alert masks.
+  // Activity zones: judged by where the objects' feet were, when the system can say. Doorbell
+  // rings skip zones; unknown positions never suppress (same as the Hub, bridge/zones.go).
   const unmasked: ReviewItem[] = [];
   for (const item of matched) {
-    const masks = state.masks[`${item.systemId}:${item.cameraId}`];
-    if (masks?.length && adapter.detectionPoints && isMasked(await adapter.detectionPoints(item).catch(() => []), masks)) continue;
+    const zones = state.alertZones[`${item.systemId}:${item.cameraId}`];
+    if (zones?.length && !isDoorbell(item) && adapter.detectionPoints) {
+      const points = await adapter.detectionPoints(item).catch(() => []);
+      if (!zonesAllow(zones, item.objects, points)) continue;
+    }
     unmasked.push(item);
   }
   const selected = unmasked.slice(-MAX_PER_RUN);
