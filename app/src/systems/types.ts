@@ -155,11 +155,13 @@ export type LiveSource =
  * Recorded video for a time window.
  * - vod: seekable HLS of the whole window (gaps removed; mapped with recordingSegments()).
  * - stream: plays forward from the window start; seeking asks for a new window. Whole files
- *   that begin earlier carry their own `startTime` (see PlaybackFile).
+ *   that begin earlier carry their own `startTime` (see PlaybackFile). A live-style source
+ *   (RTSP/MJPEG replay) that can't begin exactly at the requested time (the nearest clip
+ *   starts later) sets `startTime` to when its first frame really is.
  */
 export type PlaybackSource =
   | { kind: 'vod'; uri: string }
-  | { kind: 'stream'; source: LiveSource | PlaybackFile };
+  | { kind: 'stream'; source: LiveSource | PlaybackFile; startTime?: number };
 
 /**
  * A recorded file (MP4) played from its beginning. Recorders that store whole files (one per

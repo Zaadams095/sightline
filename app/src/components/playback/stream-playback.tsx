@@ -45,7 +45,7 @@ export function StreamPlayback({ adapter, cameraId, start, paused, rate, onWall,
         releaseLiveUrl(s.url);
         throw new Error('Cancelled');
       }
-      return { kind: 'live' as const, live, rtspUrl: s.kind === 'rtsp' ? s.url : undefined };
+      return { kind: 'live' as const, live, begin: pb.startTime ?? start, rtspUrl: s.kind === 'rtsp' ? s.url : undefined };
     },
     staleTime: Infinity,
     // The restreamer is released on unmount, so never reuse a cached source afterwards.
@@ -88,7 +88,7 @@ export function StreamPlayback({ adapter, cameraId, start, paused, rate, onWall,
       />
     );
   }
-  return <LiveStream key={`${start}`} live={source.data.live} start={start} onWall={onWall} onPlaying={onPlaying} />;
+  return <LiveStream key={`${start}`} live={source.data.live} start={source.data.begin} onWall={onWall} onPlaying={onPlaying} />;
 }
 
 /** MP4/HLS file: wall clock = file start + position; opens at the requested moment. */

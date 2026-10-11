@@ -219,6 +219,8 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
     const offsetMs = Math.max(0, Math.round((start - clip.start) * 1000));
     return {
       kind: 'stream',
+      // The nearest clip may start after `start` (a gap); the clock follows the clip.
+      startTime: Math.max(start, clip.start),
       source: {
         kind: 'mjpeg',
         uri: this.media(`/file/clips/${encodeURIComponent(clip.path)}`, { mode: 'mjpeg', speed: 100, time: offsetMs }),

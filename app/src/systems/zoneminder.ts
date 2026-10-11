@@ -344,6 +344,7 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
     // JPEG-stored events replay as MJPEG from the right frame.
     return {
       kind: 'stream',
+      startTime: Math.max(start, e.start),
       source: {
         kind: 'mjpeg',
         uri: this.authed(
