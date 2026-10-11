@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Platform, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { confirmRemoveDemo, offerSampleAlert } from '@/components/demo-banner';
 import { Row, Screen, Section, StatusDot, T } from '@/components/ui/primitives';
+import { PRIVACY_URL, SUPPORT_URL } from '@/config';
 import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
@@ -139,7 +141,8 @@ export default function SettingsScreen() {
 
       <Section title={L.privacy}>
         <Row label={L.appLock} detail={L.appLockDetail} onPress={() => router.push('/settings/security')} />
-        <Row label={L.crashData} detail={L.crashDataDetail} onPress={() => router.push('/settings/crash-data')} last />
+        <Row label={L.crashData} detail={L.crashDataDetail} onPress={() => router.push('/settings/crash-data')} />
+        <Row label={L.privacyPolicy} detail={L.privacyPolicyDetail} onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)} last />
       </Section>
 
       <Section title={L.backup}>
@@ -147,7 +150,8 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title={L.help}>
-        <Row label={L.report} detail={L.reportDetail} onPress={() => router.push('/settings/report')} last />
+        <Row label={L.report} detail={L.reportDetail} onPress={() => router.push('/settings/report')} />
+        <Row label={L.supportSite} detail={L.supportSiteDetail} onPress={() => void WebBrowser.openBrowserAsync(SUPPORT_URL)} last />
       </Section>
 
       {systems.length > 0 && (

@@ -53,9 +53,9 @@ const alertSettings: typeof en = {
     onHeading: 'Alertas instantáneas activadas',
     ready: 'Listo para activar',
     explainOne: (hub) =>
-      `${hub} vigila tus cámaras y envía una notificación corta (por ejemplo, «Persona · Puerta principal») en menos de un segundo. Las fotos y los vídeos se quedan en casa; la app los carga cuando tocas la notificación.`,
+      `${hub} vigila tus cámaras y envía una notificación corta (por ejemplo, «Persona · Puerta principal») en menos de un segundo. Los vídeos se quedan en casa. El texto de la notificación y su pequeña foto de vista previa van cifrados para que solo tu teléfono pueda leerlos; Apple, Google y el servicio de notificaciones solo ven «Actividad en tus cámaras».`,
     explainMany:
-      'Tus Sightline Hubs vigilan tus cámaras y envían una notificación corta (por ejemplo, «Persona · Puerta principal») en menos de un segundo. Las fotos y los vídeos se quedan en casa; la app los carga cuando tocas la notificación.',
+      'Tus Sightline Hubs vigilan tus cámaras y envían una notificación corta (por ejemplo, «Persona · Puerta principal») en menos de un segundo. Los vídeos se quedan en casa. El texto de la notificación y su pequeña foto de vista previa van cifrados para que solo tu teléfono pueda leerlos; Apple, Google y el servicio de notificaciones solo ven «Actividad en tus cámaras».',
     turnOn: 'Activar Alertas instantáneas',
     chooseWhat: 'Elegir qué me avisa',
     needHub: 'Las Alertas instantáneas necesitan un Sightline Hub',
@@ -161,7 +161,7 @@ const alertSettings: typeof en = {
   homeAway: {
     title: 'En casa y fuera',
     intro:
-      'Cuando estás en casa, Sightline silencia las alertas salvo las de las cámaras que elijas abajo (como el timbre). Tu ubicación se queda en tu teléfono; solo se comparte «en casa» o «fuera» con tu puente de Alertas instantáneas.',
+      'Cuando estás en casa, Sightline silencia las alertas salvo las de las cámaras que elijas abajo (como el timbre). La ubicación exacta de tu casa se queda en tu iPhone (y en tu propia copia de iCloud, si la tienes activada). Tu Sightline Hub o tu puente de Alertas instantáneas solo sabe si estás en casa o fuera, y una zona aproximada (unos 10 km) para saber cuándo anochece.',
     gettingLocation: 'Obteniendo ubicación…',
     setHome: 'Estoy en casa: guardar como casa',
     status: 'Estado',

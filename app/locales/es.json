@@ -7,9 +7,9 @@
     "NSSpeechRecognitionUsageDescription": "Sightline convierte tu pregunta hablada en texto en tu iPhone. Tu voz nunca sale de tu teléfono.",
     "NSFaceIDUsageDescription": "Usa Face ID para desbloquear tus cámaras.",
     "NSPhotoLibraryUsageDescription": "Elige un plano o un mapa para colocar tus cámaras, o fotos de personas y vehículos para que Sightline los reconozca en este iPhone.",
-    "NSLocationWhenInUseUsageDescription": "Indica dónde está tu casa para que Sightline pueda silenciar las alertas mientras estás en ella.",
-    "NSLocationAlwaysAndWhenInUseUsageDescription": "Sightline usa tu ubicación solo para saber cuándo llegas a casa o sales, y así silenciar las alertas mientras estás allí. Tu ubicación nunca sale de tu teléfono.",
-    "NSLocationAlwaysUsageDescription": "Sightline usa tu ubicación solo para saber cuándo llegas a casa o sales, y así silenciar las alertas mientras estás allí. Tu ubicación nunca sale de tu teléfono.",
+    "NSLocationWhenInUseUsageDescription": "Indica dónde está tu casa para que Sightline pueda silenciar las alertas mientras estás en ella. El lugar exacto se queda en tu iPhone (y en tu propia copia de iCloud).",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "Sightline usa tu ubicación solo para saber cuándo llegas a casa o sales, y así silenciar las alertas mientras estás allí. El lugar exacto de tu casa se queda en tu iPhone (y en tu propia copia de iCloud); tu Sightline Hub solo sabe si estás en casa o fuera y una zona aproximada, de unos 10 km.",
+    "NSLocationAlwaysUsageDescription": "Sightline usa tu ubicación solo para saber cuándo llegas a casa o sales, y así silenciar las alertas mientras estás allí. El lugar exacto de tu casa se queda en tu iPhone (y en tu propia copia de iCloud); tu Sightline Hub solo sabe si estás en casa o fuera y una zona aproximada, de unos 10 km.",
     "NSMotionUsageDescription": "Permite que Sightline detecte tu actividad de movimiento."
   }
 }

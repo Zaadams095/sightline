@@ -16,7 +16,7 @@ const settings: typeof en = {
     deleteBody:
       'Isso remove do iCloud seus ajustes do Sightline e as senhas das câmeras, e desativa o backup. Tudo continua neste celular.',
     icloudFooter:
-      'Seus gravadores, a ordem das câmeras, grupos, layouts e ajustes de alertas ficam salvos no seu próprio iCloud, e as senhas das câmeras no Porta-chaves do iCloud. Um iPhone novo conectado à sua Conta Apple se configura sozinho a partir deles. Os vídeos nunca são enviados, e o Sightline não tem servidores próprios.',
+      'Seus gravadores, a ordem das câmeras, grupos, layouts e ajustes de alertas (inclusive a localização da sua casa para Em casa e fora) ficam salvos no seu próprio iCloud, e as senhas das câmeras no Porta-chaves do iCloud. Um iPhone novo conectado à sua Conta Apple se configura sozinho a partir deles. Os vídeos nunca são enviados, e o Sightline não tem servidores próprios.',
     backUpToICloud: 'Backup no iCloud',
     backUpNow: 'Fazer backup agora',
     deleteBackup: 'Apagar backup do iCloud',

@@ -7,7 +7,7 @@ const onboarding: typeof en = {
   welcome: {
     addTitle: 'Rekorder oder Kamera hinzufügen',
     heroTitle: 'Deine Kameras.\nDein Netzwerk.',
-    intro: 'Live schauen, Aufnahmen ansehen und Meldungen bekommen – direkt von deinem eigenen System. Nichts läuft über die Cloud.',
+    intro: 'Live schauen, Aufnahmen ansehen und Meldungen bekommen – direkt von deinem eigenen System. Kein Sightline-Konto und keine Sightline-Cloud dazwischen.',
     findCameras: 'Meine Kameras finden',
     findCamerasDetail: 'Sightline sucht in deinem WLAN zu Hause und findet Kameras und Rekorder für dich.',
     pickBrand: 'Kameramarke auswählen',

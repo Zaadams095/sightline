@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { setupChannels } from '@/alerts/channels';
 import { legacyMasks } from '@/alerts/zones';
 import type { CheckInState } from '@/alerts/checkins';
+import { canOpenSealedAlerts } from '@/alerts/reveal';
 import { ENC_MSG_CAP } from '@/alerts/sealed';
 import { hubLearningFor } from '@/alerts/smart';
 import { getLocale, subscribeLocale, tr } from '@/i18n';
@@ -129,10 +130,11 @@ async function deviceBody(system: SystemConfig, token: string) {
     // 'ios' | 'android': Android phones get data-only pushes the app's own push service shows
     // (bridge/push.go forDevice, app/modules/android-notify).
     platform: Platform.OS === 'android' ? 'android' : 'ios',
-    // This app opens end-to-end sealed alert text (alerts/sealed.ts): the Hub then shows Apple,
-    // Expo (and Google) only "Activity on your cameras" (bridge/seal.go). Older apps don't send
-    // it. Not from Android yet: see docs/ANDROID.md, "Sealed alert text".
-    caps: Platform.OS === 'ios' ? [ENC_MSG_CAP] : [],
+    // This app opens end-to-end sealed alert text (iOS notification extension, Android's
+    // android-notify, alerts/sealed.ts): the Hub then shows Apple, Google and Expo only
+    // "Activity on your cameras" (bridge/seal.go). Older apps and builds don't send it and get
+    // plaintext.
+    caps: canOpenSealedAlerts() ? [ENC_MSG_CAP] : [],
     defaultRule: st.alerts.defaultRule,
     rules,
     cameraNames,

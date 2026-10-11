@@ -7,9 +7,9 @@
     "NSSpeechRecognitionUsageDescription": "Sightline transforme votre question parlée en texte sur votre iPhone. Votre voix ne quitte jamais votre téléphone.",
     "NSFaceIDUsageDescription": "Utilisez Face ID pour déverrouiller vos caméras.",
     "NSPhotoLibraryUsageDescription": "Choisissez un plan ou une carte pour y placer vos caméras, ou des photos de personnes et de véhicules que Sightline reconnaîtra sur cet iPhone.",
-    "NSLocationWhenInUseUsageDescription": "Indiquez où se trouve votre maison pour que Sightline puisse couper les alertes quand vous y êtes.",
-    "NSLocationAlwaysAndWhenInUseUsageDescription": "Sightline utilise votre position uniquement pour savoir quand vous arrivez chez vous ou en partez, afin de couper les alertes quand vous y êtes. Elle ne quitte jamais votre téléphone.",
-    "NSLocationAlwaysUsageDescription": "Sightline utilise votre position uniquement pour savoir quand vous arrivez chez vous ou en partez, afin de couper les alertes quand vous y êtes. Elle ne quitte jamais votre téléphone.",
+    "NSLocationWhenInUseUsageDescription": "Indiquez où se trouve votre maison pour que Sightline puisse couper les alertes quand vous y êtes. L’emplacement exact reste sur votre iPhone (et dans votre propre sauvegarde iCloud).",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "Sightline utilise votre position uniquement pour savoir quand vous arrivez chez vous ou en partez, afin de couper les alertes quand vous y êtes. L’emplacement exact de votre domicile reste sur votre iPhone (et dans votre propre sauvegarde iCloud) ; votre Sightline Hub sait seulement si vous êtes chez vous ou absent, et une zone approximative d’environ 10 km.",
+    "NSLocationAlwaysUsageDescription": "Sightline utilise votre position uniquement pour savoir quand vous arrivez chez vous ou en partez, afin de couper les alertes quand vous y êtes. L’emplacement exact de votre domicile reste sur votre iPhone (et dans votre propre sauvegarde iCloud) ; votre Sightline Hub sait seulement si vous êtes chez vous ou absent, et une zone approximative d’environ 10 km.",
     "NSMotionUsageDescription": "Autorisez Sightline à détecter votre activité physique."
   }
 }

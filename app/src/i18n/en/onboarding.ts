@@ -8,7 +8,7 @@ const onboarding = {
   welcome: {
     addTitle: 'Add a recorder or camera',
     heroTitle: 'Your cameras.\nYour network.',
-    intro: 'Watch live, look back at recordings and get alerts, straight from your own system. Nothing goes through the cloud.',
+    intro: 'Watch live, look back at recordings and get alerts, straight from your own system. No Sightline account, and no Sightline cloud in between.',
     findCameras: 'Find my cameras',
     findCamerasDetail: 'Sightline looks around your home Wi-Fi and finds cameras and recorders for you.',
     pickBrand: 'Pick your camera brand',

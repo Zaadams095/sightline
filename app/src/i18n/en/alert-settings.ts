@@ -56,9 +56,9 @@ const alertSettings = {
     onHeading: 'Instant Alerts are on',
     ready: 'Ready to turn on',
     explainOne: (hub: string) =>
-      `${hub} watches your cameras and sends a short notification (for example, “Person · Front Door”) within a second. Pictures and video stay at home; the app loads them when you tap the notification.`,
+      `${hub} watches your cameras and sends a short notification (for example, “Person · Front Door”) within a second. Video stays at home. The notification’s words and its small preview picture are encrypted so only your phone can read them; Apple, Google and the push service only see “Activity on your cameras”.`,
     explainMany:
-      'Your Sightline Hubs watch your cameras and send a short notification (for example, “Person · Front Door”) within a second. Pictures and video stay at home; the app loads them when you tap the notification.',
+      'Your Sightline Hubs watch your cameras and send a short notification (for example, “Person · Front Door”) within a second. Video stays at home. The notification’s words and its small preview picture are encrypted so only your phone can read them; Apple, Google and the push service only see “Activity on your cameras”.',
     turnOn: 'Turn on Instant Alerts',
     chooseWhat: 'Choose what alerts me',
     needHub: 'Instant Alerts need a Sightline Hub',
@@ -169,7 +169,7 @@ const alertSettings = {
   homeAway: {
     title: 'Home & Away',
     intro:
-      'When you’re home, Sightline quiets alerts except from the cameras you choose below (like the doorbell). Your location stays on your phone; only “home” or “away” is shared with your Instant Alerts bridge.',
+      'When you’re home, Sightline quiets alerts except from the cameras you choose below (like the doorbell). Your home’s exact location stays on your iPhone (and in your own iCloud backup, if it’s on). Your Sightline Hub or Instant Alerts bridge only learns whether you’re home or away, plus a rough area (about 10 km) to know when it’s dark.',
     gettingLocation: 'Getting location…',
     setHome: 'I’m home now: set this as home',
     status: 'Status',

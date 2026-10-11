@@ -887,7 +887,7 @@ App Store Connect → App Privacy. Apple's definitions
 | Data | Leaves the phone? | Collected (Apple's sense)? | Reasoning |
 | --- | --- | --- | --- |
 | Video, pictures, audio (Talk) | To the user's own cameras/Hub only | **No** | Never reaches us or a partner. |
-| Push notification text (camera name, detected objects, recognized names) | Hub → Expo → APNs | **Arguably no** (see below) | Expo doesn't store contents "longer than it takes to deliver them" ([Expo FAQ](https://docs.expo.dev/push-notifications/faq/)): that's "necessary to service the request in real time". Thumbnail is end-to-end encrypted. |
+| Push notification text (camera name, detected objects, recognized names) | Hub → Expo → APNs/FCM, **end-to-end encrypted** (`bridge/seal.go`); only generic text ("Activity on your cameras") is readable | **No** (see below) | Partners only see ciphertext they can't open; thumbnail is encrypted too. Older Hubs/apps still send readable text, which Expo doesn't store "longer than it takes to deliver" ([Expo FAQ](https://docs.expo.dev/push-notifications/faq/)). |
 | Push token + Expo installation ID | App → Expo (only when a Hub is added) | **Yes, probably: Identifiers → Device ID** | Expo keeps the token mapping for as long as the token is used, so pushes can be routed. That's longer than real time, by a partner whose SDK is in the app. |
 | EAS Update installation ID ("EAS client ID") | App → Expo, every launch, every user | **Yes, probably: Identifiers → Device ID** | A random, stable per-install ID kept by Expo to count updated users for billing ([Expo: EAS client ID](https://docs.expo.dev/eas/observe/reference/client-id/)). |
 | Home location | Rounded (0.1°) to the user's Hub; exact to own iCloud | **No** | Neither place is accessible to us or a partner. |
@@ -899,13 +899,13 @@ App Store Connect → App Privacy. Apple's definitions
 
 ### The two judgment calls
 
-**1. Push text through Expo.** Readable alert text does pass through a partner. But Expo holds it
-only in memory and queues until it's handed to Apple/Google, which is exactly Apple's "necessary
-to service the transmitted request in real time" carve-out, so it doesn't meet the definition of
-"collected". (Apple's own APNs is the platform, not a partner.) **Recommendation: don't declare
-push contents**, and keep the privacy policy's plain explanation (section 4) that alert text
-isn't end-to-end encrypted. If you later encrypt the whole push (see the release notes), this
-question disappears.
+**1. Push text through Expo.** Current Hubs and apps encrypt the alert text end to end
+(`bridge/seal.go`): Expo, Apple and Google only see generic text ("Activity on your cameras") and
+ciphertext, so there's nothing readable to collect. A Hub or app that hasn't been updated still
+sends readable text, but Expo holds it only in memory and queues until it's handed to
+Apple/Google, which is Apple's "necessary to service the transmitted request in real time"
+carve-out. (Apple's own APNs is the platform, not a partner.) **Recommendation: don't declare
+push contents**; the privacy policy (section 4) explains both cases.
 
 **2. Identifiers held by Expo.** Both the push token mapping and the EAS client ID are random
 installation identifiers that a partner keeps beyond real time. They're not linked to a person,

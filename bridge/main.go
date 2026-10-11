@@ -5,8 +5,8 @@
 // optional remote access through Tailscale Funnel. A plain setup page is served at /.
 //
 // Instant Alerts: it subscribes to each system's event stream (Frigate: MQTT frigate/reviews),
-// applies the notification rules each phone syncs to it, and sends a text-only push through
-// the Expo Push Service with a tiny end-to-end encrypted thumbnail.
+// applies the notification rules each phone syncs to it, and sends a short push through
+// the Expo Push Service, its words and tiny thumbnail end-to-end encrypted (seal.go).
 //
 // The original bridge API (/devices, /snapshot, /test with X-Bridge-Secret) still works when
 // BRIDGE_SECRET is set, so existing installs keep running unchanged.

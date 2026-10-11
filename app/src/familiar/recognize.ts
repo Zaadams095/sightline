@@ -20,6 +20,7 @@ import {
   type ProcessedEntry,
   type Sighting,
 } from '@/familiar/store';
+import { ensureFamiliarDir, excludeGroupPathFromBackup } from '@/familiar/storage';
 import { objectKind } from '@/stories/group';
 import type { MediaSource, ReviewItem } from '@/systems/types';
 import { AppGroup } from '@modules/app-group';
@@ -39,7 +40,9 @@ const SNAPSHOT_FRESH_SEC = 90;
 
 const keyOf = (item: { systemId: string; id: string }) => `${item.systemId}:${item.id}`;
 
+/** Crop pictures, in the familiar folder that's kept out of backups (familiar/storage.ts). */
 function cropsDir(): Directory {
+  ensureFamiliarDir();
   return new Directory(Paths.document, FAMILIAR_CROPS_DIR);
 }
 
@@ -366,5 +369,7 @@ export async function syncGallery(): Promise<void> {
   };
   try {
     await AppGroup.writeText('familiar/gallery.json', JSON.stringify(gallery));
+    // Feature prints: never in iCloud or computer backups of the iPhone.
+    await excludeGroupPathFromBackup('familiar');
   } catch {}
 }

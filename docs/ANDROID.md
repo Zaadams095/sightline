@@ -75,8 +75,23 @@ title, text, channel and button category inside `data` (`slTitle`, `slBody`, `sl
   decrypted with the key the app stores through `WgTunnel.setShared("bridge.secret")`
   (Keystore-sealed, `SharedStore`). Built-in alerts pass a downloaded snapshot as
   `data.androidImage`. If anything about the picture fails, the text notification shows.
-- `data.enc` (end-to-end encrypted title/body, `"sightline-msg-v1:"`) is opened too when
-  present; Android doesn't advertise `enc-msg-v1` yet.
+- **Sealed alert text.** The app registers with `caps: ["enc-msg-v1"]` (all platforms), so an
+  updated Hub puts only generic text in `slTitle`/`slBody` ("Activity on your cameras",
+  "Doorbell"…, in the phone's language), replaces `slGroup` with an opaque hash, and moves the
+  real title, text, thread and every data field into `data.enc`: AES-256-GCM,
+  base64(nonce ‖ ciphertext ‖ tag), key `SHA256("sightline-msg-v1:" + bridge.secret)`, plaintext one
+  flat JSON object of strings `{"v":"1","title","body","threadId",…data keys}`
+  (`bridge/seal.go`). `SightlinePush.openSealedMessage` merges it over the visible data and
+  maps title/body onto `slTitle`/`slBody`; `slPush`, `slChannel`, `slCategory` and `thumb`
+  stay visible. If it can't be opened, the generic text shows and the app opens `data.enc`
+  itself when the notification is tapped (`app/src/alerts/sealed.ts`). Older Hubs ignore the
+  cap and keep sending plaintext.
+  **To check on a device** (not yet done; the format is covered by
+  `bridge/seal_test.go TestSealedAndroidDataOnly`, which mirrors the Kotlin merge): with an
+  updated Hub, send a test push and trigger a camera alert with the app in the background and
+  closed; the notification must show the real title ("Person · Front Door"), buttons and
+  picture, and tapping it must open the clip. If it shows "Activity on your cameras", read
+  `adb logcat -s SightlineNotify`.
 - Buttons that don't open the app (snooze, Not important, I got it, She's fine) work with the
   app closed through a headless task (`NOTIFICATION_ACTION_TASK` in `background.ts`), are
   acted on once, and take the notification down.
@@ -97,6 +112,12 @@ apps not to declare it before targeting 37. When moving to SDK 37: add
 `ensureLocalNetworkAccess()` (`app/src/net/local-network.ts`) asks for it before Find my
 cameras, and explains how to turn it on in Settings if it was refused. Check the tunnel's
 own LAN connections then too (loopback and the VPN aren't covered; direct LAN dials are).
+
+## Backups
+
+`android.allowBackup` is `false` (`app.json`): Android's automatic backup to Google Drive
+(and adb backups) would otherwise copy the app's files, including familiar-face feature prints
+(`Documents/familiar`), which Sightline promises stay on the phone. Moving to a new phone uses's own Wi-Fi transfer or passcode-protected backup file instead (`app/src/backup`).
 
 ## Icons and splash
 

@@ -1,15 +1,16 @@
-import Storage from 'expo-sqlite/kv-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { FamiliarKind, Strictness } from '@/familiar/match';
+import { familiarStorage } from '@/familiar/storage';
 
 /**
  * Familiar faces & vehicles: everything recognition knows, kept on this iPhone only.
  *
- * Its own persisted store (key FAMILIAR_STORE_KEY) so a backup can include or exclude it as a
- * unit: it holds face/vehicle feature prints (biometric-like data). Crop pictures live in
- * the app's Documents folder under FAMILIAR_CROPS_DIR. Nothing here is ever uploaded.
+ * Its own persisted store (key FAMILIAR_STORE_KEY), saved as its own file next to the crop
+ * pictures (FAMILIAR_CROPS_DIR) in a folder kept out of iCloud and computer backups
+ * (familiar/storage.ts): it holds face/vehicle feature prints (biometric-like data). Nothing
+ * here is ever uploaded, and Sightline's own iCloud backup leaves it out too.
  */
 export const FAMILIAR_STORE_KEY = 'familiar-faces-v1';
 export const FAMILIAR_CROPS_DIR = 'familiar/crops';
@@ -135,7 +136,7 @@ export const useFamiliar = create<FamiliarState>()(
     {
       name: FAMILIAR_STORE_KEY,
       version: 1,
-      storage: createJSONStorage(() => Storage),
+      storage: createJSONStorage(() => familiarStorage),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<FamiliarState>;
         return { ...current, ...p, settings: { ...current.settings, ...p.settings } };

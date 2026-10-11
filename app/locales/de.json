@@ -7,9 +7,9 @@
     "NSSpeechRecognitionUsageDescription": "Sightline wandelt deine gesprochene Frage auf deinem iPhone in Text um. Deine Stimme verlässt nie dein Telefon.",
     "NSFaceIDUsageDescription": "Entsperre deine Kameras mit Face ID.",
     "NSPhotoLibraryUsageDescription": "Wähle einen Grundriss oder eine Karte, um deine Kameras darauf zu platzieren, oder Fotos von Personen und Fahrzeugen, die Sightline auf diesem iPhone erkennen soll.",
-    "NSLocationWhenInUseUsageDescription": "Leg fest, wo du wohnst, damit Sightline Meldungen stummschalten kann, während du zu Hause bist.",
-    "NSLocationAlwaysAndWhenInUseUsageDescription": "Sightline nutzt deinen Standort nur, um zu merken, wann du nach Hause kommst oder gehst, damit Meldungen stumm bleiben, während du da bist. Er verlässt nie dein Telefon.",
-    "NSLocationAlwaysUsageDescription": "Sightline nutzt deinen Standort nur, um zu merken, wann du nach Hause kommst oder gehst, damit Meldungen stumm bleiben, während du da bist. Er verlässt nie dein Telefon.",
+    "NSLocationWhenInUseUsageDescription": "Leg fest, wo du wohnst, damit Sightline Meldungen stummschalten kann, während du zu Hause bist. Der genaue Ort bleibt auf deinem iPhone (und in deinem eigenen iCloud-Backup).",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "Sightline nutzt deinen Standort nur, um zu merken, wann du nach Hause kommst oder gehst, damit Meldungen stumm bleiben, während du da bist. Der genaue Ort deines Zuhauses bleibt auf deinem iPhone (und in deinem eigenen iCloud-Backup); dein Sightline Hub erfährt nur zu Hause oder unterwegs und eine ungefähre Gegend von etwa 10 km.",
+    "NSLocationAlwaysUsageDescription": "Sightline nutzt deinen Standort nur, um zu merken, wann du nach Hause kommst oder gehst, damit Meldungen stumm bleiben, während du da bist. Der genaue Ort deines Zuhauses bleibt auf deinem iPhone (und in deinem eigenen iCloud-Backup); dein Sightline Hub erfährt nur zu Hause oder unterwegs und eine ungefähre Gegend von etwa 10 km.",
     "NSMotionUsageDescription": "Erlaube Sightline, deine Bewegungsaktivität zu erkennen."
   }
 }

@@ -3,7 +3,7 @@
 The Hub is a small always-on service that connects the Sightline app to your camera system. It gives you:
 
 - **One API for any brand.** The app talks to the Hub the same way whatever is behind it (see [docs/HUB_API.md](../docs/HUB_API.md)). Each brand is a small package under `backend/` that registers itself, so the setup page lists every brand this Hub knows and asks only for what that brand needs (usually the address, username and password). Adding a brand is described in `backend/todo.go`.
-- **Instant Alerts.** It listens to each system's event stream (for example Frigate's MQTT), applies each phone's alert rules, and sends a push through the free Expo Push Service with a tiny end-to-end encrypted thumbnail.
+- **Instant Alerts.** It listens to each system's event stream (for example Frigate's MQTT), applies each phone's alert rules, and sends a push through the free Expo Push Service. The words and a tiny thumbnail are end-to-end encrypted for each phone (`seal.go`, `thumb.go`), so Expo, Apple and Google only see "Activity on your cameras".
 - **Sharing.** Full, Household, Temporary and Live-only access, enforced by the Hub on every request.
 - **Remote access** without port forwarding: one Tailscale sign-in from the setup page, then a public `https://<hub>.<tailnet>.ts.net` link (Tailscale Funnel). TLS ends on the Hub.
 - **A setup page** at `http://<hub-address>:8086`. It has a pairing QR code, camera systems, remote access and who has access. No terminal or config files needed.

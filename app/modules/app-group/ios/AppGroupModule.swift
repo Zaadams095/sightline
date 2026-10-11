@@ -16,6 +16,14 @@ public class AppGroupModule: Module {
     return url
   }
 
+  private static func exclude(_ target: URL) throws {
+    guard FileManager.default.fileExists(atPath: target.path) else { return }
+    var url = target
+    var values = URLResourceValues()
+    values.isExcludedFromBackup = true
+    try url.setResourceValues(values)
+  }
+
   public func definition() -> ModuleDefinition {
     Name("AppGroup")
 
@@ -39,6 +47,23 @@ public class AppGroupModule: Module {
     AsyncFunction("removeFile") { (relPath: String) in
       guard let base = self.container else { return }
       try? FileManager.default.removeItem(at: base.appendingPathComponent(relPath))
+    }
+
+    /// Keeps a file or folder in the app's own storage (file:// URI) out of iCloud and computer
+    /// backups of the iPhone. On a folder it covers everything inside, added later too. Used
+    /// for familiar faces (feature prints and crops), which stay on this iPhone only.
+    AsyncFunction("excludeFromBackup") { (uri: String) in
+      let parsed: URL? = uri.hasPrefix("file://") ? URL(string: uri) : URL(fileURLWithPath: uri)
+      guard let target = parsed else {
+        throw Exception(name: "AppGroup", description: "Bad file URI")
+      }
+      try AppGroupModule.exclude(target)
+    }
+
+    /// The same for a path in the App Group container (e.g. "familiar").
+    AsyncFunction("excludeGroupPathFromBackup") { (relPath: String) in
+      guard let base = self.container else { return }
+      try AppGroupModule.exclude(base.appendingPathComponent(relPath))
     }
 
     Function("reloadWidgets") {

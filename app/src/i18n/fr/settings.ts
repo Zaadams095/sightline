@@ -16,7 +16,7 @@ const settings: typeof en = {
     deleteBody:
       'Vos réglages Sightline et les mots de passe des caméras seront supprimés d’iCloud, et la sauvegarde sera désactivée. Tout reste sur ce téléphone.',
     icloudFooter:
-      'Vos enregistreurs, l’ordre des caméras, les groupes, les dispositions et les réglages d’alertes sont enregistrés dans votre propre iCloud, et les mots de passe des caméras dans le trousseau iCloud. Un nouvel iPhone connecté à votre compte Apple se configure tout seul à partir de ces données. Les vidéos ne sont jamais envoyées, et Sightline n’a aucun serveur.',
+      'Vos enregistreurs, l’ordre des caméras, les groupes, les dispositions et les réglages d’alertes (y compris la position de votre domicile pour Maison et absence) sont enregistrés dans votre propre iCloud, et les mots de passe des caméras dans le trousseau iCloud. Un nouvel iPhone connecté à votre compte Apple se configure tout seul à partir de ces données. Les vidéos ne sont jamais envoyées, et Sightline n’a aucun serveur.',
     backUpToICloud: 'Sauvegarder dans iCloud',
     backUpNow: 'Sauvegarder maintenant',
     deleteBackup: 'Supprimer la sauvegarde iCloud',

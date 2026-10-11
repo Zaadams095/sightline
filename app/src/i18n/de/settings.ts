@@ -16,7 +16,7 @@ const settings: typeof en = {
     deleteBody:
       'Damit werden deine Sightline-Einstellungen und Kamera-Passwörter aus iCloud gelöscht und das Backup ausgeschaltet. Auf diesem Handy bleibt alles erhalten.',
     icloudFooter:
-      'Deine Rekorder, die Kamera-Reihenfolge, Gruppen, Layouts und Meldungseinstellungen werden in deiner eigenen iCloud gespeichert, Kamera-Passwörter im iCloud-Schlüsselbund. Ein neues iPhone mit deinem Apple Account richtet sich damit von selbst ein. Videos werden nie hochgeladen, und Sightline hat keine eigenen Server.',
+      'Deine Rekorder, die Kamera-Reihenfolge, Gruppen, Layouts und Meldungseinstellungen (auch der Standort deines Zuhauses für Zuhause & Unterwegs) werden in deiner eigenen iCloud gespeichert, Kamera-Passwörter im iCloud-Schlüsselbund. Ein neues iPhone mit deinem Apple Account richtet sich damit von selbst ein. Videos werden nie hochgeladen, und Sightline hat keine eigenen Server.',
     backUpToICloud: 'Backup in iCloud',
     backUpNow: 'Jetzt sichern',
     deleteBackup: 'iCloud-Backup löschen',

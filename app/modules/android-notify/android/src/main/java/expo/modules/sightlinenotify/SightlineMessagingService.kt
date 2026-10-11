@@ -77,12 +77,13 @@ internal object SightlinePush {
   }
 
   /**
-   * Hook for end-to-end encrypted messages: enc is the sealed JSON of the real fields
-   * (title/body as slTitle/slBody or title/body, plus any data keys), opened with
-   * SHA256("sightline-msg-v1:" + key) and merged over the visible data. The key is the
-   * per-phone message key when the app has stored one ("bridge.msgKey"), else the thumbnail
-   * key. Not advertised yet: the app doesn't send caps ["enc-msg-v1"] from Android until
-   * this is tested against the Hub's sealing.
+   * End-to-end encrypted messages (bridge/seal.go): enc is the sealed flat JSON of the real
+   * fields ({"v":"1","title","body","threadId", plus the data keys}), opened with
+   * SHA256("sightline-msg-v1:" + key) and merged over the visible data, title/body onto
+   * slTitle/slBody. The key is the per-phone message key when the app has stored one
+   * ("bridge.msgKey"), else the thumbnail key. The app advertises caps ["enc-msg-v1"], so
+   * updated Hubs send Android phones only generic visible text (bridge/seal_test.go
+   * TestSealedAndroidDataOnly mirrors this merge).
    */
   fun openSealedMessage(context: Context, data: JSONObject) {
     val enc = data.optString(ENC)

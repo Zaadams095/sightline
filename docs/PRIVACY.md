@@ -11,7 +11,7 @@
 >   private connection.
 > - A few features you choose to turn on need outside help: the optional **Sightline Hub**
 >   (which runs on your own hardware), **instant alerts** (delivered through Expo, Apple and
->   Google), **remote access** (through your own Tailscale account) and **iCloud backup**
+>   Google, with what they say end-to-end encrypted), **remote access** (through your own Tailscale account) and **iCloud backup**
 >   (your own iCloud). This policy says exactly what each one sends and where.
 
 This policy covers the Sightline app for iPhone, iPad, Apple Watch and Apple TV, and the
@@ -57,7 +57,8 @@ change):
   it;
 - your alert settings: which cameras and objects to alert on, quiet hours, snoozes, cool-down,
   health alerts, package alerts, activity zones you drew, and camera names;
-- your time zone and the app's language (so the Hub can write notifications in it);
+- your time zone, the app's language (so the Hub can write notifications in it), whether the
+  phone is an iPhone or Android phone, and which alert formats this app version understands;
 - whether you are **home or away** (yes/no only), if you use Home & Away;
 - what Sightline learned from your "Not important" / "Always tell me" taps (camera, kinds of
   objects, zones, time of day, and similar features of those alerts) and whether the
@@ -67,7 +68,8 @@ change):
 - if you set a home location for Home & Away: that location **rounded to about 10 km
   (0.1°)**, used only to work out sunrise and sunset for the false-alarm check. Your exact
   location is never sent to the Hub;
-- a key the Hub uses to encrypt alert thumbnails so only your phone can open them.
+- a key the Hub uses to encrypt alert text and thumbnails so only your phone can open them
+  (section 4).
 
 **What the Hub keeps:** the above, the camera systems you add on its setup page (address,
 username, password), the people you share with (the name you gave them, what they can see,
@@ -111,19 +113,30 @@ Your Hub → Expo Push Service → Apple Push Notification service (iPhone) / Go
 - **Registering for push.** When you connect a Hub, the app asks iOS for this phone's push
   token and sends it, with a random installation ID, the app's identifier and our Expo project
   ID, to **Expo** (650 Industries, Inc.), which returns the Expo push token your Hub uses.
-- **What's in an alert:** the notification text (for example "Person at Front Door", or a
-  doorbell, package, camera-offline or check-in message), which includes **your camera's name,
-  the kinds of things detected, zone names, and names of people or plates your recorder
-  recognized** (if your recorder does that), plus technical details the app needs to open the
-  right recording (system and camera IDs, event ID and time).
-- **The picture is encrypted.** Alerts can carry a tiny thumbnail. Your Hub encrypts it
-  (AES-256-GCM) with a key only your phone has, so Expo, Apple and Google can't see it. When
-  your phone is at home it may load a bigger picture directly from your Hub instead.
-- **The text is not end-to-end encrypted.** Like nearly every app's notifications, the alert
-  text passes through Expo and Apple (or Google) in readable form so they can deliver it. It's
-  encrypted in transit (HTTPS/TLS). Expo says it does not keep notification contents longer
-  than needed to hand them to Apple or Google; it keeps a delivery receipt (success or error,
-  not the content) for about a day
+- **What an alert says is end-to-end encrypted.** The real notification (for example "Person ·
+  Front Door", or a doorbell, package, camera-offline or check-in message), which includes
+  **your camera's name, the kinds of things detected, zone names, and names of people or
+  plates your recorder recognized** (if your recorder does that), and the technical details the
+  app needs to open the right recording (system and camera IDs, event ID and time), is
+  encrypted by your Hub (AES-256-GCM) with a key that only your phone and your Hub have. Your
+  phone decrypts it on the device before showing it, so you still see "Person · Front Door".
+- **What Expo, Apple and Google can read:** only a generic notification in your language
+  ("Activity on your cameras", "Doorbell", "Family check-in update", "Your Sightline Hub needs
+  a look", or the test message) with "Open Sightline to see more.", which set of buttons it
+  has, whether it may break through Focus (doorbell rings and urgent check-ins), on Android
+  the notification channel (alerts, doorbell, packages, check-ins or health), and when it was
+  sent to which phone. If your phone can't decrypt an alert (for example right after
+  restoring a phone, before its key has arrived), it shows that generic text, never the
+  details.
+- **The picture is encrypted too.** Alerts can carry a tiny thumbnail, encrypted the same way
+  with its own key, so Expo, Apple and Google can't see it. When your phone is at home it may
+  load a bigger picture directly from your Hub instead.
+- **Older versions.** This needs a Hub and an app from October 2026 or later. A Hub (or
+  original Instant Alerts bridge container) that hasn't been updated, or an older app version, sends the alert
+  text readable to Expo and Apple (or Google), as most apps' notifications are; update both
+  to get end-to-end encrypted text. Either way it's encrypted in transit (HTTPS/TLS). Expo says
+  it does not keep notification contents longer than needed to hand them to Apple or Google;
+  it keeps a delivery receipt (success or error, not the content) for about a day
   ([Expo push FAQ](https://docs.expo.dev/push-notifications/faq/),
   [Expo privacy policy](https://expo.dev/privacy)). Apple and Google process notifications to
   deliver them under their own privacy policies.
@@ -176,9 +189,12 @@ This feature is **off unless you turn it on** in **Settings → People & vehicle
 - This data is used only to put a name on an alert or recording ("Dad at Front Door"). It is
   **never sent to us, to your Hub, or to any other service**, never used for advertising or
   any other purpose, and never sold or shared.
-- It is **not** included in Sightline's iCloud settings backup or the phone-to-phone transfer.
-  (If you back up your whole iPhone to iCloud or a computer, iOS includes app data in that
-  device backup, which Apple stores encrypted under your Apple Account.)
+- It is **not** included in Sightline's iCloud settings backup or the phone-to-phone transfer,
+  and it's kept **out of iCloud and computer backups of your whole iPhone**: Sightline marks
+  these files "do not back up", so a restored or new phone starts without them. (App versions
+  before October 2026 didn't, so a device backup made with one may still hold them; installing
+  the update keeps them out of new backups.) On Android, Sightline turns off Android's
+  automatic backup.
 - **Delete it any time:** **Settings → People & vehicles → Forget all faces & vehicles**, or
   remove a single person. Deleting the app deletes it too.
 - Your cameras may capture people who haven't agreed to be recognized, such as visitors. Only
@@ -188,7 +204,7 @@ This feature is **off unless you turn it on** in **Settings → People & vehicle
 
 Some recorders (for example Frigate) can recognize faces or plates themselves. That happens on
 your recorder, under its settings; Sightline only shows the names your recorder reports, and
-those names can appear in instant alert text (section 4).
+those names can appear in instant alert text, which is end-to-end encrypted (section 4).
 
 ## 7. iCloud backup and moving to a new phone
 
@@ -271,9 +287,9 @@ we don't give them anything else.
 
 | Service | When | What they process | Their policy |
 | --- | --- | --- | --- |
-| Apple | Push delivery (APNs), iCloud backup and Keychain, Siri, App Store, optional analytics | Notification text and tokens; your encrypted iCloud data; standard App Store data | [apple.com/legal/privacy](https://www.apple.com/legal/privacy/) |
-| Expo (650 Industries, Inc.) | Instant alerts (only with a Hub); app updates | Push tokens and notification text in transit; update checks with a random installation ID | [expo.dev/privacy](https://expo.dev/privacy) |
-| Google | Instant alerts on Android (FCM) | Notification text and tokens in transit | [policies.google.com/privacy](https://policies.google.com/privacy) |
+| Apple | Push delivery (APNs), iCloud backup and Keychain, Siri, App Store, optional analytics | Push tokens and notifications whose details are end-to-end encrypted (generic text visible); your encrypted iCloud data; standard App Store data | [apple.com/legal/privacy](https://www.apple.com/legal/privacy/) |
+| Expo (650 Industries, Inc.) | Instant alerts (only with a Hub); app updates | Push tokens and notifications in transit (details end-to-end encrypted); update checks with a random installation ID | [expo.dev/privacy](https://expo.dev/privacy) |
+| Google | Instant alerts on Android (FCM) | Push tokens and notifications in transit (details end-to-end encrypted) | [policies.google.com/privacy](https://policies.google.com/privacy) |
 | Tailscale | Hub remote access, only if you turn it on, with your own account | Connection data, encrypted traffic | [tailscale.com/privacy-policy](https://tailscale.com/privacy-policy) |
 | GitHub | Downloading the Hub; opening setup guides | Ordinary web request data | [GitHub privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement) |
 | Your camera maker | Always (you connect to their device) | Whatever their device does; Sightline doesn't change it | Your camera maker's policy |
@@ -313,7 +329,7 @@ us information, contact us and we'll delete it.
 ## 16. Security
 
 Passwords and keys are kept in the iOS Keychain. Remote connections use WireGuard or HTTPS.
-Alert pictures are end-to-end encrypted. Hub access uses random per-phone keys stored only as
+Instant alert text and pictures are end-to-end encrypted between your Hub and your phone. Hub access uses random per-phone keys stored only as
 scrambled copies (hashes), and pairing works only on your home network. The app can be locked
 with Face ID, Touch ID or a PIN. No system is perfectly secure: keep your cameras, recorder,
 Hub and phone updated and use strong passwords.
@@ -334,6 +350,8 @@ Email: SUPPORT_EMAIL (support@REPLACE-ME)
 *Disclaimer for the developer (not part of the published policy): this policy was drafted from
 a review of the Sightline source code as of October 2026 and is not legal advice. Have it
 reviewed by a qualified lawyer before publishing, particularly the sections on biometric data
-(familiar faces), state privacy laws and the GDPR, and re-check it whenever data flows change
-(for example the open items in the release notes: location sent to the Hub, push text, and
-device-backup inclusion of face data).*
+(familiar faces), state privacy laws and the GDPR, and re-check it whenever data flows change.
+Code behind each claim: push sealing `bridge/seal.go` (opened by
+`app/targets/notification-service/NotificationService.swift`, `app/modules/android-notify` and
+`app/src/alerts/sealed.ts`); rounded location `app/src/alerts/smart.ts` `sunPlace`; face data
+kept out of device backups `app/src/familiar/storage.ts`; Android backup off `app/app.json`.*

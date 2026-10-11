@@ -17,7 +17,7 @@ const settings = {
     deleteBody:
       'This removes your Sightline settings and camera passwords from iCloud and turns backup off. Everything stays on this phone.',
     icloudFooter:
-      'Your recorders, camera order, groups, layouts and alert settings are saved in your own iCloud, and camera passwords in iCloud Keychain. A new iPhone signed in to your Apple Account sets itself up from them. Videos are never uploaded, and Sightline has no servers of its own.',
+      'Your recorders, camera order, groups, layouts and alert settings (including your home location for Home & Away) are saved in your own iCloud, and camera passwords in iCloud Keychain. A new iPhone signed in to your Apple Account sets itself up from them. Videos are never uploaded, and Sightline has no servers of its own.',
     backUpToICloud: 'Back up to iCloud',
     backUpNow: 'Back up now',
     deleteBackup: 'Delete iCloud backup',

@@ -7,7 +7,7 @@ const onboarding: typeof en = {
   welcome: {
     addTitle: 'Adicionar um gravador ou uma câmera',
     heroTitle: 'Suas câmeras.\nSua rede.',
-    intro: 'Assista ao vivo, reveja gravações e receba alertas direto do seu próprio sistema. Nada passa pela nuvem.',
+    intro: 'Assista ao vivo, reveja gravações e receba alertas direto do seu próprio sistema. Sem conta Sightline e sem nuvem Sightline no meio.',
     findCameras: 'Encontrar minhas câmeras',
     findCamerasDetail: 'O Sightline procura no Wi-Fi da sua casa e encontra câmeras e gravadores para você.',
     pickBrand: 'Escolher a marca da câmera',

@@ -7,9 +7,9 @@
     "NSSpeechRecognitionUsageDescription": "O Sightline transforma sua pergunta falada em texto no seu iPhone. Sua voz nunca sai do seu telefone.",
     "NSFaceIDUsageDescription": "Use o Face ID para desbloquear suas câmeras.",
     "NSPhotoLibraryUsageDescription": "Escolha uma planta ou um mapa para posicionar suas câmeras, ou fotos de pessoas e veículos para o Sightline reconhecer neste iPhone.",
-    "NSLocationWhenInUseUsageDescription": "Defina onde fica sua casa para que o Sightline possa silenciar os alertas enquanto você estiver nela.",
-    "NSLocationAlwaysAndWhenInUseUsageDescription": "O Sightline usa sua localização só para perceber quando você chega ou sai de casa, e assim silenciar os alertas enquanto você estiver lá. Ela nunca sai do seu telefone.",
-    "NSLocationAlwaysUsageDescription": "O Sightline usa sua localização só para perceber quando você chega ou sai de casa, e assim silenciar os alertas enquanto você estiver lá. Ela nunca sai do seu telefone.",
+    "NSLocationWhenInUseUsageDescription": "Defina onde fica sua casa para que o Sightline possa silenciar os alertas enquanto você estiver nela. O local exato fica no seu iPhone (e no seu próprio backup do iCloud).",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "O Sightline usa sua localização só para perceber quando você chega ou sai de casa, e assim silenciar os alertas enquanto você estiver lá. O local exato da sua casa fica no seu iPhone (e no seu próprio backup do iCloud); seu Sightline Hub só sabe se você está em casa ou fora e uma área aproximada, de uns 10 km.",
+    "NSLocationAlwaysUsageDescription": "O Sightline usa sua localização só para perceber quando você chega ou sai de casa, e assim silenciar os alertas enquanto você estiver lá. O local exato da sua casa fica no seu iPhone (e no seu próprio backup do iCloud); seu Sightline Hub só sabe se você está em casa ou fora e uma área aproximada, de uns 10 km.",
     "NSMotionUsageDescription": "Permita que o Sightline detecte sua atividade de movimento."
   }
 }

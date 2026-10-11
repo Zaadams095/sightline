@@ -53,9 +53,9 @@ const alertSettings: typeof en = {
     onHeading: 'Sofort-Meldungen sind an',
     ready: 'Bereit zum Einschalten',
     explainOne: (hub) =>
-      `${hub} beobachtet deine Kameras und schickt in unter einer Sekunde eine kurze Mitteilung (zum Beispiel „Person · Haustür“). Bilder und Videos bleiben zu Hause; die App lädt sie, wenn du auf die Mitteilung tippst.`,
+      `${hub} beobachtet deine Kameras und schickt in unter einer Sekunde eine kurze Mitteilung (zum Beispiel „Person · Haustür“). Videos bleiben zu Hause. Der Text der Mitteilung und ihr kleines Vorschaubild sind verschlüsselt, sodass nur dein Handy sie lesen kann; Apple, Google und der Mitteilungsdienst sehen nur „Aktivität bei deinen Kameras“.`,
     explainMany:
-      'Deine Sightline Hubs beobachten deine Kameras und schicken in unter einer Sekunde eine kurze Mitteilung (zum Beispiel „Person · Haustür“). Bilder und Videos bleiben zu Hause; die App lädt sie, wenn du auf die Mitteilung tippst.',
+      'Deine Sightline Hubs beobachten deine Kameras und schicken in unter einer Sekunde eine kurze Mitteilung (zum Beispiel „Person · Haustür“). Videos bleiben zu Hause. Der Text der Mitteilung und ihr kleines Vorschaubild sind verschlüsselt, sodass nur dein Handy sie lesen kann; Apple, Google und der Mitteilungsdienst sehen nur „Aktivität bei deinen Kameras“.',
     turnOn: 'Sofort-Meldungen einschalten',
     chooseWhat: 'Festlegen, was mir mitgeteilt wird',
     needHub: 'Sofort-Meldungen brauchen einen Sightline Hub',
@@ -161,7 +161,7 @@ const alertSettings: typeof en = {
   homeAway: {
     title: 'Zuhause & Unterwegs',
     intro:
-      'Wenn du zu Hause bist, schaltet Sightline Meldungen stumm – außer von den Kameras, die du unten auswählst (z. B. die Türklingel). Dein Standort bleibt auf deinem Handy; nur „zu Hause“ oder „unterwegs“ wird mit deiner Sofort-Meldungen-Bridge geteilt.',
+      'Wenn du zu Hause bist, schaltet Sightline Meldungen stumm – außer von den Kameras, die du unten auswählst (z. B. die Türklingel). Der genaue Standort deines Zuhauses bleibt auf deinem iPhone (und in deinem eigenen iCloud-Backup, wenn es an ist). Dein Sightline Hub oder deine Sofort-Meldungen-Bridge erfährt nur, ob du zu Hause oder unterwegs bist, und eine ungefähre Gegend (etwa 10 km), um zu wissen, wann es dunkel ist.',
     gettingLocation: 'Standort wird ermittelt …',
     setHome: 'Ich bin zu Hause: als Zuhause festlegen',
     status: 'Status',

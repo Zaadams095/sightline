@@ -53,9 +53,9 @@ const alertSettings: typeof en = {
     onHeading: 'Alertes instantanées activées',
     ready: 'Prêt à activer',
     explainOne: (hub) =>
-      `${hub} surveille vos caméras et envoie une courte notification (par exemple « Personne · Porte d’entrée ») en moins d’une seconde. Les images et vidéos restent à la maison ; l’app les charge quand vous touchez la notification.`,
+      `${hub} surveille vos caméras et envoie une courte notification (par exemple « Personne · Porte d’entrée ») en moins d’une seconde. Les vidéos restent à la maison. Le texte de la notification et sa petite image d’aperçu sont chiffrés pour que seul votre téléphone puisse les lire ; Apple, Google et le service de notifications ne voient que « Activité sur vos caméras ».`,
     explainMany:
-      'Vos Sightline Hubs surveillent vos caméras et envoient une courte notification (par exemple « Personne · Porte d’entrée ») en moins d’une seconde. Les images et vidéos restent à la maison ; l’app les charge quand vous touchez la notification.',
+      'Vos Sightline Hubs surveillent vos caméras et envoient une courte notification (par exemple « Personne · Porte d’entrée ») en moins d’une seconde. Les vidéos restent à la maison. Le texte de la notification et sa petite image d’aperçu sont chiffrés pour que seul votre téléphone puisse les lire ; Apple, Google et le service de notifications ne voient que « Activité sur vos caméras ».',
     turnOn: 'Activer les Alertes instantanées',
     chooseWhat: 'Choisir ce qui me prévient',
     needHub: 'Les Alertes instantanées nécessitent un Sightline Hub',
@@ -161,7 +161,7 @@ const alertSettings: typeof en = {
   homeAway: {
     title: 'Maison et absence',
     intro:
-      'Quand vous êtes chez vous, Sightline met les alertes en sourdine, sauf pour les caméras choisies ci-dessous (comme la sonnette). Votre position reste sur votre téléphone ; seul « domicile » ou « absent » est partagé avec votre relais d’Alertes instantanées.',
+      'Quand vous êtes chez vous, Sightline met les alertes en sourdine, sauf pour les caméras choisies ci-dessous (comme la sonnette). La position exacte de votre domicile reste sur votre iPhone (et dans votre propre sauvegarde iCloud, si elle est activée). Votre Sightline Hub ou votre relais d’Alertes instantanées sait seulement si vous êtes chez vous ou absent, plus une zone approximative (environ 10 km) pour savoir quand il fait nuit.',
     gettingLocation: 'Localisation…',
     setHome: 'Je suis chez moi : définir comme domicile',
     status: 'État',
