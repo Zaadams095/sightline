@@ -265,9 +265,21 @@ export default function PlaybackScreen() {
     if (current) options.push({ label: `This event (${titleFor(current)})`, range: [current.startTime - 3, (current.endTime ?? wall + 15) + 3] });
     options.push({ label: '30 seconds around here', range: [wall - 15, wall + 15] });
     options.push({ label: '2 minutes around here', range: [wall - 60, wall + 60] });
+    // Also: a blurred copy for neighbors, or everything around this time for police/insurance.
+    const neighborRange = options[0].range;
+    const extras = ['Share with neighbors (blur faces & plates)…', 'Export for police or insurance…'];
     ActionSheetIOS.showActionSheetWithOptions(
-      { options: [...options.map((o) => o.label), 'Cancel'], cancelButtonIndex: options.length, title: 'Share clip' },
+      { options: [...options.map((o) => o.label), ...extras, 'Cancel'], cancelButtonIndex: options.length + extras.length, title: 'Share clip' },
       async (i) => {
+        if (i === options.length) {
+          const [s, e] = neighborRange;
+          router.push({ pathname: '/share-neighbors', params: { systemId: params.systemId, cameraId, start: String(s), end: String(Math.min(e, now)), thumb: current?.thumbnailUrl ?? '' } });
+          return;
+        }
+        if (i === options.length + 1) {
+          router.push({ pathname: '/export', params: { start: String(Math.floor(wall - 15 * 60)), end: String(Math.ceil(Math.min(now, wall + 15 * 60))) } });
+          return;
+        }
         const o = options[i];
         if (!o) return;
         setSharing(true);

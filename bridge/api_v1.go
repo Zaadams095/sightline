@@ -37,6 +37,7 @@ func (h *hub) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/cameras/{id}/deter", h.authed(needDeter, h.handleDeter))
 
 	mux.HandleFunc("GET /v1/events", h.authed(needRecordings, h.handleEvents))
+	mux.HandleFunc("GET /v1/rings", h.authed(nil, h.handleRings))
 	mux.HandleFunc("GET /v1/events/{id}/thumbnail.jpg", h.authed(needRecordings, h.handleEventThumb))
 
 	mux.HandleFunc("GET /v1/recordings/{cam}/segments", h.authed(needRecordings, h.handleSegments))

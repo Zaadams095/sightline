@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { autoLayout, CameraGrid } from '@/components/camera-grid';
 import { CameraTile } from '@/components/camera-tile';
 import { ConnectionBadge } from '@/components/connection-badge';
-import { Button, T } from '@/components/ui/primitives';
+import { Button, IconButton, T } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { usesGateway } from '@/systems/catalog';
@@ -69,7 +69,12 @@ export default function LiveScreen() {
     <View style={{ paddingTop: insets.top + space.sm, paddingBottom: space.sm, gap: space.sm }}>
       <View style={styles.header}>
         <T v="title">Live</T>
-        <ConnectionBadge />
+        <View style={styles.headerRight}>
+          {tablet && allEntries.length > 0 && (
+            <IconButton icon="rectangle.on.rectangle" label="Wall display" onPress={() => router.push('/wall')} />
+          )}
+          <ConnectionBadge />
+        </View>
       </View>
       {allEntries.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.viewTabs}>
@@ -216,6 +221,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingBottom: space.md,
   },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.xl },
   viewTabs: { flexDirection: 'row', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.md },
   viewTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, minHeight: 34, justifyContent: 'center' },

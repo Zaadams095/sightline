@@ -114,11 +114,23 @@ export default function SettingsScreen() {
         <Row label="App lock" detail="Face ID or a PIN to open the app" onPress={() => router.push('/settings/security')} last />
       </Section>
 
+      {systems.length > 0 && (
+        <Section title="Recordings">
+          <Row
+            label="Export for police or insurance"
+            detail="Video from every camera for a time you pick, with a signed summary"
+            onPress={() => router.push('/export')}
+            last
+          />
+        </Section>
+      )}
+
       <Section title="Look & layout">
         <Row label="Appearance" detail="Theme, accent color, tile style" onPress={() => router.push('/settings/appearance')} />
         <Row label="Cameras & order" detail="Reorder or hide cameras" onPress={() => router.push('/settings/cameras')} />
         <Row label="Camera groups" detail="Front Yard, Back Yard, Indoors…" onPress={() => router.push('/settings/groups')} last={!tablet} />
-        {tablet && <Row label="Grid layouts" detail="Custom multi-size camera walls" onPress={() => router.push('/settings/grid')} last />}
+        {tablet && <Row label="Grid layouts" detail="Custom multi-size camera walls" onPress={() => router.push('/settings/grid')} />}
+        {tablet && <Row label="Wall display" detail="Always-on camera wall that shows the doorbell when someone rings" onPress={() => router.push('/settings/wall')} last />}
       </Section>
 
       <View style={{ alignItems: 'center', paddingTop: space.md }}>

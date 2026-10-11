@@ -42,6 +42,16 @@ const shown = new Set<string>();
 const liveShown = new Set<string>();
 let screenOpen = false;
 
+/**
+ * While the wall display is up it takes rings itself (shows the doorbell full screen in place
+ * instead of the call screen). Returning true means the ring was handled.
+ */
+let ringHandler: ((p: RingParams) => boolean) | null = null;
+
+export function setRingHandler(fn: ((p: RingParams) => boolean) | null) {
+  ringHandler = fn;
+}
+
 /** The call screen reports when it's up so a second ring doesn't stack another one. */
 export function setDoorbellScreenOpen(open: boolean) {
   screenOpen = open;
@@ -53,6 +63,7 @@ export function openDoorbell(p: RingParams, force = false) {
   if (!force && (shown.has(id) || screenOpen)) return;
   shown.add(id);
   notifyWatchRing(p);
+  if (ringHandler?.(p)) return;
   if (screenOpen) {
     router.setParams({ ...p });
     return;
@@ -82,7 +93,7 @@ export function startDoorbellWatch(): () => void {
     const p = ring ? ringParamsFrom(n.request.content.data as Partial<Record<string, string>>) : null;
     // Lock Screen / Dynamic Island, for rings and camera events alike.
     showFromNotification(n.request.content, p);
-    if (p && useApp.getState().alerts.doorbell.fullScreen) openDoorbell(p);
+    if (p && (useApp.getState().alerts.doorbell.fullScreen || ringHandler)) openDoorbell(p);
   });
 
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -101,7 +112,7 @@ export function startDoorbellWatch(): () => void {
   const poll = async () => {
     if (busy) return;
     const { systems, alerts } = useApp.getState();
-    if (!alerts.doorbell.fullScreen && !alerts.lockScreen) return;
+    if (!alerts.doorbell.fullScreen && !alerts.lockScreen && !ringHandler) return;
     busy = true;
     try {
       const now = Date.now() / 1000;
@@ -122,7 +133,7 @@ export function startDoorbellWatch(): () => void {
           liveShown.add(ring.id);
           void showRing(p, { adapter, snapshotUrl: ring.thumbnailUrl });
         }
-        if (alerts.doorbell.fullScreen) openDoorbell(p);
+        if (alerts.doorbell.fullScreen || ringHandler) openDoorbell(p);
       }
     } finally {
       busy = false;
