@@ -8,7 +8,7 @@ import { LiveView } from '@/components/live/live-view';
 import { T } from '@/components/ui/primitives';
 import { resolveLive } from '@/systems/live';
 import type { CameraSystemAdapter } from '@/systems/types';
-import { setPlayerRate } from '@/util/player';
+import { seekPlayer, setPlayerRate } from '@/util/player';
 
 /** How long each stream request covers; seeking past it just asks for a new one. */
 const STREAM_SPAN_SEC = 3600;
@@ -35,7 +35,8 @@ export function StreamPlayback({ adapter, cameraId, start, paused, rate, onWall,
       const pb = await adapter.playback!(cameraId, start, start + STREAM_SPAN_SEC);
       if (pb.kind !== 'stream') throw new Error('Unexpected playback type');
       const s = pb.source;
-      if (s.kind === 'file') return { kind: 'file' as const, uri: s.uri };
+      // Whole recorded files may begin before `start`; remember when, to seek and keep time.
+      if (s.kind === 'file') return { kind: 'file' as const, uri: s.uri, fileStart: s.startTime ?? start };
       return { kind: 'live' as const, live: await resolveLive(s, adapter.config) };
     },
     staleTime: Infinity,
@@ -57,19 +58,46 @@ export function StreamPlayback({ adapter, cameraId, start, paused, rate, onWall,
     );
   }
   if (source.data.kind === 'file') {
-    return <FileStream key={source.data.uri} uri={source.data.uri} start={start} paused={paused} rate={rate} onWall={onWall} onPlaying={onPlaying} />;
+    return (
+      <FileStream
+        key={`${source.data.uri}@${start}`}
+        uri={source.data.uri}
+        fileStart={source.data.fileStart}
+        start={start}
+        paused={paused}
+        rate={rate}
+        onWall={onWall}
+        onPlaying={onPlaying}
+      />
+    );
   }
   return <LiveStream key={`${start}`} live={source.data.live} start={start} onWall={onWall} onPlaying={onPlaying} />;
 }
 
-/** MP4/HLS: wall clock = start + player position. Supports pause and speed. */
-function FileStream({ uri, start, paused, rate, onWall, onPlaying }: { uri: string } & Omit<Props, 'adapter' | 'cameraId'>) {
+/** MP4/HLS file: wall clock = file start + position; opens at the requested moment. */
+function FileStream({
+  uri,
+  fileStart,
+  start,
+  paused,
+  rate,
+  onWall,
+  onPlaying,
+}: { uri: string; fileStart: number } & Omit<Props, 'adapter' | 'cameraId'>) {
   const player = useVideoPlayer(uri, (p) => {
     p.timeUpdateEventInterval = 0.25;
     p.play();
   });
+  const offset = Math.max(0, start - fileStart);
+  const sought = useRef(false);
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status === 'readyToPlay' && !sought.current && offset > 0) {
+      sought.current = true;
+      seekPlayer(player, offset);
+    }
+  });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
-  useEventListener(player, 'timeUpdate', ({ currentTime }) => onWall(start + currentTime));
+  useEventListener(player, 'timeUpdate', ({ currentTime }) => onWall(fileStart + currentTime));
   useEffect(() => onPlaying(isPlaying), [isPlaying, onPlaying]);
   useEffect(() => {
     if (paused) player.pause();
