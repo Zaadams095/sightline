@@ -66,8 +66,11 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
   const bridge = useApp.getState().alerts.bridge;
   if (!bridge) throw new Error('Instant Alerts are not paired yet.');
   WgTunnel?.setShared('bridge.url', bridge.url);
-  const link = await connectSystem(bridgeSystem(bridge.url), { publish: false });
+  // `http`: the borrowed 'rtsp' kind has no HTTP side, which would leave baseUrl empty and
+  // send these requests to a relative URL.
+  const link = await connectSystem(bridgeSystem(bridge.url), { publish: false, http: true });
   if (link.mode === 'offline') throw new Error(link.error ?? 'Could not reach the bridge');
+  if (!link.baseUrl) throw new Error('Could not reach the bridge');
   const res = await fetch(`${link.baseUrl}${path}`, {
     method,
     headers: { 'Content-Type': 'application/json', 'X-Bridge-Secret': await bridgeSecret() },

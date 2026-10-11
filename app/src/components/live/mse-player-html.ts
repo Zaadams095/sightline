@@ -29,15 +29,19 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
 
   var CODECS = ['avc1.640029','avc1.64002A','avc1.640033','hvc1.1.6.L153.B0','mp4a.40.2','mp4a.40.5','flac','opus'];
   var ws, ms, sb, queue = [], retry = 0, lastProgress = Date.now(), closed = false;
+  // Single-flight reconnects: the watchdog, onclose and onerror can all fire for one failure.
+  var reconnectTimer = null, generation = 0;
 
   function supported(){
     return CODECS.filter(function(c){ return MS.isTypeSupported('video/mp4; codecs="' + c + '"'); }).join(',');
   }
 
   function connect(){
+    var gen = ++generation;
     post('state','connecting');
     queue = []; sb = null;
-    ms = new MS();
+    lastProgress = Date.now();
+    var src = ms = new MS();
     if (window.ManagedMediaSource && MS === window.ManagedMediaSource) {
       video.disableRemotePlayback = true;
       video.srcObject = ms;
@@ -45,16 +49,19 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
       video.src = URL.createObjectURL(ms);
     }
     ms.addEventListener('sourceopen', function(){
+      // A newer attempt (or stop) replaced this one before it opened.
+      if (closed || gen !== generation) return;
       var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + ${JSON.stringify(wsPath)};
-      ws = new WebSocket(url);
-      ws.binaryType = 'arraybuffer';
-      ws.onopen = function(){ mark('wsOpen'); retry = 0; ws.send(JSON.stringify({type:'mse', value: supported()})); };
-      ws.onmessage = function(ev){
+      var sock = ws = new WebSocket(url);
+      sock.binaryType = 'arraybuffer';
+      sock.onopen = function(){ mark('wsOpen'); retry = 0; sock.send(JSON.stringify({type:'mse', value: supported()})); };
+      sock.onmessage = function(ev){
+        if (sock !== ws) return;
         if (typeof ev.data === 'string') {
           var msg = JSON.parse(ev.data);
           if (msg.type === 'mse') {
             mark('codecs');
-            sb = ms.addSourceBuffer(msg.value);
+            sb = src.addSourceBuffer(msg.value);
             sb.mode = 'segments';
             sb.addEventListener('updateend', pump);
           } else if (msg.type === 'error') {
@@ -66,8 +73,8 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
         queue.push(ev.data);
         pump();
       };
-      ws.onclose = function(){ if (!closed) reconnect(); };
-      ws.onerror = function(){ post('state','stalled','connection lost'); };
+      sock.onclose = function(){ if (!closed && sock === ws) reconnect(); };
+      sock.onerror = function(){ if (sock === ws) post('state','stalled','connection lost'); };
     }, {once:true});
   }
 
@@ -109,10 +116,13 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
   }
 
   function reconnect(){
+    if (closed || reconnectTimer) return;
     post('state','stalled','reconnecting');
-    try { ws && ws.close(); } catch(e){}
+    // Detach first so closing the old socket doesn't schedule a second reconnect.
+    var old = ws; ws = null;
+    try { old && old.close(); } catch(e){}
     var delay = Math.min(1000 * Math.pow(2, retry++), 8000);
-    setTimeout(connect, delay);
+    reconnectTimer = setTimeout(function(){ reconnectTimer = null; if (!closed) connect(); }, delay);
   }
 
   video.addEventListener('playing', function(){
@@ -122,11 +132,15 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
     post('state','playing');
   });
   setInterval(function(){
-    if (!closed && Date.now() - lastProgress > 6000) { lastProgress = Date.now(); reconnect(); }
+    if (!closed && !reconnectTimer && Date.now() - lastProgress > 6000) { lastProgress = Date.now(); reconnect(); }
   }, 2000);
 
   window.__setMuted = function(m){ video.muted = m; if (!m) video.play().catch(function(){}); };
-  window.__stop = function(){ closed = true; try { ws.close(); } catch(e){} };
+  window.__stop = function(){
+    closed = true;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    try { ws && ws.close(); } catch(e){}
+  };
   connect();
 })();
 </script>

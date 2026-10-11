@@ -9,3 +9,7 @@ export function seekPlayer(player: VideoPlayer, seconds: number) {
 export function setPlayerRate(player: VideoPlayer, rate: number) {
   player.playbackRate = rate;
 }
+
+export function setPlayerMuted(player: VideoPlayer, muted: boolean) {
+  player.muted = muted;
+}

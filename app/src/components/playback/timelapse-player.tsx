@@ -8,7 +8,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { LiveView } from '@/components/live/live-view';
 import { TimelapseScrubber } from '@/components/playback/timelapse-scrubber';
 import { T } from '@/components/ui/primitives';
-import { releaseLive, resolveLive, type ResolvedLive } from '@/systems/live';
+import { releaseLiveUrl, resolveLive, type ResolvedLive } from '@/systems/live';
 import type { CameraSystemAdapter, RecordingSegment, ReviewItem } from '@/systems/types';
 import { formatClock } from '@/util/format';
 import { seekPlayer, setPlayerRate } from '@/util/player';
@@ -174,13 +174,19 @@ export function StreamTimelapse({ adapter, cameraId, start, end, events, videoHe
 
   const src = useQuery({
     queryKey: ['timelapse-step', adapter.config.id, cameraId, step.start, step.end],
-    queryFn: async (): Promise<StepSource> => {
+    queryFn: async ({ signal }): Promise<StepSource> => {
       // Forward-only sources play from the start, so a minute is plenty (and keeps exports small).
       const pb = await adapter.playback!(cameraId, step.start, Math.min(step.end, step.start + 60));
       if (pb.kind === 'vod') return { kind: 'file', uri: pb.uri };
       if (pb.source.kind === 'file') return { kind: 'file', uri: pb.source.uri };
       const rtspUrl = pb.source.kind === 'rtsp' ? pb.source.url : undefined;
-      return { kind: 'live', live: await resolveLive(pb.source, adapter.config), rtspUrl };
+      const live = await resolveLive(pb.source, adapter.config);
+      // Moved to another step (or closed) while it started: nothing else would release it.
+      if (signal.aborted && rtspUrl) {
+        releaseLiveUrl(rtspUrl);
+        throw new Error('Cancelled');
+      }
+      return { kind: 'live', live, rtspUrl };
     },
     staleTime: 0,
     gcTime: 0,
@@ -190,7 +196,7 @@ export function StreamTimelapse({ adapter, cameraId, start, end, events, videoHe
   // Drop the previous step's restreamer once we've moved on.
   const rtspUrl = src.data?.kind === 'live' ? src.data.rtspUrl : undefined;
   useEffect(() => () => {
-    if (rtspUrl) releaseLive(rtspUrl);
+    if (rtspUrl) releaseLiveUrl(rtspUrl);
   }, [rtspUrl]);
 
   const settled = src.isSuccess || src.isError;

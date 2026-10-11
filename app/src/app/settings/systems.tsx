@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
@@ -9,10 +10,11 @@ import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
 import { describe } from '@/systems/catalog';
 import { resolveAddress } from '@/systems/discovery';
-import { releaseLive } from '@/systems/live';
+import { releaseSystemLive } from '@/systems/live';
 import { dropAdapter } from '@/systems/registry';
 import type { SystemConfig } from '@/systems/types';
 import { usePalette } from '@/theme/use-palette';
+import { userMessage } from '@/util/errors';
 
 /** Edit or remove a connected system. Fields come from the catalog, like setup. */
 export default function SystemSettings() {
@@ -33,6 +35,8 @@ export default function SystemSettings() {
   }));
   const [useTunnel, setUseTunnel] = useState(system?.endpoint.useTunnel ?? true);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   if (!system || !d) {
     return (
@@ -44,26 +48,37 @@ export default function SystemSettings() {
 
   const save = async () => {
     setBusy(true);
-    const { address, username, password, ...extra } = values;
-    if (password) await secrets.set(system.id, SECRET.password, password);
-    const next: SystemConfig = {
-      ...system,
-      name: name.trim() || system.name,
-      username: username?.trim() || undefined,
-      extra: { ...system.extra, ...extra },
-      endpoint: {
-        ...system.endpoint,
-        lanUrl: address && address !== system.endpoint.lanUrl ? await resolveAddress(d, address) : system.endpoint.lanUrl,
-        useTunnel,
-      },
-    };
-    // Credentials live in the native route (and any RTSP restreamers), so rebuild them.
-    disconnectSystem(system.id);
-    dropAdapter(system.id);
-    releaseLive(`rtsp://`);
-    upsert(next);
-    await connectSystem(next);
-    setBusy(false);
+    setError(null);
+    try {
+      const { address, username, password, ...extra } = values;
+      if (password) await secrets.set(system.id, SECRET.password, password);
+      const next: SystemConfig = {
+        ...system,
+        name: name.trim() || system.name,
+        username: username?.trim() || undefined,
+        extra: { ...system.extra, ...extra },
+        endpoint: {
+          ...system.endpoint,
+          lanUrl: address && address !== system.endpoint.lanUrl ? await resolveAddress(d, address) : system.endpoint.lanUrl,
+          useTunnel,
+        },
+      };
+      // Credentials live in the native route (and this system's RTSP restreamers), so rebuild
+      // them; other systems' live views keep playing.
+      disconnectSystem(system.id);
+      dropAdapter(system.id);
+      releaseSystemLive(system.id);
+      upsert(next);
+      await connectSystem(next);
+      // Streams and lists cached for the old settings point at routes that no longer exist.
+      await queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'cameras' || q.queryKey[1] === system.id,
+      });
+    } catch (e) {
+      setError(userMessage(e, name.trim() || system.name));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -98,6 +113,7 @@ export default function SystemSettings() {
           </Card>
         )
       )}
+      {error && <T color={p.danger}>{error}</T>}
       <Button title="Save & reconnect" onPress={save} loading={busy} />
       <Button
         title="Remove system"
@@ -110,6 +126,7 @@ export default function SystemSettings() {
           }
           disconnectSystem(system.id);
           dropAdapter(system.id);
+          releaseSystemLive(system.id);
           await secrets.remove(system.id, SECRET.password);
           removeSystem(system.id);
           router.back();

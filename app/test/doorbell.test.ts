@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { allowsSpecial, isFreshRing, notificationTitle, selectNotifications } from '../src/alerts/rules.ts';
+import { allowsSpecial, isDoorbellCamera, isFreshRing, notificationTitle, selectNotifications } from '../src/alerts/rules.ts';
 
 const settings = (over: Record<string, unknown> = {}) =>
   ({
@@ -41,4 +41,11 @@ test('special notifications honor quiet hours and home mode', () => {
   const quiet = settings({ quietHours: { enabled: true, start: '23:00', end: '06:30' } });
   assert.equal(allowsSpecial(quiet, 's:door', new Date(2026, 0, 1, 23, 30)), false);
   assert.equal(allowsSpecial(settings({ presence: { enabled: true, atHome: true, alertWhenHome: [] } }), 's:door'), false);
+});
+
+test('doorbell cameras: marked by the adapter, or named like one', () => {
+  assert.equal(isDoorbellCamera({ objects: ['motion', 'doorbell'], name: 'Front' }), true);
+  assert.equal(isDoorbellCamera({ objects: ['person'], name: 'Front Doorbell' }), true);
+  assert.equal(isDoorbellCamera({ objects: ['person'], name: 'front door bell' }), true);
+  assert.equal(isDoorbellCamera({ objects: ['person'], name: 'Front Door' }), false);
 });

@@ -146,17 +146,21 @@ export default function PlaybackScreen() {
     p.muted = false;
   });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { status: playerStatus } = useEvent(player, 'statusChange', { status: player.status });
 
+  // Seek to the requested moment once the recording list is known. Systems without one (or
+  // when it fails to load) still play, from the start of the window.
+  const segmentsKnown = !!segQuery.data || !adapter?.recordingSegments || segQuery.isError;
   const applyPendingSeek = () => {
-    if (pendingSeek.current != null && segQuery.data && player.status === 'readyToPlay') {
-      seekPlayer(player, wallToPlayer(segments, pendingSeek.current));
+    if (pendingSeek.current != null && segmentsKnown && player.status === 'readyToPlay') {
+      if (segQuery.data) seekPlayer(player, wallToPlayer(segments, pendingSeek.current));
       pendingSeek.current = null;
       player.play();
     }
   };
   useEventListener(player, 'statusChange', applyPendingSeek);
    
-  useEffect(applyPendingSeek, [segQuery.data, segments, player]);
+  useEffect(applyPendingSeek, [segQuery.data, segments, player, segmentsKnown]);
 
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {
     if (segments.length) setWall(playerToWall(segments, currentTime));
@@ -280,6 +284,17 @@ export default function PlaybackScreen() {
 
   const shown = scrubWall ?? wall;
   const noRecordings = segQuery.isSuccess && segments.length === 0;
+  // Plain-language states for the video area; raw player/HTTP errors are never shown.
+  const vodMessage = !adapter
+    ? null
+    : !adapter.playback
+      ? 'Recordings from this camera can’t be played in Sightline.'
+      : playbackSource.isError
+        ? 'Couldn’t load recordings. Check the connection and try again.'
+        : source && playerStatus === 'error'
+          ? 'This recording couldn’t be played. Try another time on the timeline.'
+          : null;
+  const vodLoading = !vodMessage && (!adapter || playbackSource.isLoading || (!!source && playerStatus === 'loading'));
   const pipW = Math.min(150, width * 0.32);
   const dayChips = (days.data ?? [dayKey(now)]).slice(0, 30);
 
@@ -298,10 +313,23 @@ export default function PlaybackScreen() {
             onPlaying={setStreamPlaying}
           />
         )}
-        {noRecordings && (
+        {noRecordings ? (
           <View style={[StyleSheet.absoluteFill, styles.center]}>
             <T color="#fff">No recordings in this period</T>
           </View>
+        ) : vodMessage ? (
+          <View style={[StyleSheet.absoluteFill, styles.center]}>
+            <T color="#fff" style={{ textAlign: 'center' }}>
+              {vodMessage}
+            </T>
+          </View>
+        ) : (
+          vodLoading &&
+          !streamMode && (
+            <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
+              <ActivityIndicator color="#fff" />
+            </View>
+          )
         )}
       </View>
 
@@ -472,7 +500,7 @@ function Ctl({ icon, onPress, big, small }: { icon: React.ComponentProps<typeof 
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
-  center: { alignItems: 'center', justifyContent: 'center' },
+  center: { alignItems: 'center', justifyContent: 'center', padding: 16 },
   topBar: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   round: {
     width: 40,

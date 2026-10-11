@@ -7,6 +7,8 @@ import { probeHub } from '@/systems/hub';
 import type { SystemConfig } from '@/systems/types';
 import { useApp } from '@/state/store';
 import { describe, usesGateway } from '@/systems/catalog';
+import { sameConfig } from '@/util/config';
+import { friendlyNetError } from '@/util/errors';
 import { fetchWithTimeout } from '@/util/fetch';
 import { resolveScheme } from '@/util/url';
 
@@ -39,6 +41,8 @@ const TUNNEL_SCOPE = 'tunnel';
 const LAN_PROBE_MS = 1500;
 /** Keep the tunnel alive briefly after backgrounding so quick app switches are instant. */
 const BACKGROUND_GRACE_MS = 20_000;
+/** How often to check whether the phone switched networks while the app is open. */
+const NETWORK_POLL_MS = 5000;
 
 /** Routes for helpers (e.g. the alerts bridge) that should not show in connection status. */
 const privateLinks: Record<string, SystemLink> = {};
@@ -83,14 +87,56 @@ export async function ensureTunnel(): Promise<void> {
   return tunnelStarting;
 }
 
+interface ConnectOpts {
+  /** false: a helper's route (e.g. the alerts bridge), kept out of connection status. */
+  publish?: boolean;
+  /** Always route over HTTP, whatever kind the config borrows (helpers like the bridge). */
+  http?: boolean;
+}
+
+interface Attempt {
+  config: SystemConfig;
+  promise: Promise<SystemLink>;
+  /** Set when an edit or disconnect replaced this attempt; its result is then discarded. */
+  superseded: boolean;
+}
+
+const inflight = new Map<string, Attempt>();
+
 /**
  * Establish (or re-evaluate) the route for one system: LAN first, tunnel as fallback.
- * Returns the link to use; also published in `useLinks`.
+ * Returns the link to use; also published in `useLinks`. Concurrent calls for the same
+ * system share one attempt, so foreground + screen + background checks don't race to add
+ * duplicate gateway routes.
  */
-export async function connectSystem(s: SystemConfig, opts: { publish?: boolean } = {}): Promise<SystemLink> {
+export function connectSystem(s: SystemConfig, opts: ConnectOpts = {}): Promise<SystemLink> {
+  const key = `${opts.publish === false ? 'private' : 'public'}:${s.id}`;
+  const running = inflight.get(key);
+  // An edit (new address or sign-in) starts over instead of reusing the old attempt.
+  if (running && sameConfig(running.config, s)) return running.promise;
+  if (running) running.superseded = true;
+  const attempt: Attempt = { config: s, promise: Promise.resolve({ baseUrl: '', mode: 'connecting' }), superseded: false };
+  attempt.promise = connectOnce(s, opts, attempt)
+    .then((link) => (attempt.superseded ? currentLink(key, s.id, opts) : link))
+    .finally(() => {
+      if (inflight.get(key) === attempt) inflight.delete(key);
+    });
+  inflight.set(key, attempt);
+  return attempt.promise;
+}
+
+/** What a replaced attempt's callers get instead: the newer attempt, or the route as it is now. */
+function currentLink(key: string, id: string, opts: ConnectOpts): Promise<SystemLink> | SystemLink {
+  const newer = inflight.get(key);
+  if (newer) return newer.promise;
+  const link = opts.publish === false ? privateLinks[id] : useLinks.getState().links[id];
+  return link ?? { baseUrl: '', mode: 'offline' };
+}
+
+async function connectOnce(s: SystemConfig, opts: ConnectOpts, attempt: Attempt): Promise<SystemLink> {
   const publish = opts.publish ?? true;
   // Cameras added by stream link have no HTTP side; their live video is restreamed on demand.
-  if (!usesGateway(s.kind)) {
+  if (!usesGateway(s.kind) && !opts.http) {
     const link: SystemLink = { baseUrl: '', mode: 'lan' };
     if (publish) useLinks.getState().set(s.id, link);
     return link;
@@ -98,7 +144,15 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
   const links = useLinks.getState();
   const prev = publish ? links.links[s.id] : privateLinks[s.id];
   const store = {
-    set: (id: string, link: SystemLink) => (publish ? links.set(id, link) : (privateLinks[id] = link)),
+    set: (id: string, link: SystemLink) => {
+      // A replaced attempt must not overwrite the newer route, nor keep a route of its own.
+      if (attempt.superseded) {
+        if (link.port != null && link.port !== prev?.port) WgTunnel?.removeRoute(link.port);
+        return;
+      }
+      if (publish) links.set(id, link);
+      else privateLinks[id] = link;
+    },
   };
 
   // A Sightline Hub is reached directly: its home address, else its own public HTTPS link.
@@ -125,22 +179,24 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
 
   store.set(s.id, { ...(prev ?? { baseUrl: '' }), mode: 'connecting', error: undefined });
   let target = s.endpoint.lanUrl;
-
-  // A saved https:// address whose server actually speaks plain HTTP (e.g. Frigate 8971 with
-  // TLS off) is corrected once and persisted.
-  if (publish && prev?.port == null && target.startsWith('https://')) {
-    const fixed = await resolveScheme(target, (u) => WgTunnel!.httpCheck(u, false, 4000));
-    if (fixed !== target) {
-      target = fixed;
-      useApp.getState().upsertSystem({ ...s, endpoint: { ...s.endpoint, lanUrl: fixed } });
-    }
-  }
+  // A route this attempt added; released again if the attempt fails before it's handed out.
+  let addedPort: number | undefined;
 
   try {
+    // A saved https:// address whose server actually speaks plain HTTP (e.g. Frigate 8971 with
+    // TLS off) is corrected once and persisted.
+    if (publish && prev?.port == null && target.startsWith('https://')) {
+      const fixed = await resolveScheme(target, (u) => WgTunnel!.httpCheck(u, false, 4000));
+      if (fixed !== target) {
+        target = fixed;
+        useApp.getState().upsertSystem({ ...s, endpoint: { ...s.endpoint, lanUrl: fixed } });
+      }
+    }
+
     let port = prev?.port;
     if (port == null) {
       const pass = (await secrets.get(s.id, SECRET.password)) ?? '';
-      port = await WgTunnel.addRoute(
+      port = addedPort = await WgTunnel.addRoute(
         target,
         false,
         s.endpoint.allowSelfSigned ?? true,
@@ -169,7 +225,8 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
         baseUrl,
         port,
         mode: 'offline',
-        error: `Couldn't reach ${hostPort(target)}: ${dialError}. Settings → Diagnostics can test the connection step by step.`,
+        // Plain words here; Settings → Diagnostics shows the raw error step by step.
+        error: friendlyNetError(dialError, s.name),
       };
       store.set(s.id, link);
       return link;
@@ -180,15 +237,17 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
     const reachable = await WgTunnel.probe(hostPort(target), true, 5000);
     const link: SystemLink = reachable
       ? { baseUrl, port, mode: 'tunnel' }
-      : { baseUrl, port, mode: 'offline', error: 'VPN connected but the server did not answer' };
+      : { baseUrl, port, mode: 'offline', error: `Connected to home, but ${s.name} didn’t answer. Make sure it’s turned on.` };
     store.set(s.id, link);
     return link;
   } catch (e) {
+    // Don't leave a half-made route (and its listener) behind in the native gateway.
+    if (addedPort != null) WgTunnel.removeRoute(addedPort);
     const link: SystemLink = {
       baseUrl: prev?.baseUrl ?? '',
       port: prev?.port,
       mode: 'offline',
-      error: e instanceof Error ? e.message : String(e),
+      error: friendlyNetError(e instanceof Error ? e.message : String(e), s.name),
     };
     store.set(s.id, link);
     return link;
@@ -225,6 +284,11 @@ async function directFrigateLogin(s: SystemConfig, baseUrl: string): Promise<str
 
 /** Forget a system's route (after editing credentials or removing it). */
 export function disconnectSystem(id: string) {
+  const running = inflight.get(`public:${id}`);
+  if (running) {
+    running.superseded = true;
+    inflight.delete(`public:${id}`);
+  }
   const link = useLinks.getState().links[id];
   if (link?.port != null) WgTunnel?.removeRoute(link.port);
   useLinks.setState((st) => {
@@ -234,13 +298,32 @@ export function disconnectSystem(id: string) {
   });
 }
 
-/** Re-evaluate all routes on foreground, stop the tunnel after a grace period in background. */
-export function startLifecycle(getSystems: () => SystemConfig[]) {
+/** The phone's local networks; changes when it joins/leaves Wi-Fi. '' without the gateway. */
+function networkSignature(): string {
+  try {
+    return WgTunnel?.localSubnets() ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Re-evaluate all routes on foreground and when the phone changes networks (home Wi-Fi ↔
+ * cellular), stop the tunnel after a grace period in background. `onRerouted` runs after
+ * routes settle, so open live streams can switch between LAN and VPN.
+ */
+export function startLifecycle(getSystems: () => SystemConfig[], onRerouted?: () => void) {
+  let network = networkSignature();
+  const reroute = async () => {
+    await Promise.allSettled(getSystems().map((s) => connectSystem(s)));
+    onRerouted?.();
+  };
   const sub = AppState.addEventListener('change', (state) => {
     if (state === 'active') {
       if (stopTimer) clearTimeout(stopTimer);
       stopTimer = null;
-      getSystems().forEach((s) => void connectSystem(s));
+      network = networkSignature();
+      void reroute();
     } else if (state === 'background' && WgTunnel) {
       stopTimer = setTimeout(() => {
         void WgTunnel!.stopTunnel();
@@ -248,6 +331,18 @@ export function startLifecycle(getSystems: () => SystemConfig[]) {
       }, BACKGROUND_GRACE_MS);
     }
   });
+  const netTimer = WgTunnel
+    ? setInterval(() => {
+        if (AppState.currentState !== 'active') return;
+        const now = networkSignature();
+        if (now === network) return;
+        network = now;
+        void reroute();
+      }, NETWORK_POLL_MS)
+    : null;
   getSystems().forEach((s) => void connectSystem(s));
-  return () => sub.remove();
+  return () => {
+    sub.remove();
+    if (netTimer) clearInterval(netTimer);
+  };
 }

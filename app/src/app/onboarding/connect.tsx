@@ -15,6 +15,7 @@ import { dropAdapter, getAdapter } from '@/systems/registry';
 import type { SystemConfig, SystemKind } from '@/systems/types';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
+import { userMessage } from '@/util/errors';
 import { WgTunnel } from '@modules/wg-tunnel';
 
 /**
@@ -62,29 +63,31 @@ export default function ConnectSystem() {
     setResult(null);
     setUnreachable(null);
     const id = `${d.kind}-${Date.now().toString(36)}`;
-    const lanUrl = await resolveAddress(d, values.address ?? '');
     const { address: _a, username, password, ...extra } = values;
-    const system: SystemConfig = {
-      id,
-      kind: d.kind,
-      name: name.trim() || d.label,
-      endpoint: { lanUrl, useTunnel, allowSelfSigned: true },
-      username: username?.trim() || undefined,
-      extra,
-    };
+    const label = name.trim() || d.label;
     try {
+      // Inside the try: a bad address shows as a message instead of leaving the button spinning.
+      const lanUrl = await resolveAddress(d, values.address ?? '');
+      const system: SystemConfig = {
+        id,
+        kind: d.kind,
+        name: label,
+        endpoint: { lanUrl, useTunnel, allowSelfSigned: true },
+        username: username?.trim() || undefined,
+        extra,
+      };
       await secrets.set(id, SECRET.password, password ?? '');
       const link = await connectSystem(system);
       if (link.mode === 'offline') {
         disconnectSystem(id);
         dropAdapter(id);
         setUnreachable(system);
-        setResult({ ok: false, msg: `${link.error ?? 'Couldn’t reach it'} (tried ${lanUrl})` });
+        setResult({ ok: false, msg: `${link.error ?? `Couldn’t reach ${label}.`} (tried ${lanUrl})` });
         return;
       }
       if (d.kind === 'frigate' && link.port != null && username && WgTunnel) {
         const err = await WgTunnel.login(link.port);
-        if (err) throw new Error(err);
+        if (err) throw new Error(/401|unauthori[sz]ed|password|credential/i.test(err) ? `${label} didn’t accept the username or password. Check them and try again.` : err);
       }
       const adapter = getAdapter(system, link)!;
       await adapter.connect();
@@ -95,7 +98,7 @@ export default function ConnectSystem() {
       disconnectSystem(id);
       dropAdapter(id);
       await secrets.remove(id, SECRET.password);
-      setResult({ ok: false, msg: e instanceof Error ? e.message : String(e) });
+      setResult({ ok: false, msg: userMessage(e, label) });
     } finally {
       setBusy(false);
     }

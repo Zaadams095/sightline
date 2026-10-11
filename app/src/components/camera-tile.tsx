@@ -54,7 +54,8 @@ export const CameraTile = memo(function CameraTile({
     return () => clearInterval(id);
   }, [active, intervalMs]);
 
-  const base = adapter.snapshot(camera.id, { height: requestHeight }).uri;
+  // Only ask for stills from systems that have them; the others would just 404 every second.
+  const base = adapter.capabilities.snapshots ? adapter.snapshot(camera.id, { height: requestHeight }).uri : '';
   // Cameras without a snapshot URL show a muted low-res live stream while visible.
   const liveTile = !base && adapter.capabilities.live;
   const live = useLive(adapter, camera.id, 'sub', liveTile && active);
