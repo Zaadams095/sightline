@@ -20,7 +20,7 @@ Push-Location $app
 try {
     npx tsc --noEmit
     if ($LASTEXITCODE -ne 0) { throw 'Typecheck failed' }
-    npx eas-cli@latest update --channel production --platform ios --message $Message --non-interactive
+    npx eas-cli@latest update --channel production --environment production --platform ios --message $Message --non-interactive
     if ($LASTEXITCODE -ne 0) { throw 'EAS update failed' }
 }
 finally {
