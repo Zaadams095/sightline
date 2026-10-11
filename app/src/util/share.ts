@@ -9,14 +9,24 @@ const clipsDir = () => {
   return dir;
 };
 
+/**
+ * Saves a URL to `dest`: downloads http(s), copies local files (e.g. media bundled with the
+ * app, which is a file:// URL in release builds).
+ */
+export async function fetchToFile(uri: string, dest: File): Promise<File> {
+  if (dest.exists) dest.delete();
+  if (!uri.startsWith('file:')) return File.downloadFileAsync(uri, dest);
+  new File(uri).copy(dest);
+  return dest;
+}
+
 /** Downloads a clip through the gateway and opens the iOS share sheet. */
 export async function shareClip(adapter: CameraSystemAdapter, cameraId: string, cameraName: string, start: number, end: number) {
   if (!adapter.clip) throw new Error('This system cannot export clips.');
   const stamp = new Date(start * 1000).toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const name = `${cameraName.replace(/[^\w-]+/g, '_')}_${stamp}.mp4`;
   const dest = new File(clipsDir(), name);
-  if (dest.exists) dest.delete();
-  const file = await File.downloadFileAsync(adapter.clip(cameraId, start, end).uri, dest);
+  const file = await fetchToFile(adapter.clip(cameraId, start, end).uri, dest);
   await Sharing.shareAsync(file.uri, { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: cameraName });
 }
 
@@ -42,8 +52,7 @@ export async function downloadClipForOffline(
 ): Promise<string> {
   if (!adapter.clip) throw new Error('This system cannot export clips.');
   const dest = new File(libraryDir(), `${clip.id}.mp4`);
-  if (dest.exists) dest.delete();
-  const file = await File.downloadFileAsync(adapter.clip(clip.cameraId, clip.start, clip.end).uri, dest);
+  const file = await fetchToFile(adapter.clip(clip.cameraId, clip.start, clip.end).uri, dest);
   return file.uri;
 }
 

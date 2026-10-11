@@ -58,7 +58,7 @@ async function identify(host: string, ports: Set<number>): Promise<Found | null>
 }
 
 function rank(d: SystemDescriptor) {
-  return { hub: 0, software: 1, recorder: 2, camera: 3 }[d.category];
+  return { hub: 0, software: 1, recorder: 2, camera: 3, demo: 4 }[d.category];
 }
 
 /**

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SamplePill } from '@/components/demo-banner';
 import type { LiveState } from '@/components/live/live-player';
 import { LiveView, useLive } from '@/components/live/live-view';
 import { useLinks } from '@/net/connection';
@@ -161,9 +162,12 @@ export default function CameraScreen() {
 
       <View style={[styles.topBar, { top: insets.top + 6 }]}>
         <RoundButton icon="xmark" label="Close" onPress={() => router.back()} />
-        <T v="heading" color="#fff" numberOfLines={1} style={{ flex: 1, textAlign: 'center' }}>
-          {camera?.name ?? cameraId}
-        </T>
+        <View style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+          <T v="heading" color="#fff" numberOfLines={1} style={{ textAlign: 'center' }}>
+            {camera?.name ?? cameraId}
+          </T>
+          {adapter.config.kind === 'demo' && <SamplePill dark />}
+        </View>
         <RoundButton icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} label={muted ? 'Turn sound on' : 'Turn sound off'} onPress={() => setMuted((m) => !m)} />
       </View>
 

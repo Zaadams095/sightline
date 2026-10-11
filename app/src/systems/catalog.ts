@@ -33,7 +33,8 @@ export interface Fingerprint {
   match: (r: ProbeResult) => boolean;
 }
 
-export type Category = 'recorder' | 'software' | 'camera' | 'hub';
+/** 'demo' = the built-in sample cameras; never listed as a brand. */
+export type Category = 'recorder' | 'software' | 'camera' | 'hub' | 'demo';
 
 export interface SystemDescriptor {
   kind: SystemKind;
@@ -348,6 +349,18 @@ export const CATALOG: SystemDescriptor[] = [
     available: true,
     defaultPorts: [],
     addressHint: 'The video link (starts with rtsp://) from the camera’s manual, e.g. rtsp://user:pass@192.168.1.50:554/stream1.',
+    usesGateway: false,
+    fields: [],
+    fingerprints: [],
+  },
+  {
+    kind: 'demo',
+    label: 'Sample cameras',
+    blurb: 'Built-in sample video to explore the app',
+    category: 'demo',
+    available: true,
+    defaultPorts: [],
+    addressHint: '',
     usesGateway: false,
     fields: [],
     fingerprints: [],

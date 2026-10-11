@@ -162,6 +162,8 @@ export async function checkForAlerts(): Promise<number> {
   for (const system of state.systems) {
     // Hubs that push to this phone already alert instantly; don't post them twice.
     if (system.kind === 'hub' && system.extra?.push === '1') continue;
+    // Sample cameras only alert when asked to ("Send a sample alert").
+    if (system.kind === 'demo') continue;
     // One unreachable or misbehaving system must not stop alerts from the others.
     try {
       posted += await alertsFor(system, state);
@@ -274,6 +276,7 @@ export async function checkHealth(): Promise<number> {
   const toPost: { key: string; title: string; body: string }[] = [];
 
   for (const system of systems) {
+    if (system.kind === 'demo') continue;
     const link = await connectSystem(system).catch((): SystemLink => ({ baseUrl: '', mode: 'offline' }));
     let adapter: CameraSystemAdapter | null = null;
     try {

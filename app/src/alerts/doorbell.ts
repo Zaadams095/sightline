@@ -106,7 +106,8 @@ export function startDoorbellWatch(): () => void {
       const links = useLinks.getState().links;
       for (const s of systems) {
         const link = links[s.id];
-        if (link?.mode !== 'lan' && link?.mode !== 'tunnel') continue;
+        // Sample cameras never ring on their own.
+        if (s.kind === 'demo' || (link?.mode !== 'lan' && link?.mode !== 'tunnel')) continue;
         const adapter = getAdapter(s, link);
         if (!adapter?.listReview || !adapter.capabilities.events) continue;
         // Asking every recorder for events every few seconds is wasted work without a doorbell.

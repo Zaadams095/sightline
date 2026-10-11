@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { LivePlayer, type LiveState } from '@/components/live/live-player';
+import { LoopLive } from '@/components/live/loop-live';
 import { resolveLive, type ResolvedLive } from '@/systems/live';
 import type { CameraSystemAdapter } from '@/systems/types';
 import { setPlayerMuted } from '@/util/player';
@@ -39,9 +40,10 @@ interface Props {
   openedAt?: number;
 }
 
-/** Plays any resolved live source: go2rtc MSE, HLS, or MJPEG. All report `onState`. */
+/** Plays any resolved live source: go2rtc MSE, HLS, MJPEG, or a sample loop. All report `onState`. */
 export function LiveView({ live, muted = true, fit = 'contain', onState, ...rest }: Props) {
   if (live.kind === 'mse') return <LivePlayer wsUrl={live.wsUrl} muted={muted} fit={fit} onState={onState} {...rest} />;
+  if (live.kind === 'loop') return <LoopLive uri={live.uri} pan={live.pan} fit={fit} poster={rest.poster} onState={onState} />;
   if (live.kind === 'hls') return <HlsLive uri={live.uri} muted={muted} fit={fit} onState={onState} />;
   return <MjpegLive uri={live.uri} fit={fit} onState={onState} />;
 }

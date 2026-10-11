@@ -2,9 +2,11 @@ import { router } from 'expo-router';
 import { Platform, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { confirmRemoveDemo, offerSampleAlert } from '@/components/demo-banner';
 import { Row, Screen, Section, StatusDot, T } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
+import { startDemo, useDemoActive } from '@/systems/demo/session';
 import { canShare, isGuest } from '@/systems/hub';
 import { sharedByText } from '@/systems/hub-links';
 import type { SystemConfig } from '@/systems/types';
@@ -33,6 +35,7 @@ export default function SettingsScreen() {
   const guestOnly = systems.length > 0 && systems.every(isGuest);
   const sharable = systems.some(canShare);
   const shared = systems.find((s) => sharedDetail(s));
+  const demoActive = useDemoActive();
 
   return (
     <Screen style={{ paddingTop: insets.top + space.sm }}>
@@ -46,13 +49,29 @@ export default function SettingsScreen() {
             <Row
               key={s.id}
               label={s.name}
-              detail={links[s.id]?.error ?? sharedDetail(s) ?? s.endpoint.lanUrl}
+              detail={s.kind === 'demo' ? 'Built-in sample video, not a real camera' : (links[s.id]?.error ?? sharedDetail(s) ?? s.endpoint.lanUrl)}
               icon={<StatusDot color={color} />}
               onPress={() => router.push({ pathname: '/settings/systems', params: { id: s.id } })}
             />
           );
         })}
         <Row label="Add a recorder or camera" onPress={() => router.push('/onboarding')} last />
+      </Section>
+
+      <Section title="Sample cameras">
+        {demoActive ? (
+          <>
+            <Row label="Send a sample alert" detail="See what an alert looks like on this iPhone" onPress={offerSampleAlert} />
+            <Row label="Remove sample cameras" destructive onPress={confirmRemoveDemo} last />
+          </>
+        ) : (
+          <Row
+            label="Add sample cameras"
+            detail="Explore every feature with built-in sample video"
+            onPress={() => void startDemo().then(() => router.navigate('/'))}
+            last
+          />
+        )}
       </Section>
 
       <Section title="Sharing">

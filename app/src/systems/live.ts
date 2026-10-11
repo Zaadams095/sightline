@@ -3,7 +3,11 @@ import type { LiveSource, SystemConfig } from '@/systems/types';
 import { WgTunnel } from '@modules/wg-tunnel';
 
 /** What the players can show directly. RTSP never reaches the UI; it's restreamed to MSE. */
-export type ResolvedLive = { kind: 'mse'; wsUrl: string } | { kind: 'hls'; uri: string } | { kind: 'mjpeg'; uri: string };
+export type ResolvedLive =
+  | { kind: 'mse'; wsUrl: string }
+  | { kind: 'hls'; uri: string }
+  | { kind: 'mjpeg'; uri: string }
+  | Extract<LiveSource, { kind: 'loop' }>;
 
 /** Running restreamers by RTSP URL, with the system that opened each (to release per system). */
 const rtspPorts = new Map<string, { port: number; systemId: string }>();

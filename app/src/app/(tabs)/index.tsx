@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { autoLayout, CameraGrid } from '@/components/camera-grid';
 import { CameraTile } from '@/components/camera-tile';
 import { ConnectionBadge } from '@/components/connection-badge';
+import { DemoBanner } from '@/components/demo-banner';
 import { Button, T } from '@/components/ui/primitives';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
@@ -69,6 +70,7 @@ export default function LiveScreen() {
         <T v="title">Live</T>
         <ConnectionBadge />
       </View>
+      <DemoBanner />
       {allEntries.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.viewTabs}>
           {chips.map((c) => (
