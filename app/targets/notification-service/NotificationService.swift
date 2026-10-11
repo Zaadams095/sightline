@@ -40,6 +40,10 @@ class NotificationService: UNNotificationServiceExtension {
       if let image, let attachment = Self.attachment(image, id: request.identifier) {
         content.attachments = [attachment]
       }
+      // Familiar faces / plates the user named in the app ("Dad is at Front Door"), on-device.
+      if let image, let name = FamiliarMatcher.recognize(imageData: image) {
+        content.title = FamiliarMatcher.title(content.title, name: name)
+      }
       contentHandler(content)
     }
   }

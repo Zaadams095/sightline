@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { syncPackageReminder } from '@/alerts/packages-notify';
 import { Chip, Row, Section, T, ToggleRow } from '@/components/ui/primitives';
+import { familiarNames, useFamiliar } from '@/familiar/store';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter, type CameraEntry } from '@/systems/registry';
@@ -46,27 +47,51 @@ export function KnownPeopleSection() {
     },
   });
 
-  const all = [...new Set([...(names.data ?? []), ...quietFor])].sort();
+  // Names recognized on this iPhone (People & vehicles) work the same as the system's own.
+  const identities = useFamiliar((s) => s.identities);
+  const alwaysFor = useApp((s) => s.alerts.alwaysFor) ?? NO_NAMES;
+  const all = [...new Set([...(names.data ?? []), ...familiarNames(identities), ...quietFor, ...alwaysFor])].sort();
   const toggle = (n: string) =>
-    setAlerts({ quietFor: quietFor.includes(n) ? quietFor.filter((x) => x !== n) : [...quietFor, n] });
+    setAlerts({
+      quietFor: quietFor.includes(n) ? quietFor.filter((x) => x !== n) : [...quietFor, n],
+      alwaysFor: alwaysFor.filter((x) => x !== n),
+    });
+  const toggleAlways = (n: string) =>
+    setAlerts({
+      alwaysFor: alwaysFor.includes(n) ? alwaysFor.filter((x) => x !== n) : [...alwaysFor, n],
+      quietFor: quietFor.filter((x) => x !== n),
+    });
 
   return (
-    <Section
-      title="Known people & cars"
-      footer={
-        all.length
-          ? 'Selected names never trigger alerts. Anyone your system doesn’t recognize still alerts.'
-          : 'If your system recognizes faces or license plates, their names appear here so family and your own cars don’t set off alerts.'
-      }>
-      <View style={styles.chips}>
-        {all.length === 0 && <T muted>{names.isLoading ? 'Loading…' : 'No recognized names yet'}</T>}
-        {all.map((n) => (
-          <Chip key={n} label={n} selected={quietFor.includes(n)} onPress={() => toggle(n)} />
-        ))}
-      </View>
-    </Section>
+    <>
+      <Section
+        title="Known people & cars"
+        footer={
+          all.length
+            ? 'Selected names never trigger alerts. Anyone your system doesn’t recognize still alerts.'
+            : 'If your system recognizes faces or license plates, or you name people in Settings → People & vehicles, their names appear here so family and your own cars don’t set off alerts.'
+        }>
+        <View style={styles.chips}>
+          {all.length === 0 && <T muted>{names.isLoading ? 'Loading…' : 'No recognized names yet'}</T>}
+          {all.map((n) => (
+            <Chip key={n} label={n} selected={quietFor.includes(n)} onPress={() => toggle(n)} />
+          ))}
+        </View>
+      </Section>
+      {all.length > 0 && (
+        <Section title="Always tell me when they arrive" footer="Selected names always alert, even on cameras set to alert only for other things.">
+          <View style={styles.chips}>
+            {all.map((n) => (
+              <Chip key={n} label={n} selected={alwaysFor.includes(n)} onPress={() => toggleAlways(n)} />
+            ))}
+          </View>
+        </Section>
+      )}
+    </>
   );
 }
+
+const NO_NAMES: string[] = [];
 
 /** Cameras currently snoozed, with a way to resume early. */
 export function SnoozedSection({ entries }: { entries: CameraEntry[] }) {

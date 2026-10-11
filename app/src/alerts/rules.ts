@@ -23,6 +23,14 @@ export function onlyKnown(item: ReviewItem, quietFor: string[]): boolean {
   return names.length > 0 && names.every((n) => quietFor.includes(n));
 }
 
+/**
+ * True when someone the user always wants to hear about is in the event ("alert me when the
+ * dog walker arrives"). Names come from the system or from on-device recognition alike.
+ */
+export function namedAlert(item: { subLabels?: string[] }, alwaysFor: string[] = []): boolean {
+  return (item.subLabels ?? []).some((n) => alwaysFor.includes(n));
+}
+
 /** Home mode: at home, only cameras explicitly kept on (e.g. the doorbell) alert. */
 export function mutedAtHome(settings: AlertSettings, cameraKey: string): boolean {
   const p = settings.presence;
@@ -68,8 +76,10 @@ export function selectNotifications(
       if (ruleFor(settings, key).enabled) out.push(item);
       continue;
     }
-    if (!matchesRule(item, ruleFor(settings, key))) continue;
-    if (onlyKnown(item, settings.quietFor ?? [])) continue;
+    // "Always tell me about…" names skip the object/zone/severity filters and the quiet list.
+    const named = namedAlert(item, settings.alwaysFor) && ruleFor(settings, key).enabled;
+    if (!named && !matchesRule(item, ruleFor(settings, key))) continue;
+    if (!named && onlyKnown(item, settings.quietFor ?? [])) continue;
     const last = lastByCamera[key] ?? 0;
     if (item.startTime - last < settings.cooldownSec) continue;
     lastByCamera[key] = item.startTime;

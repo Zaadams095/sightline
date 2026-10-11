@@ -16,8 +16,10 @@ import {
   trackPackages,
 } from '@/alerts/packages-notify';
 import { isDoorbell, nextTimeOfDay, notificationTitle, selectNotifications } from '@/alerts/rules';
+import { recognizeItems } from '@/familiar/recognize';
 import { connectSystem, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
+import { bundleAlerts, storySummary, storyTitle, type Story } from '@/stories/group';
 import { getAdapter } from '@/systems/registry';
 import type { CameraSystemAdapter, ReviewItem, SystemConfig } from '@/systems/types';
 import { titleFor } from '@/util/format';
@@ -31,6 +33,7 @@ import type { CameraEntry } from '@/systems/registry';
  */
 export const ALERT_TASK = 'sightline-alert-check';
 const MAX_PER_RUN = 5;
+const MAX_STORIES_PER_RUN = 2;
 /** Category for camera alerts; the bridge sends the same id so actions work on Instant Alerts too. */
 export const ALERT_CATEGORY = 'camera-alert';
 const ACTION_SNOOZE_HOUR = 'snooze-1h';
@@ -96,6 +99,11 @@ export async function handleResponse(resp: Notifications.NotificationResponse) {
   // "Is the package still there?": look at the camera now.
   if (d.kind === 'package-reminder') {
     router.push({ pathname: '/camera/[key]', params: { key } });
+    return;
+  }
+  // A multi-camera story notification opens the story view.
+  if (d.kind === 'story' && d.ids) {
+    router.push({ pathname: '/story', params: { systemId: d.systemId, ids: d.ids, start: d.start ?? '', end: d.end ?? '' } });
     return;
   }
   if (d.start) {
@@ -185,7 +193,9 @@ async function alertsFor(system: SystemConfig, state: ReturnType<typeof useApp.g
 
   const since = state.lastNotified[system.id] ?? Date.now() / 1000 - 3600;
   const items = await adapter.listReview({ after: since, limit: 50 });
-  const fresh = items.filter((i) => i.startTime > since);
+  const newItems = items.filter((i) => i.startTime > since);
+  // Familiar faces & vehicles recognized on this iPhone count like the system's own names.
+  const fresh = await recognizeItems(newItems, { budget: 4, snapshot: (i) => adapter.snapshot(i.cameraId, { height: 720 }) }).catch(() => newItems);
 
   // Packages: new events, plus a second look at cameras with a package still out (an event
   // that was in progress last time may have finished since).
@@ -219,7 +229,13 @@ async function alertsFor(system: SystemConfig, state: ReturnType<typeof useApp.g
     }
     unmasked.push(item);
   }
-  const selected = unmasked.slice(-MAX_PER_RUN);
+  // Someone walking past several cameras: one notification for the story, not one per camera.
+  const bundled = bundleAlerts(unmasked.filter((i) => !isDoorbell(i)), fresh, state.cameraMap);
+  for (const story of bundled.stories.slice(-MAX_STORIES_PER_RUN)) {
+    await postStory(story, adapter, nameOf);
+    posted++;
+  }
+  const selected = unmasked.filter((i) => isDoorbell(i) || bundled.singles.includes(i)).slice(-MAX_PER_RUN);
   for (const item of selected) {
     const name = await nameOf(`${system.id}:${item.cameraId}`);
     const video = item.endTime && adapter.previewClip && !isDoorbell(item) ? adapter.previewClip(item).uri : undefined;
@@ -366,4 +382,41 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
     },
     trigger: null,
   });
+}
+
+/** One notification for a multi-camera story; tapping it opens the story view. */
+async function postStory(story: Story<ReviewItem>, adapter: CameraSystemAdapter, nameOf: (cameraKey: string) => Promise<string>) {
+  const names = new Map<string, string>();
+  for (const key of story.cameras) names.set(key, await nameOf(key));
+  const items = story.steps.flatMap((s) => s.items);
+  const first = items[0];
+  const last = items[items.length - 1];
+  const imageUrl = items.find((i) => i.thumbnailUrl)?.thumbnailUrl ?? adapter.snapshot(first.cameraId, { height: 480 }).uri;
+  const attachments: Notifications.NotificationContentAttachmentIos[] = [];
+  try {
+    const file = await File.downloadFileAsync(imageUrl, new File(Paths.cache, `story-${first.id}.webp`), { idempotent: true });
+    attachments.push({ identifier: `story-${first.id}`, url: file.uri, type: 'public.webp', typeHint: 'public.webp' } as never);
+  } catch {
+    // Text-only notification is fine.
+  }
+  const title = storyTitle(story);
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title,
+      body: storySummary(story, (k) => names.get(k) ?? k),
+      data: {
+        kind: 'story',
+        systemId: first.systemId,
+        cameraId: first.cameraId,
+        start: String(Math.floor(story.start - 5)),
+        end: String(Math.ceil(story.end)),
+        reviewId: first.id,
+        ids: items.map((i) => i.id).join(','),
+      },
+      attachments,
+      categoryIdentifier: ALERT_CATEGORY,
+    },
+    trigger: null,
+  });
+  await recordLastAlert(last, title, names.get(`${last.systemId}:${last.cameraId}`) ?? last.cameraId);
 }

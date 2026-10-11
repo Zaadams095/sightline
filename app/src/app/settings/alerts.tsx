@@ -7,6 +7,7 @@ import { ruleFor } from '@/alerts/rules';
 import { zoneSupportFor, type ZoneSupport } from '@/alerts/zones';
 import { DoorbellPackagesSection, HealthSection, KnownPeopleSection, LockScreenSection, SnoozedSection } from '@/components/alerts/alert-extras';
 import { Button, Chip, Row, Screen, Section, T, TimeStepper, ToggleRow } from '@/components/ui/primitives';
+import { useFamiliar } from '@/familiar/store';
 import { useApp, type CameraAlertRule } from '@/state/store';
 import { useFeatureSupport } from '@/systems/caps';
 import { useAllCameras } from '@/systems/registry';
@@ -24,6 +25,8 @@ export default function AlertSettings() {
   const setRule = useApp((s) => s.setCameraRule);
   const { entries } = useAllCameras({ includeHidden: true });
   const support = useFeatureSupport();
+  // People named on this iPhone (People & vehicles) also get the known-people choices.
+  const hasFamiliar = useFamiliar((s) => s.settings.enabled && s.identities.some((i) => !i.ignored && !!i.name));
   // Instant push needs a paired Sightline Hub (or the older stand-alone alerts container).
   const instantReady = useApp((s) => s.systems.some((x) => x.kind === 'hub') || !!s.alerts.bridge);
   const [open, setOpen] = useState<string | null>(null);
@@ -59,7 +62,7 @@ export default function AlertSettings() {
 
       <DoorbellPackagesSection />
 
-      {support.knownNames && <KnownPeopleSection />}
+      {(support.knownNames || hasFamiliar) && <KnownPeopleSection />}
 
       <Section title="Quiet hours">
         <ToggleRow
