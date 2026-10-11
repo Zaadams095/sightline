@@ -49,6 +49,22 @@ interface NativeWgTunnel {
   removeTalk?(port: number): void;
   /** The camera speaker's codec (e.g. "PCMU/8000"), or '' when it can't take audio. */
   probeTalk?(kind: string, url: string, viaTunnel: boolean, timeoutMs: number): Promise<string>;
+  /**
+   * Evidence export (builds from the export release on; absent in older binaries, so optional).
+   * startRecording records an RTSP stream (live or a recorder's replay) to an MP4 file path
+   * (no file://) for up to maxSeconds; recordingStatus is JSON {bytes, seconds, done, error}.
+   */
+  startRecording?(url: string, viaTunnel: boolean, outPath: string, maxSeconds: number): Promise<number>;
+  recordingStatus?(id: number): string;
+  stopRecording?(id: number): Promise<void>;
+  /** P-256 key (PKCS#8 base64) for signing export manifests; kept in the Keychain by the app. */
+  newSigningKey?(): Promise<string>;
+  signingPublicKey?(privateKey: string): Promise<string>;
+  /** Signs a file (ECDSA P-256 / SHA-256, DER) into sigPath; returns the signature as base64. */
+  signFile?(privateKey: string, path: string, sigPath: string): Promise<string>;
+  sha256File?(path: string): Promise<string>;
+  /** Stores every file under dir in a .zip, inside a top folder named rootName. */
+  zipFolder?(dir: string, outPath: string, rootName: string): Promise<void>;
   setShared(name: string, value: string): void;
   removeShared(name: string): void;
   /**

@@ -60,3 +60,28 @@ export const useSmart = create<SmartState>()(
     },
   ),
 );
+
+/**
+ * Resolves once the store has loaded from disk. Backups read and write it, and must never
+ * see (or upload) the empty defaults, nor have a restore overwritten by a late load.
+ */
+export function smartHydrated(): Promise<void> {
+  if (useSmart.persist.hasHydrated()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsub = useSmart.persist.onFinishHydration(() => {
+      unsub();
+      resolve();
+    });
+    // Hydration may have finished between the check and the subscription.
+    if (useSmart.persist.hasHydrated()) {
+      unsub();
+      resolve();
+    }
+  });
+}
+
+/** The backed-up part of the store (backup/sections.ts). `checkinStates` stays on this phone. */
+export function smartBackupSource() {
+  const { learning, conditions, checkins } = useSmart.getState();
+  return { learning, conditions, checkins };
+}

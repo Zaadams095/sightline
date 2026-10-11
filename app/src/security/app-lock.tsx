@@ -52,7 +52,8 @@ function Cover() {
   return <View style={[StyleSheet.absoluteFill, { backgroundColor: p.bg }]} />;
 }
 
-function LockScreen({ onUnlock }: { onUnlock: () => void }) {
+/** The unlock screen (Face ID / passcode or PIN), also used to leave the wall display. */
+export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const { method, biometricsWithPin } = useApp((s) => s.security);

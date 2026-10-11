@@ -7,6 +7,7 @@ import { GridScreen } from './src/GridScreen';
 import { HubError, listCameras, pickBase, type HubCamera, type TvConfig } from './src/hub';
 import { LiveScreen } from './src/LiveScreen';
 import { PairScreen } from './src/PairScreen';
+import { TourScreen } from './src/TourScreen';
 import { colors } from './src/theme';
 
 type Phase =
@@ -29,6 +30,7 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const [columns, setColumns] = useState<2 | 3>(2);
   const [live, setLive] = useState<number | null>(null);
+  const [tour, setTour] = useState(false);
 
   const connect = useCallback(async (c: TvConfig | null) => {
     if (!c) {
@@ -52,22 +54,25 @@ export default function App() {
   }, [config, connect]);
 
   // Menu on the remote: leave full screen. On the grid it goes back to the Home Screen.
+  const fullScreen = live != null || tour;
   useEffect(() => {
-    if (live == null) {
+    if (!fullScreen) {
       TVEventControl.disableTVMenuKey();
       return;
     }
     TVEventControl.enableTVMenuKey();
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       setLive(null);
+      setTour(false);
       return true;
     });
     return () => sub.remove();
-  }, [live]);
+  }, [fullScreen]);
 
   const disconnect = useCallback(() => {
     TvPairing?.removeSecret('config');
     setLive(null);
+    setTour(false);
     setConfig(null);
   }, []);
 
@@ -96,6 +101,8 @@ export default function App() {
         </View>
       </View>
     );
+  } else if (tour && phase.cameras.length) {
+    content = <TourScreen base={phase.base} token={config.token} cameras={phase.cameras} />;
   } else if (live != null && phase.cameras[live]) {
     content = <LiveScreen key={live} base={phase.base} token={config.token} cameras={phase.cameras} index={live} onIndex={setLive} />;
   } else {
@@ -108,6 +115,7 @@ export default function App() {
         columns={columns}
         onColumns={setColumns}
         onOpen={setLive}
+        onTour={() => setTour(true)}
         onDisconnect={disconnect}
       />
     );

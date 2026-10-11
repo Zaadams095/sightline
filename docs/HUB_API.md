@@ -165,6 +165,13 @@ Newest first:
 ```
 `thumbnail` is relative to the base URL. It carries `?token=` only when the request used one.
 
+### `GET /v1/rings?after=&wait=`
+Doorbell rings as they happen, for screens that switch to the doorbell (the Apple TV tour). A long poll: it answers at once when there are rings newer than `after`, otherwise waits up to `wait` seconds (at most 25) for one.
+```json
+{"rings": [{"id": "1760000000.1-abc", "camera": "front", "at": 1760000003.2, "start": 1760000000.1}], "now": 1760000003.4}
+```
+`at` is when the Hub heard about the ring, by the Hub's clock; pass the reply's `now` back as `after` (a first call with `wait=0` gets a starting `now`). `start` is the recorder's own time. Any grant may ask, live-only ones included, because a ring is "happening now" like live video: only the last two minutes are kept, only on the caller's cameras, with no thumbnails or history. Rings come from systems with a live event stream (the same ones that power Instant Alerts).
+
 ### `GET /v1/events/{id}/thumbnail.jpg`
 The event's still image. It may be WebP; trust `Content-Type`.
 

@@ -44,6 +44,7 @@ type hub struct {
 	// diag keeps recent backend errors for GET /v1/diagnostics (diagnostics.go).
 	diag     *diagLog
 	checkins *checkinRunner // checkins.go
+	rings    ringBoard
 
 	mu      sync.RWMutex
 	systems []*system
@@ -290,6 +291,7 @@ func (k *systemSink) OnEvent(e backend.Event) {
 		dets[i] = k.s.publicID(d)
 	}
 	e.Detections = dets
+	k.h.rings.add(e, time.Now())
 	k.h.engine.OnEvent(e)
 	k.h.checkins.observe(e)
 }
