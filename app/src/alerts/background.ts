@@ -28,6 +28,7 @@ import { bundleAlerts, storySummary, storyTitle, type Story } from '@/stories/gr
 import { getAdapter } from '@/systems/registry';
 import type { CameraSystemAdapter, ReviewItem, SystemConfig } from '@/systems/types';
 import { titleFor } from '@/util/format';
+import { fmtTime, subscribeLocale, tr } from '@/i18n';
 import { recordLastAlert, syncWidgets } from '@/widgets/sync';
 import { syncWatch } from '@/watch/sync';
 import { syncAssistant } from '@/ask/sync';
@@ -56,18 +57,24 @@ export function setupNotificationHandling() {
     }),
   });
 
+  registerCategories();
+  // Button titles are in the app's language: re-register them when it changes.
+  subscribeLocale(registerCategories);
+
+  Notifications.addNotificationResponseReceivedListener((resp) => void handleResponse(resp));
+}
+
+function registerCategories() {
   // Long-press actions. Snoozing runs in the background without opening the app.
   void Notifications.setNotificationCategoryAsync(ALERT_CATEGORY, [
-    { identifier: ACTION_SNOOZE_HOUR, buttonTitle: 'Snooze this camera for 1 hour', options: { opensAppToForeground: false } },
-    { identifier: ACTION_SNOOZE_MORNING, buttonTitle: 'Snooze this camera until 7 AM', options: { opensAppToForeground: false } },
+    { identifier: ACTION_SNOOZE_HOUR, buttonTitle: tr().alerts.snoozeHour, options: { opensAppToForeground: false } },
+    { identifier: ACTION_SNOOZE_MORNING, buttonTitle: tr().alerts.snoozeMorning, options: { opensAppToForeground: false } },
     // "Not important" / "Always tell me about this" teach Sightline (smart.ts).
     ...FEEDBACK_ACTIONS,
   ]).catch(() => {});
   registerLearnedCategory();
   registerDoorbellCategory();
   registerPackageCategory();
-
-  Notifications.addNotificationResponseReceivedListener((resp) => void handleResponse(resp));
 }
 
 /**
@@ -331,15 +338,15 @@ export async function checkHealth(): Promise<number> {
       const report = await adapter.health();
       const names = new Map((await adapter.listCameras().catch(() => [])).map((c) => [c.id, c.name]));
       for (const cam of report.offline) {
-        toPost.push({ key: `${system.id}:offline:${cam}`, title: `${names.get(cam) ?? cam} is offline`, body: `No video from this camera on ${system.name}.` });
+        toPost.push({ key: `${system.id}:offline:${cam}`, title: tr().alerts.health.offline(names.get(cam) ?? cam), body: tr().alerts.health.offlineBody(system.name) });
       }
       for (const s of report.storage) {
         if (s.usedPct >= alerts.health.storagePct) {
-          toPost.push({ key: `${system.id}:storage:${s.path}`, title: `${system.name} storage is ${s.usedPct}% full`, body: `${s.freeGb} GB left. Older video will be replaced sooner than usual.` });
+          toPost.push({ key: `${system.id}:storage:${s.path}`, title: tr().alerts.health.storageFull(system.name, s.usedPct), body: tr().alerts.health.storageBody(s.freeGb) });
         }
       }
     } catch (e) {
-      toPost.push({ key: `${system.id}:down`, title: `${system.name} isn't responding`, body: e instanceof Error ? e.message : String(e) });
+      toPost.push({ key: `${system.id}:down`, title: tr().alerts.health.notResponding(system.name), body: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -381,9 +388,7 @@ async function post(item: ReviewItem, fallbackImage: string, camera: string, vid
   await Notifications.scheduleNotificationAsync({
     content: {
       title: notificationTitle(item, camera, titleFor(item)),
-      body: `${new Date(item.startTime * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${
-        item.zones.length ? ` in ${item.zones.join(', ')}` : ''
-      }`,
+      body: `${fmtTime(new Date(item.startTime * 1000))}${item.zones.length ? tr().alerts.inZones(item.zones.join(', ')) : ''}`,
       data: {
         systemId: item.systemId,
         cameraId: item.cameraId,

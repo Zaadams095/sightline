@@ -7,6 +7,7 @@ import { cloudBackupSupported, findCloudBackup, restoreFromCloud, type CloudBack
 import { needsPasswordText } from '@/backup/restore';
 import { useBackup } from '@/backup/settings';
 import { Button, Card, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { formatRelative } from '@/util/format';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -17,6 +18,7 @@ import { usePalette } from '@/theme/use-palette';
  */
 export function WelcomeBack() {
   const p = usePalette();
+  const w = useT().settings.welcomeBack;
   const dismissed = useBackup((s) => s.restoreDismissed);
   const [info, setInfo] = useState<CloudBackupInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,9 +42,9 @@ export function WelcomeBack() {
       const result = await restoreFromCloud(info);
       router.replace('/');
       const note = needsPasswordText(result);
-      if (note) Alert.alert('Almost there', note);
+      if (note) Alert.alert(w.almostThere, note);
     } catch (e) {
-      Alert.alert('Couldn’t restore', e instanceof Error ? e.message : String(e));
+      Alert.alert(w.couldntRestore, e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -55,16 +57,16 @@ export function WelcomeBack() {
           <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
             <SymbolView name="icloud.and.arrow.down" tintColor={p.accent} size={28} />
             <View style={{ flex: 1, gap: 2 }}>
-              <T v="label">Welcome back. Restore your cameras from iCloud?</T>
+              <T v="label">{w.title}</T>
               <T v="caption" muted>
                 {info.summary}
-                {info.from ? ` · from ${info.from}` : ''}
+                {info.from ? ` · ${w.from(info.from)}` : ''}
                 {info.updatedAt ? `, ${formatRelative(Math.floor(info.updatedAt / 1000))}` : ''}
               </T>
             </View>
           </View>
-          <Button title="Restore" onPress={() => void restore()} loading={busy} />
-          <Button title="Not now, start fresh" kind="ghost" onPress={() => useBackup.getState().set({ restoreDismissed: true })} />
+          <Button title={w.restore} onPress={() => void restore()} loading={busy} />
+          <Button title={w.startFresh} kind="ghost" onPress={() => useBackup.getState().set({ restoreDismissed: true })} />
         </Card>
       )}
       <Pressable
@@ -73,7 +75,9 @@ export function WelcomeBack() {
         hitSlop={8}
         style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <SymbolView name="iphone.and.arrow.forward" tintColor={p.accent} size={20} />
-        <T color={p.accent}>Moving from another phone?</T>
+        <T color={p.accent} style={{ flexShrink: 1 }}>
+          {w.moving}
+        </T>
       </Pressable>
     </View>
   );

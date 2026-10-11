@@ -1,4 +1,5 @@
 import type { PtzAction } from './types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Pure mapping for the ZoneMinder 1.36/1.37 API (https://zoneminder.readthedocs.io/en/latest/api.html),
@@ -91,7 +92,7 @@ export function parseMonitors(rows: ZmMonitorRow[]): ZmMonitor[] {
       const status = s.Status ?? '';
       return {
         id: String(m.Id),
-        name: m.Name?.trim() || `Camera ${m.Id}`,
+        name: m.Name?.trim() || tr().systems.common.cameraN(String(m.Id)),
         enabled,
         ptz: m.Controllable === '1',
         controlId: m.ControlId ?? '',

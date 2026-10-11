@@ -9,6 +9,7 @@ import type {
 } from '@/systems/types';
 import { streamUrlFor } from '@/systems/stream-credentials';
 import { WgTunnel } from '@modules/wg-tunnel';
+import { tr } from '@/i18n';
 
 /**
  * Cameras added by stream link. No recorder means no review, events or PTZ; live video is
@@ -51,7 +52,7 @@ export class RtspAdapter implements CameraSystemAdapter {
 
   async liveStream(cameraId: string): Promise<LiveSource> {
     const cam = this.config.manualCameras?.find((c) => c.id === cameraId);
-    if (!cam) throw new Error('Camera not found');
+    if (!cam) throw new Error(tr().systems.common.cameraNotFound);
     // Stored links have no password; the keychain copy puts it back (systems/stream-credentials.ts).
     return { kind: 'rtsp', url: await streamUrlFor(this.config.id, cam) };
   }

@@ -1,5 +1,7 @@
 import type { ReviewItem } from '@/systems/types';
 
+import { fmtList, tr } from '../i18n/index.ts';
+
 /**
  * Package tracking from generic events (any system whose detector reports `package` objects).
  * Pure: no React Native imports, so it's unit-tested in test/packages.test.ts.
@@ -147,11 +149,12 @@ export function reminderPlan(
   if (at <= now) at.setDate(at.getDate() + 1);
 
   const places = [...new Set(open.map((p) => names[p.cameraKey] ?? p.cameraName ?? p.cameraId))];
-  const where = places.length <= 2 ? places.join(' and ') : `${places.slice(0, -1).join(', ')} and ${places[places.length - 1]}`;
+  const where = fmtList(places);
+  const t = tr().alerts.packages;
   return {
     at: Math.floor(at.getTime() / 1000),
-    title: open.length === 1 ? `A package is still at ${where}` : `${open.length} packages are still outside`,
-    body: open.length === 1 ? 'It was delivered earlier and hasn’t been picked up.' : `At ${where}.`,
+    title: open.length === 1 ? t.stillAt(where) : t.stillOutside(open.length),
+    body: open.length === 1 ? t.reminderBody : t.at(where),
     cameraKeys: open.map((p) => p.cameraKey),
   };
 }

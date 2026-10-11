@@ -1,4 +1,5 @@
 import type { HealthReport, PtzAction } from './types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Pure mapping for the Blue Iris JSON interface (`POST /json`). References: the Blue Iris
@@ -20,9 +21,9 @@ export function failReason(r: BiReply): string {
   const reason = (r.data as { reason?: string } | undefined)?.reason ?? '';
   if (/invalid session/i.test(reason)) return 'session';
   if (/user|password|login|credential/i.test(reason)) {
-    return 'Blue Iris didn’t accept the username or password. Check them in Blue Iris → Settings → Users.';
+    return tr().systems.blueIris.badLogin;
   }
-  return reason ? `Blue Iris said: ${reason}` : 'Blue Iris refused the request.';
+  return reason ? tr().systems.http.said('Blue Iris', reason) : tr().systems.blueIris.refused;
 }
 
 export interface BiCamEntry {

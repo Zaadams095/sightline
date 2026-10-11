@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { confirmRemoveDemo, offerSampleAlert } from '@/components/demo-banner';
 import { Row, Screen, Section, StatusDot, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { startDemo, useDemoActive } from '@/systems/demo/session';
@@ -21,6 +22,9 @@ function sharedDetail(s: SystemConfig): string | undefined {
 
 export default function SettingsScreen() {
   const p = usePalette();
+  const t = useT();
+  const L = t.home.settings;
+  const nav = t.home.nav;
   const insets = useSafeAreaInsets();
   const systems = useApp((s) => s.systems);
   const alerts = useApp((s) => s.alerts);
@@ -39,9 +43,9 @@ export default function SettingsScreen() {
 
   return (
     <Screen style={{ paddingTop: insets.top + space.sm }}>
-      <T v="title">Settings</T>
+      <T v="title">{t.home.tabs.settings}</T>
 
-      <Section title="Systems">
+      <Section title={L.systems}>
         {systems.map((s) => {
           const mode = links[s.id]?.mode ?? 'connecting';
           const color = { lan: p.success, tunnel: p.accent, connecting: p.warning, offline: p.danger }[mode];
@@ -49,40 +53,40 @@ export default function SettingsScreen() {
             <Row
               key={s.id}
               label={s.name}
-              detail={s.kind === 'demo' ? 'Built-in sample video, not a real camera' : (links[s.id]?.error ?? sharedDetail(s) ?? s.endpoint.lanUrl)}
+              detail={s.kind === 'demo' ? L.demoDetail : (links[s.id]?.error ?? sharedDetail(s) ?? s.endpoint.lanUrl)}
               icon={<StatusDot color={color} />}
               onPress={() => router.push({ pathname: '/settings/systems', params: { id: s.id } })}
             />
           );
         })}
-        <Row label="Add a recorder or camera" onPress={() => router.push('/onboarding')} last />
+        <Row label={L.addSystem} onPress={() => router.push('/onboarding')} last />
       </Section>
 
-      <Section title="Sample cameras">
+      <Section title={L.sampleCameras}>
         {demoActive ? (
           <>
-            <Row label="Send a sample alert" detail="See what an alert looks like on this iPhone" onPress={offerSampleAlert} />
-            <Row label="Remove sample cameras" destructive onPress={confirmRemoveDemo} last />
+            <Row label={L.sendSample} detail={L.sendSampleDetail} onPress={offerSampleAlert} />
+            <Row label={L.removeSamples} destructive onPress={confirmRemoveDemo} last />
           </>
         ) : (
           <Row
-            label="Add sample cameras"
-            detail="Explore every feature with built-in sample video"
+            label={L.addSamples}
+            detail={L.addSamplesDetail}
             onPress={() => void startDemo().then(() => router.navigate('/'))}
             last
           />
         )}
       </Section>
 
-      <Section title="Sharing">
+      <Section title={nav.sharing}>
         <Row
-          label={sharable || !shared ? 'Share access' : 'Shared with you'}
+          label={sharable || !shared ? L.shareAccess : L.sharedWithYou}
           detail={
             sharable
-              ? 'Family, friends or a sitter: you pick the cameras and how long'
+              ? L.shareDetail
               : shared
                 ? sharedDetail(shared)
-                : 'Needs a Sightline Hub'
+                : L.needsHub
           }
           onPress={() => router.push('/settings/sharing')}
           last={!sharable}
@@ -90,84 +94,84 @@ export default function SettingsScreen() {
         {sharable && (
           <Row
             label="Apple TV"
-            detail="Open Sightline on the TV, then scan the code it shows with your iPhone camera"
+            detail={L.appleTvDetail}
             last
           />
         )}
       </Section>
 
       {!guestOnly && (
-        <Section title="Connection">
+        <Section title={L.connection}>
           <Row
-            label="Away from home"
-            detail={hubRemote ? 'On, through your Sightline Hub' : tunnelUp ? 'Connected' : 'Watch your cameras from anywhere'}
+            label={nav.awayFromHome}
+            detail={hubRemote ? L.awayViaHub : tunnelUp ? L.connected : L.awayDetail}
             onPress={() => router.push('/settings/vpn')}
           />
-          <Row label="Connection check" detail="Find out why a recorder or camera won’t connect" onPress={() => router.push('/settings/diagnostics')} last />
+          <Row label={nav.connectionCheck} detail={L.connectionCheckDetail} onPress={() => router.push('/settings/diagnostics')} last />
         </Section>
       )}
 
-      <Section title="Alerts">
+      <Section title={nav.alerts}>
         <Row
-          label="Alert settings"
-          detail={alerts.mode === 'instant' ? 'Instant Alerts' : 'Built-in (may arrive a few minutes late)'}
+          label={L.alertSettings}
+          detail={alerts.mode === 'instant' ? nav.instantAlerts : L.builtIn}
           onPress={() => router.push('/settings/alerts')}
         />
         <Row
-          label="Home & Away"
-          detail={alerts.presence.enabled ? (alerts.presence.atHome ? 'Home: only selected cameras alert' : 'Away: all cameras alert') : 'Quiet alerts automatically when you’re home'}
+          label={nav.homeAway}
+          detail={alerts.presence.enabled ? (alerts.presence.atHome ? L.homeOnly : L.awayAll) : L.homeAwayDetail}
           onPress={() => router.push('/settings/home-away')}
           last={guestOnly}
         />
         {!guestOnly && (
           <Row
-            label="Instant Alerts"
-            detail={hasHub || alerts.bridge ? 'Ready: alerts within a second' : 'Needs a Sightline Hub'}
+            label={nav.instantAlerts}
+            detail={hasHub || alerts.bridge ? L.instantReady : L.needsHub}
             onPress={() => router.push('/settings/bridge')}
             last
           />
         )}
       </Section>
 
-      <Section title="Recognition">
-        <Row label="People & vehicles" detail="Familiar faces and cars, recognized on this iPhone" onPress={() => router.push('/people')} last />
+      <Section title={L.recognition}>
+        <Row label={nav.peopleVehicles} detail={L.peopleDetail} onPress={() => router.push('/people')} last />
       </Section>
 
-      <Section title="Privacy">
-        <Row label="App lock" detail="Face ID or a PIN to open the app" onPress={() => router.push('/settings/security')} />
-        <Row label="Share crash data with the developer" detail="An iOS setting; here’s where to find it" onPress={() => router.push('/settings/crash-data')} last />
+      <Section title={L.privacy}>
+        <Row label={L.appLock} detail={L.appLockDetail} onPress={() => router.push('/settings/security')} />
+        <Row label={L.crashData} detail={L.crashDataDetail} onPress={() => router.push('/settings/crash-data')} last />
       </Section>
 
-      <Section title="Backup">
-        <Row label="Backup & new phone" detail="iCloud backup, or move everything to another phone" onPress={() => router.push('/settings/backup')} last />
+      <Section title={L.backup}>
+        <Row label={nav.backup} detail={L.backupDetail} onPress={() => router.push('/settings/backup')} last />
       </Section>
 
-      <Section title="Help">
-        <Row label="Report a problem" detail="See exactly what’s sent before you send it" onPress={() => router.push('/settings/report')} last />
+      <Section title={L.help}>
+        <Row label={L.report} detail={L.reportDetail} onPress={() => router.push('/settings/report')} last />
       </Section>
 
       {systems.length > 0 && (
-        <Section title="Recordings">
+        <Section title={t.home.tabs.recordings}>
           <Row
-            label="Export for police or insurance"
-            detail="Video from every camera for a time you pick, with a signed summary"
+            label={nav.export}
+            detail={L.exportDetail}
             onPress={() => router.push('/export')}
             last
           />
         </Section>
       )}
 
-      <Section title="Look & layout">
-        <Row label="Appearance" detail="Theme, accent color, tile style" onPress={() => router.push('/settings/appearance')} />
-        <Row label="Cameras & order" detail="Reorder or hide cameras" onPress={() => router.push('/settings/cameras')} />
-        <Row label="Camera groups" detail="Front Yard, Back Yard, Indoors…" onPress={() => router.push('/settings/groups')} last={!tablet} />
-        {tablet && <Row label="Grid layouts" detail="Custom multi-size camera walls" onPress={() => router.push('/settings/grid')} />}
-        {tablet && <Row label="Wall display" detail="Always-on camera wall that shows the doorbell when someone rings" onPress={() => router.push('/settings/wall')} last />}
+      <Section title={L.look}>
+        <Row label={t.common.appearance.title} detail={L.appearanceDetail} onPress={() => router.push('/settings/appearance')} />
+        <Row label={nav.camerasOrder} detail={L.camerasOrderDetail} onPress={() => router.push('/settings/cameras')} />
+        <Row label={nav.cameraGroups} detail={L.groupsDetail} onPress={() => router.push('/settings/groups')} last={!tablet} />
+        {tablet && <Row label={nav.gridLayouts} detail={L.gridDetail} onPress={() => router.push('/settings/grid')} />}
+        {tablet && <Row label={nav.wallDisplay} detail={L.wallDetail} onPress={() => router.push('/settings/wall')} last />}
       </Section>
 
       <View style={{ alignItems: 'center', paddingTop: space.md }}>
-        <T v="caption" muted>
-          Everything stays on your network. No accounts, no cloud.
+        <T v="caption" muted style={{ textAlign: 'center' }}>
+          {L.footer}
         </T>
       </View>
     </Screen>

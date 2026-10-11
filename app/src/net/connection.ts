@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { parseStatus, WgTunnel, type AuthKind } from '@modules/wg-tunnel';
 import { noteProblem } from '@/diagnostics/log';
 import { secrets, SECRET } from '@/state/secrets';
+import { tr } from '@/i18n';
 import { probeHub } from '@/systems/hub';
 import type { SystemConfig } from '@/systems/types';
 import { useApp } from '@/state/store';
@@ -249,7 +250,7 @@ async function connectOnce(s: SystemConfig, opts: ConnectOpts, attempt: Attempt)
     if (!reachable) noteProblem('connect', 'no response', { brand: s.kind, feature: 'vpn' });
     const link: SystemLink = reachable
       ? { baseUrl, port, mode: 'tunnel' }
-      : { baseUrl, port, mode: 'offline', error: `Connected to home, but ${s.name} didn’t answer. Make sure it’s turned on.` };
+      : { baseUrl, port, mode: 'offline', error: tr().alerts.errors.noAnswerViaVpn(s.name) };
     store.set(s.id, link);
     return link;
   } catch (e) {
@@ -282,16 +283,16 @@ async function directFrigateLogin(s: SystemConfig, baseUrl: string): Promise<str
         body: JSON.stringify({ user: s.username, password }),
         credentials: 'include',
       });
-      if (res.status === 401) return 'Wrong username or password';
-      if (!res.ok && res.status !== 404) return `Login failed (HTTP ${res.status})`;
+      if (res.status === 401) return tr().alerts.errors.wrongLogin;
+      if (!res.ok && res.status !== 404) return tr().alerts.errors.loginFailed(res.status);
     }
     const probe = await fetchWithTimeout(`${baseUrl}/api/version`, { credentials: 'include' });
-    return probe.ok ? null : `${s.name} returned HTTP ${probe.status}`;
+    return probe.ok ? null : tr().alerts.errors.httpStatus(s.name, probe.status);
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith('No response')) return `${e.message}. Is the phone on the same network as ${s.name}?`;
+    if (e instanceof Error && e.message.startsWith('No response')) return tr().alerts.errors.sameNetwork(e.message, s.name);
     return baseUrl.startsWith('https')
-      ? "Couldn't connect. Expo Go can't accept self-signed certificates; use an http:// address for previews."
-      : `Couldn't reach ${s.name} on this network`;
+      ? tr().alerts.errors.expoGoTls
+      : tr().alerts.errors.unreachable(s.name);
   }
 }
 

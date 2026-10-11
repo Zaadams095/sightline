@@ -13,6 +13,8 @@ import { StreamPlayback } from '@/components/playback/stream-playback';
 import { SyncedPip } from '@/components/playback/synced-pip';
 import { Timeline } from '@/components/timeline';
 import { Chip, T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { neighborsOf, tracePath } from '@/map/graph';
 import { useApp } from '@/state/store';
 import { useAdapter } from '@/systems/registry';
@@ -40,6 +42,7 @@ function dayKey(t: number) {
 }
 
 export default function PlaybackScreen() {
+  const t = useT();
   const params = useLocalSearchParams<{ systemId: string; cameraId: string; start: string; reviewId?: string }>();
   const adapter = useAdapter(params.systemId);
   const cameraId = params.cameraId;
@@ -241,10 +244,10 @@ export default function PlaybackScreen() {
     await Promise.allSettled(retained.map((id) => adapter?.retain?.(id, true)));
     if (!adapter?.retain) {
       Alert.alert(
-        'Bookmarked',
+        tr().viewing.playback.bookmarked,
         adapter?.clip
-          ? 'Your recorder may delete old video over time. To keep this for good, download it from Recordings → Saved.'
-          : 'Your recorder may delete old video over time.',
+          ? tr().viewing.playback.bookmarkedDownload
+          : tr().viewing.playback.bookmarkedBody,
       );
     }
     saveClip({
@@ -252,7 +255,7 @@ export default function PlaybackScreen() {
       systemId: params.systemId,
       cameraId,
       cameraName: nameOf(cameraId),
-      title: current ? titleFor(current) : 'Saved moment',
+      title: current ? titleFor(current) : tr().viewing.playback.savedMoment,
       start: bookmarkRange[0],
       end: bookmarkRange[1],
       savedAt: Math.floor(nowSec()),
@@ -263,14 +266,14 @@ export default function PlaybackScreen() {
   const share = () => {
     if (!adapter?.clip) return;
     const options: { label: string; range: [number, number] }[] = [];
-    if (current) options.push({ label: `This event (${titleFor(current)})`, range: [current.startTime - 3, (current.endTime ?? wall + 15) + 3] });
-    options.push({ label: '30 seconds around here', range: [wall - 15, wall + 15] });
-    options.push({ label: '2 minutes around here', range: [wall - 60, wall + 60] });
+    if (current) options.push({ label: t.viewing.playback.thisEvent(titleFor(current)), range: [current.startTime - 3, (current.endTime ?? wall + 15) + 3] });
+    options.push({ label: t.viewing.playback.around30s, range: [wall - 15, wall + 15] });
+    options.push({ label: t.viewing.playback.around2m, range: [wall - 60, wall + 60] });
     // Also: a blurred copy for neighbors, or everything around this time for police/insurance.
     const neighborRange = options[0].range;
-    const extras = ['Share with neighbors (blur faces & plates)…', 'Export for police or insurance…'];
+    const extras = [t.viewing.playback.shareNeighbors, t.viewing.playback.exportPolice];
     ActionSheetIOS.showActionSheetWithOptions(
-      { options: [...options.map((o) => o.label), ...extras, 'Cancel'], cancelButtonIndex: options.length + extras.length, title: 'Share clip' },
+      { options: [...options.map((o) => o.label), ...extras, t.common.cancel], cancelButtonIndex: options.length + extras.length, title: t.viewing.playback.shareClip },
       async (i) => {
         if (i === options.length) {
           const [s, e] = neighborRange;
@@ -287,7 +290,7 @@ export default function PlaybackScreen() {
         try {
           await shareClip(adapter, cameraId, nameOf(cameraId), o.range[0], Math.min(o.range[1], now));
         } catch (e) {
-          Alert.alert('Could not export clip', e instanceof Error ? e.message : String(e));
+          Alert.alert(tr().viewing.playback.exportFailed, e instanceof Error ? e.message : String(e));
         } finally {
           setSharing(false);
         }
@@ -327,30 +330,30 @@ export default function PlaybackScreen() {
         {noRecordings && !loadFailed && (
           <View style={[StyleSheet.absoluteFill, styles.center]}>
             <T color="#fff" style={styles.overlayText}>
-              No recordings around this time. Pick another day below, or drag the timeline.
+              {t.viewing.playback.noRecordings}
             </T>
           </View>
         )}
         {loadingVideo && (
           <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
-            <ActivityIndicator color="#fff" accessibilityLabel="Loading recording" />
+            <ActivityIndicator color="#fff" accessibilityLabel={t.viewing.playback.loadingRecording} />
           </View>
         )}
         {(loadFailed || !adapter || cantPlay) && (
           <View style={[StyleSheet.absoluteFill, styles.center, { gap: space.md }]}>
             <T color="#fff" style={styles.overlayText}>
               {!adapter
-                ? 'Can’t reach the recorder right now. If you’re away from home, check Settings → Away from home.'
+                ? t.viewing.playback.cantReach
                 : cantPlay
-                  ? 'Recordings from this camera can’t be played in Sightline.'
+                  ? t.viewing.playback.cantPlay
                   : playerStatus === 'error' && !playbackSource.isError
-                    ? 'This recording couldn’t be played. Try another time on the timeline.'
-                    : 'Couldn’t load recordings from the recorder. Make sure it’s turned on, then try again.'}
+                    ? t.viewing.playback.playError
+                    : t.viewing.playback.loadError}
             </T>
             {loadFailed && (
               <Pressable onPress={retryLoad} accessibilityRole="button" style={styles.retry}>
                 <T v="label" color="#fff">
-                  Try again
+                  {t.common.retry}
                 </T>
               </Pressable>
             )}
@@ -359,18 +362,18 @@ export default function PlaybackScreen() {
       </View>
 
       <View style={[styles.topBar, { top: insets.top + 6 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={styles.round}>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t.common.close} style={styles.round}>
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <T v="label" color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>
+            <T v="label" color="#fff" numberOfLines={1} overlay style={{ flexShrink: 1 }}>
               {nameOf(cameraId)} · {formatClock(shown, true)}
             </T>
             {adapter?.config.kind === 'demo' && <SamplePill dark />}
           </View>
           {current && (
-            <T v="caption" color="rgba(255,255,255,0.7)" numberOfLines={1}>
+            <T v="caption" color="rgba(255,255,255,0.7)" numberOfLines={1} overlay>
               {titleFor(current)}
               {current.zones.length ? ` · ${current.zones.join(', ')}` : ''}
             </T>
@@ -380,24 +383,24 @@ export default function PlaybackScreen() {
           onPress={() => void toggleSaved()}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={existing ? 'Remove from saved' : 'Save this moment'}
+          accessibilityLabel={existing ? t.viewing.playback.unsave : t.viewing.playback.save}
           style={styles.round}>
           <SymbolView name={existing ? 'star.fill' : 'star'} tintColor={existing ? '#FFD60A' : '#fff'} size={18} />
         </Pressable>
         {adapter?.clip && (
-          <Pressable onPress={share} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share a clip" style={styles.round} disabled={sharing}>
+          <Pressable onPress={share} hitSlop={8} accessibilityRole="button" accessibilityLabel={t.viewing.playback.shareA11y} style={styles.round} disabled={sharing}>
             {sharing ? <ActivityIndicator color="#fff" /> : <SymbolView name="square.and.arrow.up" tintColor="#fff" size={17} />}
           </Pressable>
         )}
         <Pressable
           onPress={() => router.replace({ pathname: '/camera/[key]', params: { key: cameraKey } })}
           accessibilityRole="button"
-          accessibilityLabel="Watch live"
+          accessibilityLabel={t.viewing.playback.watchLive}
           hitSlop={{ top: 6, bottom: 6 }}
           style={styles.liveBtn}>
           <View style={styles.liveDot} />
-          <T v="caption" color="#fff">
-            LIVE
+          <T v="caption" color="#fff" overlay>
+            {t.viewing.playback.live}
           </T>
         </Pressable>
       </View>
@@ -426,9 +429,11 @@ export default function PlaybackScreen() {
         {nextStop && (
           <Pressable onPress={() => openCamera(nextStop.cameraId, nextStop.startTime - 3)} style={styles.nextStop}>
             <SymbolView name="figure.walk" tintColor="#fff" size={14} />
-            <T v="caption" color="#fff">
-              Next seen on {nameOf(nextStop.cameraId)} ·{' '}
-              {Math.max(0, Math.round(nextStop.startTime - (current?.endTime ?? current?.startTime ?? 0)))}s later
+            <T v="caption" color="#fff" style={{ flexShrink: 1 }}>
+              {t.viewing.playback.nextSeen(
+                nameOf(nextStop.cameraId),
+                Math.max(0, Math.round(nextStop.startTime - (current?.endTime ?? current?.startTime ?? 0))),
+              )}
             </T>
             <SymbolView name="chevron.right" tintColor="#fff" size={12} />
           </Pressable>
@@ -468,7 +473,7 @@ export default function PlaybackScreen() {
 
         {labels.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            <Chip label="All activity" selected={!labelFilter} onPress={() => setLabelFilter(null)} />
+            <Chip label={t.viewing.playback.allActivity} selected={!labelFilter} onPress={() => setLabelFilter(null)} />
             {labels.map((l) => (
               <Chip key={l} label={labelFor([l])} selected={labelFilter === l} onPress={() => setLabelFilter(labelFilter === l ? null : l)} />
             ))}
@@ -476,12 +481,12 @@ export default function PlaybackScreen() {
         )}
 
         <View style={styles.buttons}>
-          <Ctl icon="minus.magnifyingglass" label="Zoom timeline out" small onPress={() => setZoom((z) => Math.max(0, z - 1))} />
-          <Ctl icon="backward.end.fill" label="Previous event" onPress={() => jumpEvent(-1)} />
-          <Ctl icon="gobackward.10" label="Back 10 seconds" onPress={() => seekTo(wall - 10)} />
+          <Ctl icon="minus.magnifyingglass" label={t.viewing.playback.zoomOut} small onPress={() => setZoom((z) => Math.max(0, z - 1))} />
+          <Ctl icon="backward.end.fill" label={t.viewing.playback.prevEvent} onPress={() => jumpEvent(-1)} />
+          <Ctl icon="gobackward.10" label={t.viewing.playback.back10} onPress={() => seekTo(wall - 10)} />
           <Ctl
             icon={(streamMode ? streamPlaying && !streamStopped : isPlaying) ? 'pause.fill' : 'play.fill'}
-            label={(streamMode ? streamPlaying && !streamStopped : isPlaying) ? 'Pause' : 'Play'}
+            label={(streamMode ? streamPlaying && !streamStopped : isPlaying) ? t.viewing.playback.pause : t.viewing.playback.play}
             big
             onPress={() => {
               if (!streamMode) return isPlaying ? player.pause() : player.play();
@@ -490,16 +495,16 @@ export default function PlaybackScreen() {
               else setStreamStopped(true);
             }}
           />
-          <Ctl icon="goforward.10" label="Forward 10 seconds" onPress={() => seekTo(wall + 10)} />
-          <Ctl icon="forward.end.fill" label="Next event" onPress={() => jumpEvent(1)} />
-          <Ctl icon="plus.magnifyingglass" label="Zoom timeline in" small onPress={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} />
+          <Ctl icon="goforward.10" label={t.viewing.playback.forward10} onPress={() => seekTo(wall + 10)} />
+          <Ctl icon="forward.end.fill" label={t.viewing.playback.nextEvent} onPress={() => jumpEvent(1)} />
+          <Ctl icon="plus.magnifyingglass" label={t.viewing.playback.zoomIn} small onPress={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} />
         </View>
         <View style={styles.footerRow}>
           {!streamMode && (
             <Pressable
               onPress={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])}
               accessibilityRole="button"
-              accessibilityLabel={`Playback speed ${speed} times`}
+              accessibilityLabel={t.viewing.playback.speedA11y(speed)}
               hitSlop={{ top: 8, bottom: 8 }}
               style={styles.pill}>
               <T v="label" color="#fff">
@@ -517,14 +522,14 @@ export default function PlaybackScreen() {
               style={[styles.pill, styles.pillRow]}>
               <SymbolView name="timelapse" tintColor="#fff" size={13} />
               <T v="label" color="#fff">
-                Timelapse
+                {t.viewing.camera.timelapse}
               </T>
             </Pressable>
           )}
           {neighborIds.length > 0 && (
             <Pressable onPress={() => setShowPip((v) => !v)} style={styles.pill}>
               <T v="label" color="#fff">
-                {showPip ? 'Hide nearby' : 'Show nearby'}
+                {showPip ? t.viewing.playback.hideNearby : t.viewing.playback.showNearby}
               </T>
             </Pressable>
           )}
@@ -573,7 +578,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    height: 32,
+    minHeight: 32,
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
@@ -585,6 +590,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     alignSelf: 'center',
+    maxWidth: '92%',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
@@ -594,7 +600,7 @@ const styles = StyleSheet.create({
   buttons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   ctl: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   ctlBig: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.16)' },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  footerRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
   pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.12)' },
   pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

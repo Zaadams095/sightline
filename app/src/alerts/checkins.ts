@@ -1,3 +1,4 @@
+import { tr } from '../i18n/index.ts';
 import { atTimeOfDay, clockText, dayKey, whenText, zoned } from './clock.ts';
 
 /**
@@ -131,26 +132,27 @@ export function observe(c: CheckIn, st0: CheckInState, e: ActivityEvent, now: nu
 }
 
 export function placeName(c: CheckIn): string {
+  const t = tr().alerts.checkins;
   const who = c.who.trim();
-  if (!who) return c.place?.trim() || 'home';
-  return /s$/i.test(who) ? `${who}’` : `${who}’s`;
+  if (!who) return c.place?.trim() ? t.placeNamed(c.place.trim()) : t.home;
+  return t.placeOf(who);
 }
 
 /** "Mom’s fine" / "All fine". */
 export function okLabel(c: CheckIn): string {
-  return c.who.trim() ? `${c.who.trim()}’s fine` : 'All fine';
+  return c.who.trim() ? tr().alerts.checkins.fine(c.who.trim()) : tr().alerts.checkins.allFine;
 }
 
 const camName = (c: CheckIn, id: string) => c.cameraNames?.[id] || id;
 
 function listNames(names: string[]): string {
-  if (names.length <= 1) return names[0] ?? 'the cameras';
-  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+  if (names.length <= 1) return names[0] ?? tr().alerts.checkins.theCameras;
+  return `${names.slice(0, -1).join(', ')} ${tr().alerts.checkins.or} ${names[names.length - 1]}`;
 }
 
 export function lastText(c: CheckIn, st: CheckInState, now: number): string {
-  if (st.lastActivity) return `${camName(c, st.lastCamera ?? '')} was last active ${whenText(st.lastActivity, now, c.timezone)}.`;
-  return `Sightline hasn’t seen anyone on ${listNames(c.cameras.map((id) => camName(c, id)))} since it started watching.`;
+  if (st.lastActivity) return tr().alerts.checkins.lastActive(camName(c, st.lastCamera ?? ''), whenText(st.lastActivity, now, c.timezone));
+  return tr().alerts.checkins.notSeen(listNames(c.cameras.map((id) => camName(c, id))));
 }
 
 const nowClock = (now: number, tz: string) => {
@@ -168,6 +170,7 @@ export function dueCheckIn(c: CheckIn, st0: CheckInState, now: number, quietNow 
   const notices: CheckInNotice[] = [];
   if (!c.enabled || c.cameras.length === 0 || (quietNow && !c.duringQuietHours)) return { notices, state: st };
   const today = st.day!;
+  const t = tr().alerts.checkins;
   const place = placeName(c);
   const midnight = atTimeOfDay(now, '00:00', tz);
   const okToday = st.okAt != null && dayKey(st.okAt, tz) === today;
@@ -176,7 +179,7 @@ export function dueCheckIn(c: CheckIn, st0: CheckInState, now: number, quietNow 
     const due = atTimeOfDay(now, c.byTime, tz);
     // Only claim "nothing yet today" for a day watched since midnight.
     if (now >= due && st.firstToday == null && !okToday && st.watchingSince <= midnight) {
-      notices.push({ kind: 'by-time', title: `No activity at ${place} yet today`, body: `It’s ${nowClock(now, tz)}. ${lastText(c, st, now)}` });
+      notices.push({ kind: 'by-time', title: t.noActivityYet(place), body: t.itsNow(nowClock(now, tz), lastText(c, st, now)) });
       st = { ...st, firedByTime: today };
     }
   }
@@ -188,7 +191,7 @@ export function dueCheckIn(c: CheckIn, st0: CheckInState, now: number, quietNow 
       const since = Math.max(st.lastActivity ?? 0, st.okAt ?? 0, from, st.watchingSince);
       if (now - since >= c.quietLimitHours * 3600 && st.firedQuietFor !== since) {
         const h = c.quietLimitHours;
-        notices.push({ kind: 'quiet', title: `No activity at ${place} for ${h} hour${h === 1 ? '' : 's'}`, body: lastText(c, st, now) });
+        notices.push({ kind: 'quiet', title: t.noActivityFor(place, h), body: lastText(c, st, now) });
         st = { ...st, firedQuietFor: since };
       }
     }
@@ -200,11 +203,11 @@ export function dueCheckIn(c: CheckIn, st0: CheckInState, now: number, quietNow 
       const n = st.momentsToday;
       notices.push({
         kind: 'summary',
-        title: `All normal at ${place}`,
-        body: `First activity ${clockText(p.h, p.mi)} · ${n} moment${n === 1 ? '' : 's'} today.`,
+        title: t.allNormal(place),
+        body: t.summaryBody(clockText(p.h, p.mi), n),
       });
     } else {
-      notices.push({ kind: 'summary', title: `No activity at ${place} today`, body: lastText(c, st, now) });
+      notices.push({ kind: 'summary', title: t.noActivityToday(place), body: lastText(c, st, now) });
     }
     st = { ...st, summarySent: today };
   }
@@ -218,13 +221,13 @@ export function markOk(st: CheckInState, now: number): CheckInState {
 
 /** Plain status for the Check-ins screen: "First activity 7:42 AM · 23 moments today". */
 export function statusText(c: CheckIn, st: CheckInState | undefined, now: number): string {
-  if (!st) return 'Not checked yet.';
+  if (!st) return tr().alerts.checkins.notCheckedYet;
   const s = rollDay(st, now, c.timezone);
   if (s.firstToday != null) {
     const p = zoned(s.firstToday, c.timezone);
-    return `First activity today ${clockText(p.h, p.mi)} · ${s.momentsToday} moment${s.momentsToday === 1 ? '' : 's'}.`;
+    return tr().alerts.checkins.status(clockText(p.h, p.mi), s.momentsToday);
   }
-  return `No activity yet today. ${lastText(c, s, now)}`;
+  return tr().alerts.checkins.noActivityYetToday(lastText(c, s, now));
 }
 
 /**

@@ -5,7 +5,8 @@ import { requestNotificationPermission } from '@/alerts/background';
 import { notificationTitle } from '@/alerts/rules';
 import { connectSystem, disconnectSystem } from '@/net/connection';
 import { useApp, type CameraLink, type MapPlacement } from '@/state/store';
-import { DEMO_GROUPS, DEMO_SYSTEM_ID, DEMO_SYSTEM_NAME, demoEvents } from '@/systems/demo/data';
+import { tr } from '@/i18n';
+import { DEMO_GROUPS, DEMO_SYSTEM_ID, demoEvents, demoSystemName } from '@/systems/demo/data';
 import { stillUri } from '@/systems/demo/media';
 import { useDemoPtz } from '@/systems/demo/ptz';
 import { dropAdapter } from '@/systems/registry';
@@ -27,7 +28,7 @@ export function useOnlyDemo(): boolean {
 }
 
 function demoSystem(): SystemConfig {
-  return { id: DEMO_SYSTEM_ID, kind: 'demo', name: DEMO_SYSTEM_NAME, endpoint: { lanUrl: '', useTunnel: false } };
+  return { id: DEMO_SYSTEM_ID, kind: 'demo', name: demoSystemName(), endpoint: { lanUrl: '', useTunnel: false } };
 }
 
 const key = (cameraId: string) => `${DEMO_SYSTEM_ID}:${cameraId}`;
@@ -58,7 +59,7 @@ export async function startDemo() {
 
   // Groups and map spots show off those features; anything the user already set stays.
   for (const g of DEMO_GROUPS) {
-    const id = `${DEMO_SYSTEM_ID}-${g.name}`;
+    const id = `${DEMO_SYSTEM_ID}-${g.id}`;
     if (!st.cameraGroups.some((x) => x.id === id)) {
       st.saveGroup({ id, name: g.name, cameraKeys: g.cameraIds.map(key), source: DEMO_SYSTEM_ID });
     }
@@ -112,8 +113,8 @@ export async function sendSampleAlert(delaySec = 4): Promise<'scheduled' | 'deni
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: notificationTitle(item, 'Front Door', titleFor(item)),
-      body: 'Sample alert. Your own cameras’ alerts look like this. Tap to watch the recording.',
+      title: notificationTitle(item, tr().systems.demo.cameras['front-door'], titleFor(item)),
+      body: tr().systems.demo.sampleAlertBody,
       // kind marks it as a sample: no Lock Screen activity, and a tap opens the recording.
       data: { systemId: DEMO_SYSTEM_ID, cameraId: 'front-door', start: String(Math.floor(item.startTime - 5)), reviewId: item.id, kind: 'sample' },
       attachments,

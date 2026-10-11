@@ -6,6 +6,8 @@ import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -19,6 +21,8 @@ type Biometric = { name: 'Face ID' | 'Touch ID'; symbol: 'faceid' | 'touchid' };
  */
 export default function OnboardingLock() {
   const p = usePalette();
+  const t = useT();
+  const l = t.onboarding.lock;
   const insets = useSafeAreaInsets();
   const setSecurity = useApp((s) => s.setSecurity);
   const setOnboarded = useApp((s) => s.setOnboarded);
@@ -56,10 +60,10 @@ export default function OnboardingLock() {
     setBusy(true);
     setMsg(null);
     // Unlock once now, so the lock is only turned on if it will actually let them back in.
-    const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Lock Sightline' }).catch(() => null);
+    const res = await LocalAuthentication.authenticateAsync({ promptMessage: tr().onboarding.lock.prompt }).catch(() => null);
     setBusy(false);
     if (!res?.success) {
-      setMsg(`${bio?.name ?? 'Face ID'} didn’t work. Try again, or tap Not now.`);
+      setMsg(tr().onboarding.lock.didntWork(bio?.name ?? 'Face ID'));
       return;
     }
     setSecurity({ lockEnabled: true, method: 'device', hideAppSwitcherPreview: true });
@@ -73,18 +77,17 @@ export default function OnboardingLock() {
       <View style={{ alignItems: 'center', gap: space.lg, paddingVertical: space.xl }}>
         <SymbolView name={bio.symbol} size={64} tintColor={p.accent} />
         <T v="title" style={{ textAlign: 'center' }}>
-          Keep your cameras private
+          {l.title}
         </T>
         <T muted style={{ textAlign: 'center' }}>
-          Use {bio.name} to open Sightline, so anyone borrowing your phone can’t look at your cameras. No account or
-          password to remember.
+          {l.body(bio.name)}
         </T>
       </View>
       {msg && <T color={p.danger}>{msg}</T>}
-      <Button title={`Turn on ${bio.name}`} onPress={turnOn} loading={busy} />
-      <Button title="Not now" kind="ghost" onPress={done} />
+      <Button title={l.turnOn(bio.name)} onPress={turnOn} loading={busy} />
+      <Button title={t.common.notNow} kind="ghost" onPress={done} />
       <T v="caption" muted style={{ textAlign: 'center' }}>
-        You can change this any time in Settings → Security.
+        {l.changeLater}
       </T>
     </Screen>
   );

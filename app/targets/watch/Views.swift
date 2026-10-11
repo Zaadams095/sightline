@@ -140,7 +140,7 @@ struct CameraDetailView: View {
         }
       }
     }
-    .navigationTitle(store.camera(key)?.name ?? "Camera")
+    .navigationTitle(store.camera(key)?.name ?? String(localized: "Camera"))
     .task {
       // A still that refreshes every few seconds while it's on screen.
       while !Task.isCancelled {

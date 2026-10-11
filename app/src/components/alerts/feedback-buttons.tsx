@@ -4,6 +4,7 @@ import { ruleExplanation } from '@/alerts/learning';
 import { isDoorbell } from '@/alerts/rules';
 import { recordFeedback } from '@/alerts/smart';
 import { IconButton } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useSmart } from '@/state/smart';
 import type { ReviewItem } from '@/systems/types';
 import { usePalette } from '@/theme/use-palette';
@@ -14,6 +15,8 @@ import { usePalette } from '@/theme/use-palette';
  */
 export function FeedbackButtons({ item, cameraName }: { item: ReviewItem; cameraName: string }) {
   const p = usePalette();
+  const t = useT();
+  const k = t.alertSettings.feedback;
   const verdict = useSmart((s) => s.learning.feedback.find((f) => f.id === item.id && f.camera === `${item.systemId}:${item.cameraId}`)?.verdict ?? null);
   if (isDoorbell(item)) return null;
 
@@ -22,14 +25,14 @@ export function FeedbackButtons({ item, cameraName }: { item: ReviewItem; camera
     if (!rule) return;
     const { forget, confirm } = useSmart.getState();
     if (rule.needsConfirm) {
-      Alert.alert('Stop alerting for these?', ruleExplanation(rule, cameraName), [
-        { text: 'Keep alerting', style: 'cancel', onPress: () => forget(rule) },
-        { text: 'Stop alerting', onPress: () => confirm(rule.key) },
+      Alert.alert(k.stopTitle, ruleExplanation(rule, cameraName), [
+        { text: k.keep, style: 'cancel', onPress: () => forget(rule) },
+        { text: k.stop, onPress: () => confirm(rule.key) },
       ]);
     } else {
-      Alert.alert('Sightline learned something', ruleExplanation(rule, cameraName), [
-        { text: 'Undo', style: 'destructive', onPress: () => forget(rule) },
-        { text: 'OK' },
+      Alert.alert(k.learnedTitle, ruleExplanation(rule, cameraName), [
+        { text: k.undo, style: 'destructive', onPress: () => forget(rule) },
+        { text: t.common.ok },
       ]);
     }
   };
@@ -38,14 +41,14 @@ export function FeedbackButtons({ item, cameraName }: { item: ReviewItem; camera
     <View style={{ flexDirection: 'row' }}>
       <IconButton
         icon={verdict === 'not-important' ? 'hand.thumbsdown.fill' : 'hand.thumbsdown'}
-        label={verdict === 'not-important' ? 'Marked not important' : 'Not important'}
+        label={verdict === 'not-important' ? k.markedNotImportant : k.notImportant}
         color={verdict === 'not-important' ? p.accent : p.textMuted}
         size={16}
         onPress={() => give('not-important')}
       />
       <IconButton
         icon={verdict === 'important' ? 'hand.thumbsup.fill' : 'hand.thumbsup'}
-        label={verdict === 'important' ? 'You’ll always be told about this' : 'Always tell me about this'}
+        label={verdict === 'important' ? k.alwaysTold : k.alwaysTell}
         color={verdict === 'important' ? p.accent : p.textMuted}
         size={16}
         onPress={() => give('important')}

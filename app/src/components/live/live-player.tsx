@@ -4,6 +4,7 @@ import { WebView } from 'react-native-webview';
 
 import { msePlayerHtml } from '@/components/live/mse-player-html';
 import { noteProblem } from '@/diagnostics/log';
+import { tr } from '@/i18n';
 import { useLiveStats } from '@/state/live-stats';
 
 export type LiveState = 'connecting' | 'playing' | 'stalled' | 'error';
@@ -88,7 +89,9 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
           {poster}
           <View style={styles.overlay}>
             {state === 'error' ? (
-              <Text style={styles.msg}>{liveErrorText(detail)}</Text>
+              <Text style={styles.msg} maxFontSizeMultiplier={1.3}>
+                {liveErrorText(detail)}
+              </Text>
             ) : (
               <ActivityIndicator color="#fff" />
             )}
@@ -102,10 +105,11 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
 /** The player's raw failure (go2rtc, WebKit) as something anyone can act on. */
 export function liveErrorText(detail: string | undefined): string {
   const d = detail ?? '';
-  if (/401|unauthori|wrong user|pass/i.test(d)) return 'The camera didn’t accept its password.';
-  if (/codec|not supported|MSE/i.test(d)) return 'This phone can’t play this camera’s video format. Try the other quality.';
-  if (/timeout|refused|no route|unreachable|EOF|closed/i.test(d)) return 'Can’t reach this camera right now.';
-  return 'Video isn’t available right now.';
+  const t = tr().viewing.live;
+  if (/401|unauthori|wrong user|pass/i.test(d)) return t.badPassword;
+  if (/codec|not supported|MSE/i.test(d)) return t.badFormat;
+  if (/timeout|refused|no route|unreachable|EOF|closed/i.test(d)) return t.unreachable;
+  return t.unavailable;
 }
 
 const styles = StyleSheet.create({

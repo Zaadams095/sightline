@@ -5,6 +5,8 @@ import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { closeTalk, openTalk, type TalkRoute } from '@/talk/talk';
 import { pressIn, pressOut, talkErrorText, talkLabel, type TalkPress, type TalkState } from '@/talk/talk-core';
 import { talkPageHtml } from '@/talk/talk-page';
@@ -27,6 +29,7 @@ export function TalkButton({
   /** Called when talking starts or stops (e.g. to turn the camera's sound on for a conversation). */
   onActiveChange?: (active: boolean) => void;
 }) {
+  const t = useT();
   const web = useRef<WebView>(null);
   const [port, setPort] = useState<number | null>(null);
   const [state, setState] = useState<TalkState>('idle');
@@ -133,9 +136,9 @@ export function TalkButton({
       setMode('idle');
       setState('idle');
       if (msg.value === 'mic-denied') {
-        Alert.alert('Microphone is off for Sightline', talkErrorText('mic-denied'), [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+        Alert.alert(tr().viewing.talk.micOffTitle, talkErrorText('mic-denied'), [
+          { text: tr().common.notNow, style: 'cancel' },
+          { text: tr().viewing.talk.openSettings, onPress: () => void Linking.openSettings() },
         ]);
       } else {
         setError(talkErrorText(msg.value ?? ''));
@@ -148,7 +151,7 @@ export function TalkButton({
     onActiveChange?.(active);
   }, [active, onActiveChange]);
   const { title, hint } = talkLabel(state, mode);
-  const a11y = active ? `${title} ${hint}` : 'Talk. Hold to talk through the camera, or tap to start and tap again to stop.';
+  const a11y = active ? `${title} ${hint}` : t.viewing.talk.a11y;
 
   const mic =
     port != null ? (
@@ -179,11 +182,11 @@ export function TalkButton({
           style={[styles.callBtn, { backgroundColor: active ? RED : 'rgba(255,255,255,0.22)' }]}>
           <SymbolView name={active ? 'waveform' : 'mic.fill'} tintColor="#fff" size={30} />
         </Pressable>
-        <T v="label" color="#fff">
-          {active ? title : 'Hold to talk'}
+        <T v="label" color="#fff" overlay style={{ textAlign: 'center' }}>
+          {active ? title : t.viewing.talk.holdToTalk}
         </T>
         {error && !active && (
-          <T v="caption" color="rgba(255,255,255,0.8)" style={styles.callError}>
+          <T v="caption" color="rgba(255,255,255,0.8)" overlay style={styles.callError}>
             {error}
           </T>
         )}
@@ -232,7 +235,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  callItem: { alignItems: 'center', gap: 10 },
+  callItem: { alignItems: 'center', gap: 10, flexShrink: 1 },
   callBtn: { width: 78, height: 78, borderRadius: 39, alignItems: 'center', justifyContent: 'center' },
   callError: { maxWidth: 140, textAlign: 'center' },
 });

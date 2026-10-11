@@ -1,5 +1,7 @@
 import type { SecretValue, Sections } from '@/backup/sections';
 
+import { tr } from '../i18n/index.ts';
+
 /**
  * Encrypted bundles for moving to another phone without iCloud: the one-time QR transfer
  * over home Wi-Fi, and the passcode-protected backup file. Pure (crypto is passed in) so the
@@ -128,12 +130,12 @@ export function parseBundle(json: string): Bundle {
   try {
     b = JSON.parse(json) as Bundle;
   } catch {
-    throw new BundleError('This isn’t a Sightline backup.');
+    throw new BundleError(tr().settings.backupMsg.notBackup);
   }
   if (!b || b.format !== 'sightline-bundle' || typeof b.sections !== 'object' || !b.sections) {
-    throw new BundleError('This isn’t a Sightline backup.');
+    throw new BundleError(tr().settings.backupMsg.notBackup);
   }
-  if (b.v !== 1) throw new BundleError('This backup was made by a newer version of Sightline. Update the app and try again.');
+  if (b.v !== 1) throw new BundleError(tr().settings.backupMsg.newerVersion);
   const secrets = Array.isArray(b.secrets)
     ? b.secrets.filter((s) => s && typeof s.scope === 'string' && typeof s.name === 'string' && typeof s.value === 'string')
     : [];
@@ -149,7 +151,7 @@ export async function openBundle(aead: Aead, key: Uint8Array, sealedB64: string,
   try {
     plain = await aead.open(key, fromBase64(sealedB64.trim()), utf8Encode(aad));
   } catch {
-    throw new BundleError(aad === AAD_FILE ? 'That passcode doesn’t match this backup file.' : 'This code didn’t work. Make a new one on the other phone.');
+    throw new BundleError(aad === AAD_FILE ? tr().settings.backupMsg.passcodeMismatch : tr().settings.backupMsg.codeFailed);
   }
   return parseBundle(utf8Decode(plain));
 }
@@ -199,7 +201,7 @@ export interface BackupFile {
 }
 
 export function passcodeProblem(passcode: string): string | null {
-  if (passcode.trim().length < MIN_PASSCODE) return `Use at least ${MIN_PASSCODE} letters or numbers.`;
+  if (passcode.trim().length < MIN_PASSCODE) return tr().settings.backupMsg.atLeast(MIN_PASSCODE);
   return null;
 }
 
@@ -228,12 +230,12 @@ export async function openBackupFile(aead: Aead, derive: DeriveKey, passcode: st
   try {
     f = JSON.parse(text) as BackupFile;
   } catch {
-    throw new BundleError('This file isn’t a Sightline backup.');
+    throw new BundleError(tr().settings.backupMsg.notBackupFile);
   }
   if (!f || f.format !== 'sightline-backup-file' || f.kdf?.name !== 'PBKDF2-SHA256' || typeof f.data !== 'string') {
-    throw new BundleError('This file isn’t a Sightline backup.');
+    throw new BundleError(tr().settings.backupMsg.notBackupFile);
   }
-  if (f.v !== 1) throw new BundleError('This backup was made by a newer version of Sightline. Update the app and try again.');
+  if (f.v !== 1) throw new BundleError(tr().settings.backupMsg.newerVersion);
   const iterations = Math.min(Math.max(f.kdf.iterations | 0, 1), 10_000_000);
   const key = await derive(passcode, fromBase64(f.kdf.salt), iterations);
   return openBundle(aead, key, f.data, AAD_FILE);

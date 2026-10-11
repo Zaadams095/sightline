@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { Button, Field, IconButton, Row, Screen, Section, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp, type CameraGroup } from '@/state/store';
 import { useFeatureSupport } from '@/systems/caps';
@@ -12,6 +13,8 @@ import { usePalette } from '@/theme/use-palette';
 /** Camera groups (Front Yard, Indoors…) shown as chips at the top of the Live tab. */
 export default function GroupsSettings() {
   const p = usePalette();
+  const t = useT();
+  const gt = t.settings.groups;
   const groups = useApp((s) => s.cameraGroups);
   const saveGroup = useApp((s) => s.saveGroup);
   const deleteGroup = useApp((s) => s.deleteGroup);
@@ -40,7 +43,7 @@ export default function GroupsSettings() {
         added++;
       }
     }
-    setMsg(added ? `Imported ${added} group${added === 1 ? '' : 's'}.` : 'No camera groups found on your recorder.');
+    setMsg(added ? gt.imported(added) : gt.noneFound);
   };
 
   if (editing) {
@@ -51,8 +54,8 @@ export default function GroupsSettings() {
       });
     return (
       <Screen>
-        <Field label="Group name" value={editing.name} onChangeText={(name) => setEditing({ ...editing, name })} autoCapitalize="words" placeholder="Front Yard" />
-        <Section title={`Cameras (${editing.cameraKeys.length})`}>
+        <Field label={gt.groupName} value={editing.name} onChangeText={(name) => setEditing({ ...editing, name })} autoCapitalize="words" placeholder={gt.placeholder} />
+        <Section title={gt.camerasN(editing.cameraKeys.length)}>
           {entries.map((e, i) => (
             <Row
               key={e.camera.key}
@@ -63,52 +66,52 @@ export default function GroupsSettings() {
           ))}
         </Section>
         <Button
-          title="Save group"
+          title={gt.saveGroup}
           disabled={!editing.name.trim() || !editing.cameraKeys.length}
           onPress={() => {
             saveGroup({ ...editing, name: editing.name.trim() });
             setEditing(null);
           }}
         />
-        <Button title="Cancel" kind="ghost" onPress={() => setEditing(null)} />
+        <Button title={t.common.cancel} kind="ghost" onPress={() => setEditing(null)} />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <T muted>Groups appear as buttons at the top of the Live tab so you can jump straight to Front Yard, Back Yard or Indoors.</T>
+      <T muted>{gt.intro}</T>
 
       {groups.length > 0 && (
         <Section>
           {groups.map((g, i) => (
             <View key={g.id} style={[styles.row, { borderBottomColor: p.border, borderBottomWidth: i === groups.length - 1 ? 0 : StyleSheet.hairlineWidth }]}>
               <View style={styles.arrows}>
-                <IconButton icon="chevron.up" label={`Move ${g.name} up`} onPress={() => moveGroup(g.id, -1)} disabled={i === 0} />
-                <IconButton icon="chevron.down" label={`Move ${g.name} down`} onPress={() => moveGroup(g.id, 1)} disabled={i === groups.length - 1} />
+                <IconButton icon="chevron.up" label={t.settings.moveUp(g.name)} onPress={() => moveGroup(g.id, -1)} disabled={i === 0} />
+                <IconButton icon="chevron.down" label={t.settings.moveDown(g.name)} onPress={() => moveGroup(g.id, 1)} disabled={i === groups.length - 1} />
               </View>
-              <Pressable style={{ flex: 1, minHeight: 44, justifyContent: 'center' }} onPress={() => setEditing(g)} accessibilityRole="button" accessibilityHint="Edit this group">
+              <Pressable style={{ flex: 1, minHeight: 44, justifyContent: 'center' }} onPress={() => setEditing(g)} accessibilityRole="button" accessibilityHint={gt.editHint}>
                 <T>{g.name}</T>
                 <T v="caption" muted>
-                  {g.cameraKeys.length} camera{g.cameraKeys.length === 1 ? '' : 's'}
-                  {g.source ? ' · from your recorder' : ''}
+                  {t.common.cameras(g.cameraKeys.length)}
+                  {g.source ? ` · ${gt.fromRecorder}` : ''}
                 </T>
               </Pressable>
               <Pressable
                 onPress={() => deleteGroup(g.id)}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={`Delete ${g.name}`}
+                accessibilityLabel={gt.deleteName(g.name)}
                 style={{ minHeight: 44, justifyContent: 'center' }}>
-                <T color={p.danger}>Delete</T>
+                <T color={p.danger}>{t.common.delete}</T>
               </Pressable>
             </View>
           ))}
         </Section>
       )}
 
-      <Button title="New group" onPress={() => setEditing({ id: Date.now().toString(36), name: '', cameraKeys: [] })} />
-      {support.groups && <Button title="Import groups from my recorder" kind="secondary" onPress={() => void importFromRecorders()} />}
+      <Button title={gt.newGroup} onPress={() => setEditing({ id: Date.now().toString(36), name: '', cameraKeys: [] })} />
+      {support.groups && <Button title={gt.importGroups} kind="secondary" onPress={() => void importFromRecorders()} />}
       {msg && <T muted>{msg}</T>}
     </Screen>
   );

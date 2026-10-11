@@ -16,6 +16,7 @@ import {
 } from '@/backup/bundle';
 import { hasTransferSupport, nativeAead, nativeDeriveKey, randomBytes } from '@/backup/crypto-native';
 import { applyBackup, buildBundle, markAllChanged, type RestoreResult } from '@/backup/restore';
+import { tr } from '@/i18n';
 import { CloudBackup } from '@modules/cloud-backup';
 import { WgTunnel } from '@modules/wg-tunnel';
 
@@ -28,7 +29,7 @@ import { WgTunnel } from '@modules/wg-tunnel';
  *   save in Files.
  */
 
-const UPDATE_APP = 'This needs the latest version of Sightline on both phones. Update from TestFlight or the App Store and try again.';
+const UPDATE_APP = () => tr().settings.backupMsg.updateBoth;
 
 export const transferSupported = () => hasTransferSupport() && !!CloudBackup;
 export const fileBackupSupported = () => typeof WgTunnel?.deriveKey === 'function';
@@ -40,12 +41,12 @@ export interface OutgoingTransfer {
 }
 
 export async function startTransfer(): Promise<OutgoingTransfer> {
-  if (!transferSupported()) throw new Error(UPDATE_APP);
+  if (!transferSupported()) throw new Error(UPDATE_APP());
   const key = randomBytes(32);
   const token = toHex(randomBytes(16));
   const sealed = await sealBundle(nativeAead, key, await buildBundle(), AAD_MOVE);
   const res = JSON.parse(await WgTunnel!.transferServe!(token, sealed, MOVE_TTL_SEC)) as { port: number; hosts: string[]; error?: string };
-  if (res.error || !res.port) throw new Error(res.error ? `Couldn’t start the transfer. ${res.error}` : 'Couldn’t start the transfer.');
+  if (res.error || !res.port) throw new Error(res.error ? tr().settings.backupMsg.startFailedWhy(res.error) : tr().settings.backupMsg.startFailed);
   const qr = await CloudBackup!.qrPng(encodeMoveCode({ hosts: res.hosts, port: res.port, token, key }));
   return { qr, expiresAt: Date.now() + MOVE_TTL_SEC * 1000 };
 }
@@ -69,9 +70,9 @@ export const looksLikeTransferCode = (text: string) => !!parseMoveCode(text);
 export async function receiveTransfer(qrText: string): Promise<Bundle> {
   const code = parseMoveCode(qrText);
   if (!code) {
-    throw new Error('That isn’t a Sightline transfer code. On your old phone, open Settings → Backup & new phone → Transfer to another phone.');
+    throw new Error(tr().settings.backupMsg.notTransferCode);
   }
-  if (!hasTransferSupport()) throw new Error(UPDATE_APP);
+  if (!hasTransferSupport()) throw new Error(UPDATE_APP());
   let gone = false;
   for (const host of code.hosts) {
     const r = JSON.parse(await WgTunnel!.transferFetch!(moveUrl(code, host), 8000)) as { status: number; body: string; error?: string };
@@ -80,8 +81,8 @@ export async function receiveTransfer(qrText: string): Promise<Bundle> {
   }
   throw new Error(
     gone
-      ? 'That code was already used or has run out. On the old phone, tap “Make a new code” and scan again.'
-      : 'Couldn’t reach your old phone. Make sure both phones are on the same Wi-Fi with Sightline open, then try again.',
+      ? tr().settings.backupMsg.codeUsed
+      : tr().settings.backupMsg.cantReachOld,
   );
 }
 
@@ -104,15 +105,15 @@ const exportDir = () => {
 
 /** Writes the passcode-protected backup and opens the share sheet (AirDrop, Files…). */
 export async function exportBackupFile(passcode: string): Promise<void> {
-  if (!fileBackupSupported()) throw new Error(UPDATE_APP);
+  if (!fileBackupSupported()) throw new Error(UPDATE_APP());
   const text = await makeBackupFile(nativeAead, nativeDeriveKey, passcode, await buildBundle(), randomBytes(16));
   const day = new Date().toISOString().slice(0, 10);
-  const file = new File(exportDir(), `Sightline backup ${day}.sightline`);
+  const file = new File(exportDir(), `${tr().settings.backupMsg.fileName(day)}.sightline`);
   if (file.exists) file.delete();
   file.create();
   file.write(text);
   try {
-    await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: 'Save your Sightline backup' });
+    await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: tr().settings.backupMsg.saveDialog });
   } finally {
     // The share sheet has made its copy; don't leave one lying around in the cache.
     try {
@@ -122,7 +123,7 @@ export async function exportBackupFile(passcode: string): Promise<void> {
 }
 
 export async function readBackupFile(uri: string, passcode: string): Promise<Bundle> {
-  if (!fileBackupSupported()) throw new Error(UPDATE_APP);
+  if (!fileBackupSupported()) throw new Error(UPDATE_APP());
   const text = await new File(uri).text();
   return openBackupFile(nativeAead, nativeDeriveKey, passcode, text);
 }

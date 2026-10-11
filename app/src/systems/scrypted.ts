@@ -2,6 +2,7 @@ import { secrets, SECRET } from '@/state/secrets';
 import { HttpSystem } from '@/systems/http-base';
 import { loginError, parseLinks, type ScryptedLink } from '@/systems/scrypted-parse';
 import type { Camera, CameraSystemAdapter, LiveSource, MediaSource, SystemCapabilities } from '@/systems/types';
+import { tr } from '@/i18n';
 
 /**
  * Scrypted, by camera link. Scrypted has no plain HTTP API for listing cameras (its own
@@ -40,11 +41,11 @@ export class ScryptedAdapter extends HttpSystem implements CameraSystemAdapter {
     const { links, bad } = parseLinks(this.config.extra?.links ?? '', this.serverHost());
     if (bad.length) {
       throw new Error(
-        `“${bad[0].slice(0, 40)}” isn’t a camera link. Paste the links that start with rtsp:// (from each camera’s Rebroadcast settings in Scrypted).`,
+        tr().systems.scrypted.notALink(bad[0].slice(0, 40)),
       );
     }
     if (!links.length) {
-      throw new Error('Paste at least one camera link. In Scrypted, open a camera → Rebroadcast → Streams and copy “RTSP Rebroadcast Url”.');
+      throw new Error(tr().systems.scrypted.noLinks);
     }
     if (this.config.username) {
       const password = (await secrets.get(this.config.id, SECRET.password)) ?? '';
@@ -78,7 +79,7 @@ export class ScryptedAdapter extends HttpSystem implements CameraSystemAdapter {
 
   async liveStream(cameraId: string): Promise<LiveSource> {
     const link = this.links().find((l) => l.id === cameraId);
-    if (!link) throw new Error('This camera’s link was removed. Edit the Scrypted system to add it again.');
+    if (!link) throw new Error(tr().systems.scrypted.linkRemoved);
     return { kind: 'rtsp', url: link.url };
   }
 

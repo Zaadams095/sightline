@@ -114,7 +114,7 @@ struct AlertEntry: TimelineEntry {
 
 struct AlertProvider: TimelineProvider {
   func placeholder(in context: Context) -> AlertEntry {
-    AlertEntry(date: .now, alert: LastAlert(title: "Person", camera: "Front Door", key: "", time: Date.now.timeIntervalSince1970))
+    AlertEntry(date: .now, alert: LastAlert(title: String(localized: "Person"), camera: String(localized: "Front Door"), key: "", time: Date.now.timeIntervalSince1970))
   }
 
   func getSnapshot(in context: Context, completion: @escaping (AlertEntry) -> Void) {

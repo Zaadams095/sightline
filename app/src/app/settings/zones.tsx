@@ -22,13 +22,14 @@ import {
   type ZoneObject,
 } from '@/alerts/zones';
 import { LiveView, useLive } from '@/components/live/live-view';
-import { Button, Chip, Section, T } from '@/components/ui/primitives';
+import { Button, Chip, Section, T, useScaledFont } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { useAdapter } from '@/systems/registry';
-import { font, space } from '@/theme/tokens';
+import { useFontScale, useLargeText } from '@/theme/text-scale';
+import { font, OVERLAY_MAX_SCALE, space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
-const NAMES = ['Driveway', 'Porch', 'Yard', 'Walkway', 'Street', 'Sidewalk'];
 /** Finger-sized: handles are drawn at 12pt but grabbed from 30pt away. */
 const HANDLE_R = 12;
 const GRAB_PX = 30;
@@ -41,6 +42,11 @@ const GRAB_PX = 30;
 export default function ZoneEditor() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const p = usePalette();
+  const t = useT();
+  const zs = t.alertSettings.zones;
+  const large = useLargeText();
+  // Zone names drawn on the picture grow only a little with the text size, like other video overlays.
+  const labelSize = 15 * Math.min(useFontScale(), OVERLAY_MAX_SCALE);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [systemId, cameraId] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
@@ -104,7 +110,7 @@ export default function ZoneEditor() {
   };
   const newZone = (points: Pt[] = [], name?: string): AlertZone => {
     const used = new Set(zones.map((z) => z.name));
-    const fallback = NAMES.find((n) => !used.has(n)) ?? `Zone ${zones.length + 1}`;
+    const fallback = zs.names.find((n) => !used.has(n)) ?? zs.zoneN(zones.length + 1);
     return { id: nextZoneId(zones), name: name && !used.has(name) ? name : fallback, mode: 'include', points, objects: [] };
   };
   const startDrawing = () => {
@@ -174,11 +180,11 @@ export default function ZoneEditor() {
 
   const save = async () => {
     if (!adapter) return;
-    const clean = zones.filter((z) => z.points.length >= 3).map((z) => ({ ...z, name: z.name.trim() || 'Zone' }));
+    const clean = zones.filter((z) => z.points.length >= 3).map((z) => ({ ...z, name: z.name.trim() || zs.zone }));
     setSaving(true);
     setMessage(null);
     try {
-      let text = clean.length ? 'Saved. Alerts follow these zones from now on.' : 'Saved. This camera alerts about its whole picture again.';
+      let text = clean.length ? zs.savedZones : zs.savedWhole;
       if (support === 'device' && adapter.applyZones) text = await adapter.applyZones(cameraId, clean);
       setZones(key, clean);
       setZonesDraft(clean);
@@ -186,7 +192,7 @@ export default function ZoneEditor() {
       setMessage({ text });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
-      setMessage({ text: e instanceof Error ? e.message : 'Couldn’t save the zones.', error: true });
+      setMessage({ text: e instanceof Error ? e.message : zs.saveFailed, error: true });
     } finally {
       setSaving(false);
     }
@@ -196,11 +202,11 @@ export default function ZoneEditor() {
   const header = (
     <Stack.Screen
       options={{
-        title: 'Alert zones',
+        title: zs.title,
         headerLeft: () => (
           <Pressable onPress={() => router.back()} accessibilityRole="button" hitSlop={12} style={{ minHeight: 44, justifyContent: 'center' }}>
             <T v="label" color={p.accent}>
-              {dirty ? 'Cancel' : 'Close'}
+              {dirty ? t.common.cancel : t.common.close}
             </T>
           </Pressable>
         ),
@@ -218,7 +224,7 @@ export default function ZoneEditor() {
       )}
       {live.data && <LiveView live={live.data} fit="cover" />}
       <GestureDetector gesture={gesture}>
-        <View style={StyleSheet.absoluteFill} accessibilityLabel="Camera picture. Tap to add corners of a zone." accessibilityHint="Drag the round handles to adjust the selected zone.">
+        <View style={StyleSheet.absoluteFill} accessibilityLabel={zs.pictureLabel} accessibilityHint={zs.pictureHint}>
           <Svg width={picW} height={picH}>
             {zones.map((z) => {
               const sel = z.id === selected;
@@ -237,7 +243,7 @@ export default function ZoneEditor() {
                   strokeWidth={sel ? 3 : 2}
                   strokeDasharray={drawing && sel ? '8 6' : undefined}
                 />,
-                <SvgText key={`${z.id}-label`} x={cx} y={cy} fill="#fff" fontSize={15} fontWeight="700" textAnchor="middle" stroke="rgba(0,0,0,0.6)" strokeWidth={0.6}>
+                <SvgText key={`${z.id}-label`} x={cx} y={cy} fill="#fff" fontSize={labelSize} fontWeight="700" textAnchor="middle" stroke="rgba(0,0,0,0.6)" strokeWidth={0.6}>
                   {z.name}
                 </SvgText>,
               ];
@@ -263,48 +269,41 @@ export default function ZoneEditor() {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: p.bg }} contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
         {header}
-        <T v="heading">Zones can’t work for this camera</T>
-        <T muted>
-          This recorder can’t tell Sightline where things happened in the picture, and Sightline can’t change its detection area, so
-          zones would only pretend to work. Alerts still come from the whole picture.
-        </T>
-        <T muted>
-          To limit alerts to part of the view, set a motion or detection area in the camera’s or recorder’s own app. Zones work on
-          cameras whose system reports where objects are (like Frigate, directly or through a Sightline Hub) and on cameras whose
-          detection area Sightline can set (like Reolink).
-        </T>
+        <T v="heading">{zs.cantTitle}</T>
+        <T muted>{zs.cantBody1}</T>
+        <T muted>{zs.cantBody2}</T>
       </ScrollView>
     );
   }
 
   const editor = (
     <>
-      <View style={styles.tools}>
+      <View style={[styles.tools, large && { flexDirection: 'column' }]}>
         {drawing ? (
           <>
-            <Button title="Done" onPress={finishDrawing} disabled={(current?.points.length ?? 0) < 3} style={styles.tool} />
-            <Button title="Undo" kind="secondary" onPress={undo} disabled={!history.length} style={styles.tool} />
+            <Button title={t.common.done} onPress={finishDrawing} disabled={(current?.points.length ?? 0) < 3} style={large ? undefined : styles.tool} />
+            <Button title={zs.undo} kind="secondary" onPress={undo} disabled={!history.length} style={large ? undefined : styles.tool} />
           </>
         ) : (
           <>
-            <Button title="Draw a zone" onPress={startDrawing} style={styles.tool} />
-            <Button title="Undo" kind="secondary" onPress={undo} disabled={!history.length} style={styles.tool} />
+            <Button title={zs.drawZone} onPress={startDrawing} style={large ? undefined : styles.tool} />
+            <Button title={zs.undo} kind="secondary" onPress={undo} disabled={!history.length} style={large ? undefined : styles.tool} />
           </>
         )}
       </View>
       <T v="caption" muted>
         {drawing
           ? (current?.points.length ?? 0) < 3
-            ? 'Tap the picture at each corner of the area. Three corners or more.'
-            : 'Keep tapping to add corners, or tap the first corner (or Done) to finish. Drag a handle to move it.'
+            ? zs.hintFirst
+            : zs.hintMore
           : current
-            ? 'Drag the round handles to adjust. Tap another zone to pick it.'
+            ? zs.hintSelected
             : zones.length
-              ? 'Tap a zone to change it, or draw another.'
-              : 'Draw the area you care about, like the driveway, or pick a quick shape below.'}
+              ? zs.hintPick
+              : zs.hintEmpty}
       </T>
 
-      <Section title={current ? `Quick shapes for “${current.name}”` : 'Quick shapes'}>
+      <Section title={current ? zs.quickShapesFor(current.name) : zs.quickShapes}>
         <View style={styles.chips}>
           {ZONE_PRESETS.map((s) => (
             <Chip key={s.label} label={s.label} selected={false} onPress={() => applyPreset(s.points, s.name)} />
@@ -343,11 +342,9 @@ export default function ZoneEditor() {
         ))}
 
       <T v="caption" muted>
-        {support === 'device'
-          ? 'This camera does the detecting itself, so Sightline sets its own detection area: each zone covers all motion and smart detection, and it also decides when the camera records on motion.'
-          : 'Sightline checks where each person, vehicle or animal walked or drove. Recording isn’t affected, and doorbell rings always come through.'}
+        {support === 'device' ? zs.deviceNote : zs.preciseNote}
       </T>
-      <Button title={support === 'device' ? 'Save to camera' : 'Save'} onPress={save} loading={saving} disabled={!dirty && !message?.error} />
+      <Button title={support === 'device' ? zs.saveToCamera : t.common.save} onPress={save} loading={saving} disabled={!dirty && !message?.error} />
       {message && (
         <T v="caption" color={message.error ? p.danger : p.success}>
           {message.text}
@@ -403,6 +400,10 @@ function ZoneCard({
   onDelete: () => void;
 }) {
   const p = usePalette();
+  const t = useT();
+  const zs = t.alertSettings.zones;
+  const large = useLargeText();
+  const nameFont = useScaledFont('label');
   // Offer only kinds the camera can detect (packages only where it reports them).
   const kinds = useMemo(() => {
     const has = (k: ZoneObject) => k !== 'package' || objects.includes('package');
@@ -429,17 +430,18 @@ function ZoneCard({
             onSelect();
           }}
           onChangeText={(name) => onChange({ name }, false)}
-          placeholder="Name, like Driveway"
+          placeholder={zs.namePlaceholder}
           placeholderTextColor={p.textMuted}
-          accessibilityLabel="Zone name"
+          accessibilityLabel={zs.nameLabel}
           maxLength={40}
-          style={[font.label, { flex: 1, fontSize: 17, color: p.text, minHeight: 44 }]}
+          maxFontSizeMultiplier={nameFont.maxFontSizeMultiplier}
+          style={[font.label, { flex: 1, fontSize: (17 * (nameFont.style.fontSize ?? font.label.fontSize)) / font.label.fontSize, color: p.text, minHeight: 44 }]}
         />
-        {!selected && <Button title="Edit" kind="ghost" onPress={onSelect} style={{ height: 44, paddingHorizontal: space.md }} />}
+        {!selected && <Button title={t.common.edit} kind="ghost" onPress={onSelect} style={{ minHeight: 44, paddingHorizontal: space.md }} />}
       </View>
       {selected && (
         <View style={styles.chips0}>
-          {NAMES.filter((n) => n !== zone.name).slice(0, 4).map((n) => (
+          {zs.names.filter((n) => n !== zone.name).slice(0, 4).map((n) => (
             <Chip key={n} label={n} selected={false} onPress={() => onChange({ name: n })} />
           ))}
         </View>
@@ -448,16 +450,16 @@ function ZoneCard({
         {describeZone(zone)}
       </T>
       <View style={styles.chips0}>
-        <Chip label="Alert only here" selected={zone.mode === 'include'} onPress={() => onChange({ mode: 'include' })} />
-        <Chip label="Ignore here" selected={zone.mode === 'exclude'} onPress={() => onChange({ mode: 'exclude' })} />
+        <Chip label={zs.onlyHere} selected={zone.mode === 'include'} onPress={() => onChange({ mode: 'include' })} />
+        <Chip label={zs.ignoreHere} selected={zone.mode === 'exclude'} onPress={() => onChange({ mode: 'exclude' })} />
       </View>
       {precise && (
         <>
           <T v="label" muted>
-            {zone.mode === 'include' ? 'Alert me about' : 'Ignore'}
+            {zone.mode === 'include' ? zs.alertMeAbout : zs.ignore}
           </T>
           <View style={styles.chips0}>
-            <Chip label={zone.mode === 'include' ? 'Any motion' : 'Everything'} selected={zone.objects.length === 0} onPress={() => onChange({ objects: [] })} />
+            <Chip label={zone.mode === 'include' ? zs.anyMotion : zs.everything} selected={zone.objects.length === 0} onPress={() => onChange({ objects: [] })} />
             {kinds.map((o) => (
               <Chip key={o.v} label={o.label} selected={zone.objects.includes(o.v)} onPress={() => toggle(o.v)} />
             ))}
@@ -465,9 +467,9 @@ function ZoneCard({
         </>
       )}
       {selected && (
-        <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <Button title="Redraw" kind="secondary" onPress={onClear} style={{ flex: 1 }} />
-          <Button title="Delete zone" kind="secondary" onPress={onDelete} style={{ flex: 1 }} />
+        <View style={{ flexDirection: large ? 'column' : 'row', gap: space.sm }}>
+          <Button title={zs.redraw} kind="secondary" onPress={onClear} style={large ? undefined : { flex: 1 }} />
+          <Button title={zs.deleteZone} kind="secondary" onPress={onDelete} style={large ? undefined : { flex: 1 }} />
         </View>
       )}
     </View>

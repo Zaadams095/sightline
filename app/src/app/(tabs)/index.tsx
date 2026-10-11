@@ -9,6 +9,7 @@ import { CameraTile } from '@/components/camera-tile';
 import { ConnectionBadge } from '@/components/connection-badge';
 import { DemoBanner } from '@/components/demo-banner';
 import { Button, IconButton, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { usesGateway } from '@/systems/catalog';
@@ -23,6 +24,7 @@ const TABLET_MIN_WIDTH = 700;
 
 export default function LiveScreen() {
   const p = usePalette();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { entries: allEntries, isLoading, refetch, isRefetching } = useAllCameras();
@@ -62,19 +64,19 @@ export default function LiveScreen() {
     setActive(kind === 'layout' ? id : null);
   };
   const chips: { key: string; label: string; selected: boolean; onPress: () => void }[] = [
-    { key: 'all', label: 'All', selected: !activeGroupId && !(tablet && activeId), onPress: () => select('all') },
+    { key: 'all', label: t.home.live.all, selected: !activeGroupId && !(tablet && activeId), onPress: () => select('all') },
     ...groups.map((g) => ({ key: g.id, label: g.name, selected: g.id === activeGroupId, onPress: () => select('group', g.id) })),
     ...(tablet
-      ? gridViews.map((v) => ({ key: `layout-${v.id}`, label: `Layout: ${v.name}`, selected: v.id === activeId && !activeGroupId, onPress: () => select('layout', v.id) }))
+      ? gridViews.map((v) => ({ key: `layout-${v.id}`, label: t.home.live.layout(v.name), selected: v.id === activeId && !activeGroupId, onPress: () => select('layout', v.id) }))
       : []),
   ];
   const header = (
     <View style={{ paddingTop: insets.top + space.sm, paddingBottom: space.sm, gap: space.sm }}>
       <View style={styles.header}>
-        <T v="title">Live</T>
+        <T v="title">{t.home.tabs.live}</T>
         <View style={styles.headerRight}>
           {tablet && allEntries.length > 0 && (
-            <IconButton icon="rectangle.on.rectangle" label="Wall display" onPress={() => router.push('/wall')} />
+            <IconButton icon="rectangle.on.rectangle" label={t.home.nav.wallDisplay} onPress={() => router.push('/wall')} />
           )}
           <ConnectionBadge />
         </View>
@@ -98,12 +100,12 @@ export default function LiveScreen() {
           <Pressable
             onPress={() => router.push('/settings/groups')}
             accessibilityRole="button"
-            accessibilityLabel={groups.length ? 'Edit groups' : 'Make a camera group'}
+            accessibilityLabel={groups.length ? t.home.live.editGroups : t.home.live.makeGroup}
             hitSlop={{ top: 6, bottom: 6 }}
             style={[styles.viewTab, styles.viewTabRow, { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: p.border }]}>
             {!groups.length && <SymbolView name="plus" tintColor={p.textMuted} size={12} weight="semibold" />}
             <T v="label" muted>
-              {groups.length ? 'Edit groups' : 'Group'}
+              {groups.length ? t.home.live.editGroups : t.home.live.group}
             </T>
           </Pressable>
         </ScrollView>
@@ -117,7 +119,7 @@ export default function LiveScreen() {
         {header}
         <View style={styles.empty}>
           <ActivityIndicator size="large" />
-          <T muted>Connecting to your cameras…</T>
+          <T muted>{t.home.live.connecting}</T>
         </View>
       </View>
     );
@@ -130,21 +132,21 @@ export default function LiveScreen() {
         {hasSystems ? (
           <View style={styles.empty}>
             <SymbolView name="video.slash" tintColor={p.textMuted} size={40} />
-            <T v="heading">Can’t see your cameras</T>
+            <T v="heading" style={{ textAlign: 'center' }}>{t.home.live.cantSee}</T>
             <T muted style={{ textAlign: 'center' }}>
-              Your recorder or cameras didn’t answer. If you’re away from home, check Settings → Away from home.
+              {t.home.live.cantSeeBody}
             </T>
-            <Button title="Try again" onPress={() => refetch()} style={{ alignSelf: 'stretch' }} />
-            <Button title="Check the connection" kind="ghost" onPress={() => router.push('/settings/diagnostics')} style={{ alignSelf: 'stretch' }} />
+            <Button title={t.common.retry} onPress={() => refetch()} style={{ alignSelf: 'stretch' }} />
+            <Button title={t.home.live.checkConnection} kind="ghost" onPress={() => router.push('/settings/diagnostics')} style={{ alignSelf: 'stretch' }} />
           </View>
         ) : (
           <View style={styles.empty}>
             <SymbolView name="video.badge.plus" tintColor={p.accent} size={44} />
-            <T v="heading">No cameras yet</T>
+            <T v="heading" style={{ textAlign: 'center' }}>{t.home.live.noCameras}</T>
             <T muted style={{ textAlign: 'center' }}>
-              Add your recorder, camera software or cameras to watch them here.
+              {t.home.live.noCamerasBody}
             </T>
-            <Button title="Add cameras" onPress={() => router.push('/onboarding')} style={{ alignSelf: 'stretch' }} />
+            <Button title={t.home.live.addCameras} onPress={() => router.push('/onboarding')} style={{ alignSelf: 'stretch' }} />
           </View>
         )}
       </View>
@@ -222,6 +224,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    // At big text sizes the connection pill drops under the title instead of squeezing it.
+    flexWrap: 'wrap',
+    gap: space.sm,
     paddingHorizontal: space.lg,
     paddingBottom: space.md,
   },

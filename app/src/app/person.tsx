@@ -7,6 +7,8 @@ import { Avatar } from '@/components/familiar/avatar';
 import { Row, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { addPlate, forgetIdentity, nameSamples, renameIdentity, samplesFromPhoto } from '@/familiar/recognize';
 import { useFamiliar, type FamiliarSample } from '@/familiar/store';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { useAllCameras } from '@/systems/registry';
 import { space } from '@/theme/tokens';
@@ -14,6 +16,7 @@ import { formatRelative } from '@/util/format';
 
 /** One familiar person or vehicle: recent sightings, alert choices, rename, forget. */
 export default function PersonScreen() {
+  const t = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const identity = useFamiliar((s) => s.identities.find((i) => i.id === id));
   const allSightings = useFamiliar((s) => s.sightings);
@@ -26,7 +29,7 @@ export default function PersonScreen() {
   if (!identity) {
     return (
       <Screen>
-        <T muted>Not found. It may have been forgotten.</T>
+        <T muted>{t.viewing.person.notFound}</T>
       </Screen>
     );
   }
@@ -47,7 +50,7 @@ export default function PersonScreen() {
 
   const rename = () =>
     Alert.prompt(
-      'Rename',
+      t.viewing.person.rename,
       undefined,
       (text) => {
         const clean = text?.trim();
@@ -72,7 +75,7 @@ export default function PersonScreen() {
         if (samples[0]) found.push(samples[0]);
       }
       if (found.length) nameSamples(found, name);
-      else Alert.alert(isFace ? 'No clear face found' : 'No vehicle found', 'Try photos where it’s large, sharp and facing the camera.');
+      else Alert.alert(isFace ? tr().viewing.people.noFace : tr().viewing.people.noVehicle, tr().viewing.person.noMatchBody);
     } finally {
       setAdding(false);
     }
@@ -87,16 +90,16 @@ export default function PersonScreen() {
         ))}
       </View>
 
-      <Section title="Alerts" footer={`Applies to alerts from this iPhone. Instant Alerts from a Sightline Hub only add the name; they can’t be silenced by it.`}>
+      <Section title={t.viewing.person.alerts} footer={t.viewing.person.alertsFooter}>
         <ToggleRow
-          label={`Don’t alert for ${name}`}
-          detail={isFace ? 'Family and regular visitors don’t set off alerts.' : 'Your own vehicles don’t set off alerts.'}
+          label={t.viewing.person.quiet(name)}
+          detail={isFace ? t.viewing.person.quietFace : t.viewing.person.quietVehicle}
           value={quiet}
           onChange={(v) => toggle('quietFor', v)}
         />
         <ToggleRow
-          label={`Always tell me when ${name} ${isFace ? 'arrives' : 'shows up'}`}
-          detail="Even on cameras that normally only alert for other things."
+          label={isFace ? t.viewing.person.alwaysFace(name) : t.viewing.person.alwaysVehicle(name)}
+          detail={t.viewing.person.alwaysDetail}
           value={always}
           onChange={(v) => toggle('alwaysFor', v)}
           last
@@ -104,22 +107,22 @@ export default function PersonScreen() {
       </Section>
 
       {!isFace && (
-        <Section title="Licence plates" footer="Plates are read on this iPhone when they’re clear in the picture.">
+        <Section title={t.viewing.person.plates} footer={t.viewing.person.platesFooter}>
           {identity.plates.map((pl) => (
             <Row key={pl} label={pl} />
           ))}
           <Row
-            label="Add a plate"
-            onPress={() => Alert.prompt('Licence plate', 'As written on the plate.', (t) => t && addPlate(identity.id, t))}
+            label={t.viewing.person.addPlate}
+            onPress={() => Alert.prompt(t.viewing.person.plate, t.viewing.person.plateHint, (text) => text && addPlate(identity.id, text))}
             last
           />
         </Section>
       )}
 
-      <Section title="Recent sightings">
+      <Section title={t.viewing.person.recent}>
         {sightings.length === 0 && (
           <View style={{ padding: space.lg }}>
-            <T muted>Not seen yet.</T>
+            <T muted>{t.viewing.person.notSeenYet}</T>
           </View>
         )}
         {sightings.slice(0, 30).map((s, i) => (
@@ -137,16 +140,16 @@ export default function PersonScreen() {
       </Section>
 
       <Section>
-        <Row label="Rename" onPress={rename} />
-        <Row label={adding ? 'Adding…' : 'Add more photos'} detail="More clear photos make recognition more reliable" onPress={adding ? undefined : () => void addPhotos()} />
+        <Row label={t.viewing.person.rename} onPress={rename} />
+        <Row label={adding ? t.viewing.people.adding : t.viewing.person.addPhotos} detail={t.viewing.person.addPhotosDetail} onPress={adding ? undefined : () => void addPhotos()} />
         <Row
-          label={`Forget ${name}`}
+          label={t.viewing.person.forget(name)}
           destructive
           onPress={() =>
-            Alert.alert(`Forget ${name}?`, 'Their face data and sightings are removed from this iPhone.', [
-              { text: 'Cancel', style: 'cancel' },
+            Alert.alert(t.viewing.person.forgetTitle(name), t.viewing.person.forgetBody, [
+              { text: t.common.cancel, style: 'cancel' },
               {
-                text: 'Forget',
+                text: t.viewing.people.forget,
                 style: 'destructive',
                 onPress: () => {
                   forgetIdentity(identity.id);

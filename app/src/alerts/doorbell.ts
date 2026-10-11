@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 
 import { showFromNotification, showRing } from '@/alerts/live-activity';
 import { isDoorbellCamera, isFreshRing, RING_FRESH_SEC, selectNotifications } from '@/alerts/rules';
+import { tr } from '@/i18n';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
@@ -25,7 +26,7 @@ const DOORBELL_RECHECK_MS = 10 * 60_000;
 
 export function registerDoorbellCategory() {
   void Notifications.setNotificationCategoryAsync(DOORBELL_CATEGORY, [
-    { identifier: ACTION_WATCH, buttonTitle: 'Watch', options: { opensAppToForeground: true } },
+    { identifier: ACTION_WATCH, buttonTitle: tr().alerts.watch, options: { opensAppToForeground: true } },
   ]).catch(() => {});
 }
 

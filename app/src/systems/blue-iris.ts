@@ -34,6 +34,7 @@ import type {
   Severity,
   SystemCapabilities,
 } from '@/systems/types';
+import { tr } from '@/i18n';
 
 /**
  * Blue Iris 5/6 through its JSON interface (`POST /json`) and web server.
@@ -69,7 +70,7 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
       const user = this.config.username ?? '';
       const pass = (await secrets.get(this.config.id, SECRET.password)) ?? '';
       const first = await this.post<BiReply>({ cmd: 'login' });
-      if (!first.session) throw new Error('That address answered, but it doesn’t look like the Blue Iris web server. Check the address and port (often 81).');
+      if (!first.session) throw new Error(tr().systems.blueIris.notBlueIris);
       // Anonymous access (no username) answers with "Anonymous" and an empty password (UI3).
       const response = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.MD5,
@@ -78,7 +79,7 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
       const second = await this.post<BiReply>({ cmd: 'login', session: first.session, response: response.toLowerCase() });
       if (second.result !== 'success') {
         const why = failReason(second);
-        throw new Error(why === 'session' ? 'Blue Iris refused the login. Try again.' : why);
+        throw new Error(why === 'session' ? tr().systems.blueIris.refusedLogin : why);
       }
       this.session = second.session ?? first.session;
       return this.session;
@@ -109,7 +110,7 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
       r = await this.post<BiReply<T>>({ cmd, session: this.session, ...args });
       if (r.result === 'fail') {
         const why = failReason(r);
-        throw new Error(why === 'session' ? 'Blue Iris ended the session. Try again.' : why);
+        throw new Error(why === 'session' ? tr().systems.blueIris.sessionEnded : why);
       }
     }
     return r.data as T;
@@ -215,7 +216,7 @@ export class BlueIrisAdapter extends HttpSystem implements CameraSystemAdapter {
   async playback(cameraId: string, start: number, end: number): Promise<PlaybackSource> {
     // BI clips can be hours long; look back far enough to find the one that covers `start`.
     const clip = fileAt(await this.clips(cameraId, start - 6 * 3600, end), start, end);
-    if (!clip) throw new Error('No recording at this time.');
+    if (!clip) throw new Error(tr().systems.common.noRecording);
     if (!this.session) await this.login();
     const offsetMs = Math.max(0, Math.round((start - clip.start) * 1000));
     return {

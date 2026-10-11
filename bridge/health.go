@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -34,9 +33,11 @@ type (
 )
 
 type issue struct {
-	key, title, body string
-	camera           string
-	storagePct       int // >0 for storage issues: only devices with a threshold <= this are told
+	key        string
+	camera     string
+	storagePct int // >0 for storage issues: only devices with a threshold <= this are told
+	// text is the notice in a phone's language (i18n.go).
+	text func(lang string) (title, body string)
 }
 
 // newHealthMonitor watches a Frigate at base (the original bridge behavior).
@@ -84,7 +85,10 @@ func (h *healthMonitor) evaluateHealth(report backend.Health, pollErr error) {
 		h.failures++
 		// Three misses in a row (~3 min) before calling it down, to ride out restarts.
 		if h.failures >= 3 {
-			issues = append(issues, issue{key: "down", title: h.label + " isn't responding", body: pollErr.Error()})
+			label, msg := h.label, pollErr.Error()
+			issues = append(issues, issue{key: "down", text: func(lang string) (string, string) {
+				return tr(lang, "health.down.title", label), tr(lang, "health.down.body", msg)
+			}})
 		}
 	} else {
 		h.failures = 0
@@ -93,22 +97,21 @@ func (h *healthMonitor) evaluateHealth(report backend.Health, pollErr error) {
 			if h.cameraID != nil {
 				cam = h.cameraID(native)
 			}
-			issues = append(issues, issue{key: "offline:" + cam, camera: cam, title: native + " is offline", body: "No video from this camera."})
+			issues = append(issues, issue{key: "offline:" + cam, camera: cam, text: func(lang string) (string, string) {
+				return tr(lang, "health.offline.title", native), tr(lang, "health.offline.body")
+			}})
 		}
 		for _, s := range report.Storage {
 			if s.Problem != "" {
 				// Always worth a push when health alerts are on, whatever the fullness threshold.
-				issues = append(issues, issue{
-					key: "disk:" + s.Path, title: s.Path + " has stopped working",
-					body: "The recorder can't save video to this disk (" + s.Problem + "). Check it in the recorder's storage settings.",
-				})
+				issues = append(issues, issue{key: "disk:" + s.Path, text: func(lang string) (string, string) {
+					return tr(lang, "health.disk.title", s.Path), tr(lang, "health.disk.body", s.Problem)
+				}})
 				continue
 			}
-			issues = append(issues, issue{
-				key: "storage:" + s.Path, storagePct: s.UsedPct,
-				title: fmt.Sprintf("Recorder storage is %d%% full", s.UsedPct),
-				body:  fmt.Sprintf("%.1f GB free on %s.", s.FreeGB, s.Path),
-			})
+			issues = append(issues, issue{key: "storage:" + s.Path, storagePct: s.UsedPct, text: func(lang string) (string, string) {
+				return tr(lang, "health.storage.title", s.UsedPct), tr(lang, "health.storage.body", decimalText(lang, s.FreeGB, 1), s.Path)
+			}})
 		}
 	}
 
@@ -126,11 +129,12 @@ func (h *healthMonitor) evaluateHealth(report backend.Health, pollErr error) {
 			if h.active[is.key] {
 				continue
 			}
-			title := is.title
+			lang := normLang(d.Lang)
+			title, body := is.text(lang)
 			if cam, ok := strings.CutPrefix(is.key, "offline:"); ok && d.CameraNames[cam] != "" {
-				title = d.CameraNames[cam] + " is offline"
+				title = tr(lang, "health.offline.title", d.CameraNames[cam])
 			}
-			msgs = append(msgs, pushMessage{To: d.PushToken, Title: title, Body: is.body, Sound: "default"})
+			msgs = append(msgs, pushMessage{To: d.PushToken, Title: title, Body: body, Sound: "default"})
 		}
 	}
 	h.active = now

@@ -26,6 +26,7 @@ import { applyBackup, type RestoreResult } from '@/backup/restore';
 import { backupDeviceId, backupHydrated, useBackup } from '@/backup/settings';
 import { copySecretsToCloud, removeCloudSecrets } from '@/state/secrets';
 import { smartBackupSource, smartHydrated, useSmart } from '@/state/smart';
+import { tr } from '@/i18n';
 import { useApp } from '@/state/store';
 import { migrateStreamCredentials } from '@/systems/stream-credentials';
 import { CLOUD_CHANGE, CloudBackup } from '@modules/cloud-backup';
@@ -97,7 +98,7 @@ async function doBackup(): Promise<void> {
   // Nothing worth keeping yet (and never overwrite a backup with an empty phone).
   if (!st.onboarded || st.systems.length === 0) return;
   if (!CloudBackup.isSignedIn()) {
-    b.set({ lastError: 'Sign in to iCloud in the Settings app to back up.' });
+    b.set({ lastError: tr().settings.backup.signInICloud });
     return;
   }
 
@@ -138,7 +139,7 @@ async function doBackup(): Promise<void> {
   b.set({
     meta: plan.meta,
     lastBackupAt: now,
-    lastError: fit.fits ? null : 'Your settings are too big to back up to iCloud in full. Use “Export backup file” to keep a complete copy.',
+    lastError: fit.fits ? null : tr().settings.backupMsg.tooBig,
   });
 }
 
@@ -179,7 +180,7 @@ export function startCloudBackup(): () => void {
   });
   const sub = CloudBackup.addListener('onCloudChange', (e) => {
     if (e.reason === CLOUD_CHANGE.quotaViolation) {
-      useBackup.getState().set({ lastError: 'iCloud refused the backup because it’s too big. Use “Export backup file” instead.' });
+      useBackup.getState().set({ lastError: tr().settings.backupMsg.refusedTooBig });
     } else if (e.reason !== CLOUD_CHANGE.accountChange) soon(5000);
   });
   return () => {

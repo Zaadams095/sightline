@@ -32,6 +32,7 @@ import type {
   TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
+import { tr } from '@/i18n';
 
 /**
  * Sightline Hub adapter: one brand-neutral API in front of any system (docs/HUB_API.md).
@@ -124,11 +125,11 @@ export class HubError extends Error {
 async function hubError(res: Response, hubName: string): Promise<HubError> {
   const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
   const code = body.error ?? '';
-  if (code === 'revoked') return new HubError(`Your access to ${hubName} was removed.`, code, res.status);
-  if (code === 'expired') return new HubError(`Your access to ${hubName} has ended.`, code, res.status);
+  if (code === 'revoked') return new HubError(tr().systems.hub.revoked(hubName), code, res.status);
+  if (code === 'expired') return new HubError(tr().systems.hub.expired(hubName), code, res.status);
   if (res.status === 401 && code === 'unauthorized')
-    return new HubError(`This phone isn't paired with ${hubName} anymore. Remove it and pair again.`, code, res.status);
-  return new HubError(body.message ?? `The Hub returned HTTP ${res.status}`, code, res.status);
+    return new HubError(tr().systems.hub.unpaired(hubName), code, res.status);
+  return new HubError(body.message ?? tr().systems.hub.httpError(res.status), code, res.status);
 }
 
 // Tokens are read from the keychain once and cached, so media URLs can be built synchronously.
@@ -224,7 +225,7 @@ export class HubAdapter implements CameraSystemAdapter {
 
   async connect(): Promise<void> {
     const info = await this.json<HubInfo>('GET', '/v1/info');
-    if (info.sightline !== 'hub' || !info.grant) throw new Error('That address isn’t a Sightline Hub.');
+    if (info.sightline !== 'hub' || !info.grant) throw new Error(tr().systems.hub.notAHub);
     this.info = info;
   }
 
@@ -399,8 +400,8 @@ export async function probeHub(s: SystemConfig): Promise<SystemLink> {
       const res = await fetchWithTimeout(`${base}/v1/info`, { headers: { Authorization: `Bearer ${token}` } }, ms);
       if (!res.ok) return { error: await hubError(res, s.extra?.hubName || s.name) };
       const info = (await res.json()) as HubInfo;
-      if (info.sightline !== 'hub') return { error: new HubError('That address isn’t a Sightline Hub.') };
-      if (!info.grant) return { error: new HubError('This phone isn’t paired with the Hub.', 'unauthorized', 401) };
+      if (info.sightline !== 'hub') return { error: new HubError(tr().systems.hub.notAHub) };
+      if (!info.grant) return { error: new HubError(tr().systems.hub.notPaired, 'unauthorized', 401) };
       return { info };
     } catch (e) {
       return { error: new HubError(e instanceof Error ? e.message : String(e)) };
@@ -417,10 +418,10 @@ export async function probeHub(s: SystemConfig): Promise<SystemLink> {
     const lanErr = r.error;
     r = await attempt(remote, 10000);
     base = remote;
-    if (!r.info && !r.error?.status) r.error = new HubError(`Couldn’t reach the Hub at home (${lanErr?.message}) or away (${r.error?.message}).`);
+    if (!r.info && !r.error?.status) r.error = new HubError(tr().systems.hub.cantReachBoth(lanErr?.message ?? '', r.error?.message ?? ''));
   } else if (!r.info && !r.error?.status && !remote && !lan.startsWith('https://')) {
     r.error = new HubError(
-      `Couldn’t reach the Hub at ${lan}. Away from home, the Hub needs remote access turned on (on its setup page).`,
+      tr().systems.hub.cantReachAt(lan),
     );
   }
   if (!r.info) return { baseUrl: base, mode: 'offline', error: r.error?.message };
@@ -450,7 +451,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw await hubError(res, 'the Hub');
+  if (!res.ok) throw await hubError(res, tr().systems.hub.theHub);
   return (await res.json()) as T;
 }
 
@@ -479,8 +480,8 @@ export async function joinHub(link: HubLink, opts: { deviceName?: string; system
     if (lastErr instanceof HubError && lastErr.status) throw lastErr;
     throw new Error(
       link.kind === 'pair'
-        ? `Couldn’t reach the Hub at ${lanUrl}. Make sure this phone is on the same Wi-Fi as the Hub.`
-        : `Couldn’t reach the Hub. ${lastErr instanceof Error ? lastErr.message : ''}`.trim(),
+        ? tr().systems.hub.cantReachWifi(lanUrl)
+        : tr().systems.hub.cantReach(lastErr instanceof Error ? lastErr.message : ''),
     );
   }
 

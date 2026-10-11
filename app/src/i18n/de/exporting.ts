@@ -1,5 +1,155 @@
 import type en from '../en/exporting.ts';
+import { plural } from '../plural.ts';
 
-const exporting: typeof en = {};
+const p = plural('de');
+
+const exporting: typeof en = {
+  window: {
+    last30: 'Letzte 30 Minuten',
+    last2h: 'Letzte 2 Stunden',
+    lastNight: 'Letzte Nacht (20 – 7 Uhr)',
+    endBeforeStart: 'Das Ende muss nach dem Anfang liegen.',
+    notYet: 'Diese Zeit liegt noch in der Zukunft.',
+    tooLong: 'Wähle höchstens 24 Stunden. Für längere Zeiträume mach mehrere Exporte.',
+    sizeWarning: (size) =>
+      `Das könnten etwa ${size} werden. Das ist viel für Mail oder Nachrichten. Am besten AirDrop oder „In Dateien sichern“ – oder wähle eine kürzere Zeit oder weniger Kameras.`,
+    replayWarning: (duration) =>
+      `Einige deiner Kameras können Aufnahmen nur in normaler Geschwindigkeit abspielen, daher dauert das Kopieren ihres Videos etwa ${duration}. Lass Sightline geöffnet, bis es fertig ist.`,
+  },
+  screen: {
+    title: 'Export für Polizei oder Versicherung',
+    intro:
+      'Sightline sammelt das Video aller Kameras für die gewählte Zeit, mit einer PDF-Zusammenfassung für die Person, die es bekommt. Alles entsteht auf diesem iPhone und verlässt es erst, wenn du es teilst.',
+    checking: 'Wird geprüft …',
+    noRecordings: 'Keine Aufnahmen in dieser Zeit',
+    events: (n) => p(n, { one: `${n} Ereignis`, other: `${n} Ereignisse` }),
+    video: 'Video',
+    videoReplay: 'Video, in normaler Geschwindigkeit kopiert',
+    snapshotsOnly: 'Nur Schnappschüsse – dieser Rekorder lässt Apps kein Video speichern',
+    gettingReady: 'Wird vorbereitet …',
+    failed: 'Der Export wurde nicht fertig',
+    beforeYouStart: 'Bevor es losgeht',
+    startExport: 'Export starten',
+    readyTitle: 'Export fertig',
+    readyHeading: 'Dein Export ist fertig',
+    signedByPhone: 'von diesem iPhone signiert',
+    noVideoFrom: 'Kein Video von',
+    shareAgain: 'Erneut teilen oder sichern',
+    when: 'Wann',
+    pickTime: 'Zeit wählen',
+    fromRecording: 'Aus der Aufnahme, die du angesehen hast',
+    pickDifferent: 'Tippen, um eine andere Zeit zu wählen',
+    from: 'Von',
+    until: 'Bis',
+    cameras: 'Kameras',
+    camerasFooter: 'Kameras mit Aufnahmen oder Ereignissen in dieser Zeit sind schon ausgewählt.',
+    noCameras: 'Keine Kameras mit Aufnahmen',
+    noCamerasDetail: 'Für Exporte brauchst du einen Rekorder (NVR, Frigate, Sightline Hub …).',
+    aboutSize: (size) => `Etwa ${size} Video.`,
+    snapshotsOnlyFrom: (names) =>
+      `Nur Schnappschüsse von ${names}: Der Rekorder lässt Apps sein Video nicht speichern, daher sind nur die Schnappschüsse der Ereignisse dabei.`,
+    makeExport: 'Export erstellen',
+    makingTitle: 'Export wird erstellt',
+    soFar: (size) => `bisher ${size}`,
+    keepOpen: 'Lass Sightline geöffnet, bis es fertig ist. Der Bildschirm bleibt an.',
+  },
+  run: {
+    copying: (camera) => `${camera} wird kopiert …`,
+    fingerprints: 'Fingerabdrücke werden berechnet …',
+    writingSummary: 'Zusammenfassung wird geschrieben …',
+    packing: '.zip wird gepackt …',
+    noteReplay: 'Aus der Wiedergabe des Rekorders in normaler Geschwindigkeit kopiert',
+    noteFiles: 'Die eigenen Dateien des Rekorders für diese Zeit (sie können etwas früher beginnen oder später enden)',
+    noteNone: 'Dieser Rekorder lässt Apps sein Video nicht speichern, daher sind nur die Schnappschüsse der Ereignisse dabei',
+    noteNoVideo: 'Der Rekorder hat für diese Zeit kein Video gesendet',
+    someParts: (note) => `${note} (einige Teile konnten nicht kopiert werden)`,
+    tooBig: 'Dieser Export ist zu groß für diese Version von Sightline. Wähle eine kürzere Zeit oder weniger Kameras.',
+    unreachable: 'Dieser Rekorder ist aus diesem Netzwerk nicht erreichbar.',
+    shareTitle: 'Video-Export',
+  },
+  readme: {
+    intro: 'Video-Export, erstellt mit Sightline.',
+    summary: 'Was in diesem Export ist: Kameras, der abgedeckte Zeitraum (mit Zeitzone), Ereignisse und Fingerabdrücke.',
+    video: 'Videodateien, benannt nach Kamera und lokaler Startzeit.',
+    photos: 'Schnappschüsse der Ereignisse.',
+    manifest: 'Der SHA-256-Fingerabdruck jeder Datei. Wird eine Datei verändert, passt ihr Fingerabdruck nicht mehr.',
+    signature: 'Signatur von manifest.json, erstellt mit einem Schlüssel, der das iPhone, das diesen Export erstellt hat, nie verlässt.',
+    publicKey: 'Der passende öffentliche Schlüssel.',
+    checkSignature: 'So prüfst du die Signatur:',
+    checkFile: 'So prüfst du eine Datei: sha256sum "video/<datei>.mp4" (Mac: shasum -a 256) und mit manifest.json vergleichen.',
+  },
+  report: {
+    title: 'Video-Export',
+    homeCameras: 'Kameras zu Hause',
+    videoIncluded: 'Video enthalten',
+    videoPartial: 'Video teilweise enthalten',
+    videoNone: 'Kein Video – nur Schnappschüsse',
+    until: (time) => `bis ${time}`,
+    signed: (q) =>
+      `Die Liste der Fingerabdrücke (${q.manifest}) ist außerdem mit einem Schlüssel <b>signiert</b>, der das iPhone, das diesen Export erstellt hat, nie verlässt.
+Die Signatur steht in ${q.signature}, der passende öffentliche Schlüssel in ${q.publicKey}
+(Fingerabdruck des Schlüssels ${q.fingerprint}).
+Wird die Liste verändert, stimmt die Signatur nicht mehr. So wird sie geprüft:`,
+    unsigned:
+      'Dieser Export ist nicht signiert (die App-Version, die ihn erstellt hat, konnte nicht signieren), aber die Fingerabdrücke unten zeigen trotzdem, ob eine Datei verändert wurde.',
+    summary: 'Zusammenfassung',
+    timeCovered: 'Zeitraum',
+    isoRange: (start, end) => `${start} bis ${end}`,
+    cameras: 'Kameras',
+    eventsInTime: 'Ereignisse in diesem Zeitraum',
+    exported: 'Exportiert',
+    madeWith: 'Erstellt mit',
+    madeWithValue: (app, device) => `${app} auf ${device}`,
+    missing: (names) =>
+      `Diese Kameras konnten für diesen Zeitraum kein Video exportieren, daher sind nur die Schnappschüsse ihrer Ereignisse enthalten: ${names}.`,
+    colCamera: 'Kamera',
+    colSystem: 'System',
+    colVideo: 'Video',
+    colEvents: 'Ereignisse',
+    colNotes: 'Hinweise',
+    events: 'Ereignisse',
+    colTime: 'Zeit',
+    colWhat: 'Was',
+    more: (n) => `… und ${n} weitere, aufgeführt in manifest.json.`,
+    noEvents: 'In diesem Zeitraum wurden keine Ereignisse aufgezeichnet.',
+    howToTell: 'So lässt sich prüfen, dass nichts verändert wurde',
+    howToTellBody: (manifest) =>
+      `Jede Datei in diesem Export hat einen <b>Fingerabdruck</b> (SHA-256), aufgeführt unten und in ${manifest}.
+Ein Fingerabdruck wird aus jedem Byte der Datei berechnet: <b>Wird eine Datei verändert, auch nur um ein einziges Bild, passt ihr Fingerabdruck nicht mehr.</b>
+Der Fingerabdruck dieses Berichts steht in manifest.json.`,
+    files: 'Dateien und Fingerabdrücke',
+    colFile: 'Datei',
+    colSize: 'Größe',
+    phoneZone: 'der Zeitzone des Telefons',
+    timesShown: (zone, offset) =>
+      `Zeiten sind in ${zone} angegeben (${offset}). Die Uhren der Kameras können um einige Sekunden von der genauen Zeit abweichen.`,
+  },
+  neighbors: {
+    title: 'Mit Nachbarn teilen',
+    intro: 'Für eine Nachbarschaftsgruppe oder einen Nachbarn. Das Verpixeln passiert auf diesem iPhone; nichts wird hochgeladen, bevor du teilst.',
+    noneFound: 'Keine Gesichter oder Kennzeichen gefunden. Sieh es dir vor dem Teilen genau an.',
+    faces: (n) => p(n, { one: `${n} Gesicht`, other: `${n} Gesichter` }),
+    plates: (n) => p(n, { one: `${n} Kennzeichen`, other: `${n} Kennzeichen` }),
+    blurred: (what) => `Unkenntlich gemacht: ${what}. Die Automatik kann etwas übersehen, also sieh es dir vor dem Teilen genau an.`,
+    gettingVideo: 'Video wird geladen …',
+    gettingPhoto: 'Foto wird geladen …',
+    blurring: 'Gesichter und Kennzeichen werden verpixelt …',
+    notBlurred: 'Nicht verpixelt. Gesichter und Kennzeichen sind sichtbar.',
+    couldntPrepare: 'Konnte nicht vorbereitet werden',
+    checkTitle: 'Vor dem Teilen prüfen',
+    startOver: 'Neu beginnen',
+    whatToShare: 'Was teilen',
+    videoClip: 'Videoclip',
+    photo: 'Foto',
+    noVideo: 'Dieser Rekorder kann keine Videoclips zum Teilen erstellen, daher wird ein Foto geteilt.',
+    blurFooter: 'Gesichter und Kennzeichen werden automatisch erkannt und in einer Kopie verpixelt. Dabei kann etwas übersehen werden, deshalb siehst du das Ergebnis zuerst.',
+    updateFooter: 'Zum Verpixeln brauchst du die neueste Version von Sightline. Aktualisiere die App, um es zu nutzen.',
+    blurToggle: 'Gesichter und Kennzeichen verpixeln',
+    blurAndPreview: 'Verpixeln und ansehen',
+    preview: 'Vorschau',
+    visibleWarning: 'Gesichter und Kennzeichen sind für alle sichtbar, mit denen du teilst.',
+    preparing: 'Wird vorbereitet',
+  },
+};
 
 export default exporting;

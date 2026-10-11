@@ -13,6 +13,7 @@ import { LiveView, useLive } from '@/components/live/live-view';
 import { TalkButton } from '@/components/talk/talk-button';
 import { useTalkRoute } from '@/talk/talk';
 import { T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useAdapter } from '@/systems/registry';
 import { usePalette } from '@/theme/use-palette';
 import { formatClock, nowSec } from '@/util/format';
@@ -25,6 +26,7 @@ const RED = '#FF453A';
  * (live view with sound) and Dismiss. Opened by a doorbell ring from any system.
  */
 export default function DoorbellScreen() {
+  const t = useT();
   const { systemId, cameraId, at } = useLocalSearchParams<{ systemId: string; cameraId: string; at?: string; reviewId?: string }>();
   const adapter = useAdapter(systemId);
   const insets = useSafeAreaInsets();
@@ -77,7 +79,7 @@ export default function DoorbellScreen() {
     router.replace({ pathname: '/playback', params: { systemId, cameraId, start: String(Math.floor((ringAt ?? openedAt) - 10)) } });
 
   const ago = ringAt != null ? openedAt - ringAt : 0;
-  const when = ringAt == null || ago < 60 ? 'Just now' : `Rang at ${formatClock(ringAt)}`;
+  const when = ringAt == null || ago < 60 ? t.common.justNow : t.viewing.doorbell.rangAt(formatClock(ringAt));
 
   const poster = adapter ? (
     <Image source={{ uri: adapter.snapshot(cameraId, { height: 720 }).uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
@@ -109,7 +111,7 @@ export default function DoorbellScreen() {
           </View>
         </View>
         <T v="title" color="#fff" style={styles.center}>
-          Someone’s at the door
+          {t.viewing.doorbell.title}
         </T>
         <T color="rgba(255,255,255,0.85)" style={styles.center}>
           {name} · {when}
@@ -118,15 +120,15 @@ export default function DoorbellScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 28 }]}>
         <View style={styles.buttons}>
-          <CallButton label="Dismiss" color={RED} icon="xmark" onPress={close} />
+          <CallButton label={t.viewing.doorbell.dismiss} color={RED} icon="xmark" onPress={close} />
           {talkRoute && <TalkButton route={talkRoute} variant="call" onActiveChange={setTalking} />}
-          <CallButton label="Answer" color={GREEN} icon="video.fill" onPress={answer} />
+          <CallButton label={t.viewing.doorbell.answer} color={GREEN} icon="video.fill" onPress={answer} />
         </View>
         {adapter?.playback && (
           <Pressable onPress={replay} hitSlop={10} style={styles.replay}>
             <SymbolView name="clock.arrow.circlepath" tintColor="rgba(255,255,255,0.85)" size={15} />
-            <T v="label" color="rgba(255,255,255,0.85)">
-              See what happened
+            <T v="label" color="rgba(255,255,255,0.85)" overlay>
+              {t.viewing.doorbell.seeWhatHappened}
             </T>
           </Pressable>
         )}
@@ -155,7 +157,7 @@ function CallButton({
         style={({ pressed }) => [styles.callBtn, { backgroundColor: color, opacity: pressed ? 0.8 : 1 }]}>
         <SymbolView name={icon} tintColor="#fff" size={30} />
       </Pressable>
-      <T v="label" color="#fff">
+      <T v="label" color="#fff" overlay style={{ textAlign: 'center' }}>
         {label}
       </T>
     </View>
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
   bell: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 24 },
   buttons: { flexDirection: 'row', justifyContent: 'space-around', alignSelf: 'stretch', paddingHorizontal: 40 },
-  callItem: { alignItems: 'center', gap: 10 },
+  callItem: { alignItems: 'center', gap: 10, flexShrink: 1 },
   callBtn: { width: 78, height: 78, borderRadius: 39, alignItems: 'center', justifyContent: 'center' },
   replay: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)' },
 });

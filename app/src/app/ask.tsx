@@ -7,21 +7,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { askQuestion, modelAvailability, simpleModeReason, useEventIndex, type AskResult } from '@/ask/ask';
 import { eventSubject, type EventRecord } from '@/ask/engine';
-import { Card, Chip, IconButton, T } from '@/components/ui/primitives';
+import { Card, Chip, IconButton, T, useScaledFont } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
-import { font, space } from '@/theme/tokens';
+import { useLargeText } from '@/theme/text-scale';
+import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { formatRelative } from '@/util/format';
 import { Ask } from '@modules/ask';
 
-const EXAMPLES = [
-  'Did a package come today?',
-  'Was anyone in the backyard last night?',
-  'When did the kids get home?',
-  'How many cars came by this week?',
-  'Show me the delivery driver',
-  'Who came to the door today?',
-];
+/**
+ * Example questions. The question parser understands English only, so each chip shows the
+ * translated label but asks this English question (the answer comes back in the app's language).
+ */
+const EXAMPLES = {
+  package: 'Did a package come today?',
+  backyard: 'Was anyone in the backyard last night?',
+  kids: 'When did the kids get home?',
+  cars: 'How many cars came by this week?',
+  delivery: 'Show me the delivery driver',
+  door: 'Who came to the door today?',
+};
+const EXAMPLE_KEYS = Object.keys(EXAMPLES) as (keyof typeof EXAMPLES)[];
 
 /**
  * "Ask your cameras": plain questions about what the cameras saw, answered on the iPhone from
@@ -30,6 +37,9 @@ const EXAMPLES = [
  */
 export default function AskScreen() {
   const p = usePalette();
+  const t = useT();
+  const large = useLargeText();
+  const body = useScaledFont('body');
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ q?: string; listen?: string }>();
   const radius = useApp((s) => s.appearance.radius);
@@ -53,10 +63,11 @@ export default function AskScreen() {
   const [waiting, setWaiting] = useState(!!params.q?.trim());
   const reason = simpleModeReason(availability);
 
-  const run = async (q: string) => {
+  // `shown`: what the search field shows (a chip's translated label) when it differs from the question asked.
+  const run = async (q: string, shown?: string) => {
     const text = q.trim();
     if (!text) return;
-    setQuestion(text);
+    setQuestion(shown ?? text);
     if (!index.data) {
       // Still loading the week’s events: answer as soon as they’re here.
       pending.current = text;
@@ -140,9 +151,9 @@ export default function AskScreen() {
     <View style={{ flex: 1, backgroundColor: p.bg }}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <T v="title" style={{ flex: 1 }}>
-          Ask your cameras
+          {t.ask.screen.title}
         </T>
-        <IconButton icon="xmark.circle.fill" label="Close" color={p.textMuted} size={24} onPress={() => router.back()} />
+        <IconButton icon="xmark.circle.fill" label={t.common.close} color={p.textMuted} size={24} onPress={() => router.back()} />
       </View>
 
       <View style={{ paddingHorizontal: space.lg, gap: space.sm }}>
@@ -151,19 +162,20 @@ export default function AskScreen() {
           <TextInput
             value={question}
             onChangeText={setQuestion}
-            placeholder={listening ? 'Listening…' : 'Did a package come today?'}
+            placeholder={listening ? t.ask.screen.listening : t.ask.screen.examples.package}
             placeholderTextColor={p.textMuted}
-            style={[font.body, styles.input, { color: p.text }]}
+            style={[body.style, styles.input, { color: p.text }]}
+            maxFontSizeMultiplier={body.maxFontSizeMultiplier}
             returnKeyType="search"
             autoFocus={!params.q && params.listen !== '1'}
             onSubmitEditing={() => void run(question)}
-            accessibilityLabel="Your question"
+            accessibilityLabel={t.ask.screen.questionLabel}
             clearButtonMode="while-editing"
           />
           {canListen && (
             <IconButton
               icon={listening ? 'stop.circle.fill' : 'mic.fill'}
-              label={listening ? 'Stop listening' : 'Speak your question'}
+              label={listening ? t.ask.screen.stopListening : t.ask.screen.speak}
               color={listening ? p.danger : p.accent}
               onPress={toggleMic}
             />
@@ -171,8 +183,8 @@ export default function AskScreen() {
         </View>
         <View style={styles.privacy}>
           <SymbolView name="lock.fill" tintColor={p.success} size={12} />
-          <T v="caption" muted>
-            Answered on your iPhone. Nothing leaves your phone.
+          <T v="caption" muted style={{ flex: 1 }}>
+            {t.ask.screen.privacy}
           </T>
         </View>
       </View>
@@ -183,24 +195,24 @@ export default function AskScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag">
         {!index.hasSystems ? (
-          <T muted>Add your cameras first, then ask about what they saw.</T>
+          <T muted>{t.ask.screen.noSystems}</T>
         ) : !index.canReview && !index.isLoading ? (
-          <T muted>
-            Your cameras are connected for live view only right now. To ask about what happened, Sightline needs a recorder or camera that keeps events, and a connection to it.
-          </T>
+          <T muted>{t.ask.screen.liveOnly}</T>
         ) : null}
 
         {(busy || (loadingIndex && waiting)) && (
           <View style={styles.busy}>
             <ActivityIndicator />
-            <T muted>{loadingIndex ? 'Loading your recordings…' : 'Looking through your recordings…'}</T>
+            <T muted style={{ flex: 1 }}>
+              {loadingIndex ? t.ask.screen.loadingIndex : t.ask.screen.searching}
+            </T>
           </View>
         )}
 
         {error && <T color={p.danger}>{error}</T>}
         {!!index.data?.failed.length && (
           <T v="caption" muted>
-            Couldn’t load events from {index.data.failed.join(', ')}, so answers leave them out.
+            {t.ask.screen.failed(index.data.failed.join(', '))}
           </T>
         )}
 
@@ -209,14 +221,14 @@ export default function AskScreen() {
             <Card style={{ padding: space.lg, gap: space.sm }}>
               <T v="heading">{result.text}</T>
               <T v="caption" muted>
-                {result.usedModel ? 'Understood with Apple Intelligence, on this iPhone.' : 'Understood on this iPhone.'}
-                {result.query.kind === 'count' && result.matches.length > 1 ? ' Each recording counts once, so one visit can count more than once.' : ''}
+                {result.usedModel ? t.ask.screen.usedModel : t.ask.screen.usedLocal}
+                {result.query.kind === 'count' && result.matches.length > 1 ? t.ask.screen.countNote : ''}
               </T>
             </Card>
             {result.matches.length > 0 && (
               <T v="label" muted>
-                {result.matches.length === 1 ? '1 recording' : `${result.matches.length} recordings`}
-                {result.matches.length > 40 ? ' (showing the latest 40)' : ''}
+                {t.ask.screen.recordings(result.matches.length)}
+                {result.matches.length > 40 ? t.ask.screen.showingLatest(40) : ''}
               </T>
             )}
             {result.matches.slice(0, 40).map((e) => (
@@ -224,16 +236,16 @@ export default function AskScreen() {
                 key={`${e.systemId}:${e.id}`}
                 onPress={() => open(e)}
                 accessibilityRole="button"
-                accessibilityLabel={`${eventSubject(e, result.query)} on ${e.camera}, ${formatRelative(e.start)}. Play.`}
-                style={({ pressed }) => [styles.row, pressed && { backgroundColor: p.surface }]}>
+                accessibilityLabel={t.ask.screen.rowLabel(eventSubject(e, result.query), e.camera, formatRelative(e.start))}
+                style={({ pressed }) => [styles.row, large && styles.rowLarge, pressed && { backgroundColor: p.surface }]}>
                 <View style={[styles.thumb, { borderRadius: Math.min(radius, 12), backgroundColor: p.surface }]}>
                   {e.thumbnailUrl && <Image source={{ uri: e.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
                 </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <T v="label" numberOfLines={1}>
+                <View style={large ? { gap: 3 } : { flex: 1, gap: 3 }}>
+                  <T v="label" numberOfLines={large ? undefined : 2}>
                     {capitalize(eventSubject(e, result.query))}
                   </T>
-                  <T v="caption" muted numberOfLines={1}>
+                  <T v="caption" muted numberOfLines={large ? undefined : 2}>
                     {e.camera} · {formatRelative(e.start)}
                   </T>
                 </View>
@@ -246,11 +258,11 @@ export default function AskScreen() {
         {!result && !busy && !error && (
           <View style={{ gap: space.sm }}>
             <T v="caption" muted>
-              Try asking
+              {t.ask.screen.tryAsking}
             </T>
             <View style={styles.chips}>
-              {EXAMPLES.map((ex) => (
-                <Chip key={ex} label={ex} selected={false} onPress={() => void run(ex)} />
+              {EXAMPLE_KEYS.map((k) => (
+                <Chip key={k} label={t.ask.screen.examples[k]} selected={false} onPress={() => void run(EXAMPLES[k], t.ask.screen.examples[k])} />
               ))}
             </View>
           </View>
@@ -286,5 +298,7 @@ const styles = StyleSheet.create({
   busy: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, borderRadius: 12 },
+  // Big text: picture on top, words below at full width.
+  rowLarge: { flexDirection: 'column', alignItems: 'flex-start' },
   thumb: { width: 112, height: 63, overflow: 'hidden' },
 });

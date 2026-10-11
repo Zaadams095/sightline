@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { syncPackageReminder } from '@/alerts/packages-notify';
 import { Chip, Row, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { familiarNames, useFamiliar } from '@/familiar/store';
+import { fmtTime } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter, type CameraEntry } from '@/systems/registry';
@@ -15,14 +17,16 @@ const STORAGE_LEVELS = [80, 90, 95];
 
 /** Live Activities: only on iPhone builds that include them. */
 export function LockScreenSection() {
+  const t = useT();
+  const k = t.alertSettings.extras;
   const lockScreen = useApp((s) => s.alerts.lockScreen);
   const setAlerts = useApp((s) => s.setAlerts);
   if (!LiveActivity) return null;
   return (
-    <Section footer="If nothing shows, check that Live Activities are allowed for Sightline in the iPhone Settings app.">
+    <Section footer={k.lockFooter}>
       <ToggleRow
-        label="Show on Lock Screen"
-        detail="When the doorbell rings or a camera sees something, show it on your Lock Screen for a few minutes, with the latest picture."
+        label={k.lockLabel}
+        detail={k.lockDetail}
         value={lockScreen}
         onChange={(v) => setAlerts({ lockScreen: v })}
         last
@@ -33,6 +37,8 @@ export function LockScreenSection() {
 
 /** "Don't alert for these people/cars": names your system can recognize (faces, known plates). */
 export function KnownPeopleSection() {
+  const t = useT();
+  const k = t.alertSettings.extras;
   const systems = useApp((s) => s.systems);
   const links = useLinks((s) => s.links);
   const quietFor = useApp((s) => s.alerts.quietFor);
@@ -64,22 +70,16 @@ export function KnownPeopleSection() {
 
   return (
     <>
-      <Section
-        title="Known people & cars"
-        footer={
-          all.length
-            ? 'Selected names never trigger alerts. Anyone your system doesn’t recognize still alerts.'
-            : 'If your system recognizes faces or license plates, or you name people in Settings → People & vehicles, their names appear here so family and your own cars don’t set off alerts.'
-        }>
+      <Section title={k.knownTitle} footer={all.length ? k.knownFooterSome : k.knownFooterNone}>
         <View style={styles.chips}>
-          {all.length === 0 && <T muted>{names.isLoading ? 'Loading…' : 'No recognized names yet'}</T>}
+          {all.length === 0 && <T muted>{names.isLoading ? t.common.loading : k.noNames}</T>}
           {all.map((n) => (
             <Chip key={n} label={n} selected={quietFor.includes(n)} onPress={() => toggle(n)} />
           ))}
         </View>
       </Section>
       {all.length > 0 && (
-        <Section title="Always tell me when they arrive" footer="Selected names always alert, even on cameras set to alert only for other things.">
+        <Section title={k.alwaysTitle} footer={k.alwaysFooter}>
           <View style={styles.chips}>
             {all.map((n) => (
               <Chip key={n} label={n} selected={alwaysFor.includes(n)} onPress={() => toggleAlways(n)} />
@@ -95,6 +95,8 @@ const NO_NAMES: string[] = [];
 
 /** Cameras currently snoozed, with a way to resume early. */
 export function SnoozedSection({ entries }: { entries: CameraEntry[] }) {
+  const t = useT();
+  const k = t.alertSettings.extras;
   const snoozed = useApp((s) => s.alerts.snoozed);
   const snooze = useApp((s) => s.snooze);
   const now = nowSec();
@@ -102,13 +104,13 @@ export function SnoozedSection({ entries }: { entries: CameraEntry[] }) {
   if (!active.length) return null;
   const nameOf = (key: string) => entries.find((e) => e.camera.key === key)?.camera.name ?? key;
   return (
-    <Section title="Snoozed">
+    <Section title={k.snoozed}>
       {active.map(([key, until], i) => (
         <Row
           key={key}
           label={nameOf(key)}
-          detail={`Muted until ${formatClock(until)}`}
-          right={<Chip label="Resume" selected={false} onPress={() => snooze(key, null)} />}
+          detail={k.mutedUntil(formatClock(until))}
+          right={<Chip label={k.resume} selected={false} onPress={() => snooze(key, null)} />}
           last={i === active.length - 1}
         />
       ))}
@@ -120,6 +122,8 @@ const REMINDER_TIMES = ['17:00', '18:00', '19:00', '20:00', '21:00'];
 
 /** Doorbell call screen and package alerts (any system that reports rings / packages). */
 export function DoorbellPackagesSection() {
+  const t = useT();
+  const k = t.alertSettings.extras;
   const doorbell = useApp((s) => s.alerts.doorbell);
   const packages = useApp((s) => s.alerts.packages);
   const setAlerts = useApp((s) => s.setAlerts);
@@ -128,26 +132,24 @@ export function DoorbellPackagesSection() {
     void syncPackageReminder();
   };
   return (
-    <Section
-      title="Doorbell & packages"
-      footer="Works with cameras and recorders that report doorbell presses or detect packages. A doorbell ring always notifies, even when other alerts for that camera are filtered.">
+    <Section title={k.doorbellTitle} footer={k.doorbellFooter}>
       <ToggleRow
-        label="Doorbell rings open full screen"
-        detail="Like a phone call, with live video and a big Answer button."
+        label={k.fullScreen}
+        detail={k.fullScreenDetail}
         value={doorbell.fullScreen}
         onChange={(fullScreen) => setAlerts({ doorbell: { ...doorbell, fullScreen } })}
       />
       <ToggleRow
-        label="Package alerts"
-        detail="Tells you when a package is delivered, and when it may have been picked up."
+        label={k.packages}
+        detail={k.packagesDetail}
         value={packages.enabled}
         onChange={(enabled) => setPackages({ enabled })}
         last={!packages.enabled}
       />
       {packages.enabled && (
         <ToggleRow
-          label="Evening reminder"
-          detail="If a package is still outside."
+          label={k.reminder}
+          detail={k.reminderDetail}
           value={packages.reminder}
           onChange={(reminder) => setPackages({ reminder })}
           last={!packages.reminder}
@@ -155,8 +157,13 @@ export function DoorbellPackagesSection() {
       )}
       {packages.enabled && packages.reminder && (
         <View style={[styles.chips, { paddingTop: space.sm }]}>
-          {REMINDER_TIMES.map((t) => (
-            <Chip key={t} label={`${Number(t.slice(0, 2)) - 12} PM`} selected={packages.reminderTime === t} onPress={() => setPackages({ reminderTime: t })} />
+          {REMINDER_TIMES.map((hhmm) => (
+            <Chip
+              key={hhmm}
+              label={fmtTime(new Date(2000, 0, 1, Number(hhmm.slice(0, 2)), 0))}
+              selected={packages.reminderTime === hhmm}
+              onPress={() => setPackages({ reminderTime: hhmm })}
+            />
           ))}
         </View>
       )}
@@ -165,14 +172,14 @@ export function DoorbellPackagesSection() {
 }
 
 export function HealthSection() {
+  const t = useT();
+  const k = t.alertSettings.extras;
   const health = useApp((s) => s.alerts.health);
   const setAlerts = useApp((s) => s.setAlerts);
   return (
-    <Section
-      title="System health"
-      footer="Alerts once when a camera goes offline, storage runs low, or the recorder stops answering, and again only after it recovers.">
+    <Section title={k.healthTitle} footer={k.healthFooter}>
       <ToggleRow
-        label="Health alerts"
+        label={k.healthLabel}
         value={health.enabled}
         onChange={(enabled) => setAlerts({ health: { ...health, enabled } })}
         last={!health.enabled}
@@ -180,12 +187,12 @@ export function HealthSection() {
       {health.enabled && (
         <View style={[styles.chips, { paddingTop: 0 }]}>
           <T muted style={{ width: '100%' }}>
-            Warn when storage is
+            {k.warnWhen}
           </T>
           {STORAGE_LEVELS.map((pct) => (
             <Chip
               key={pct}
-              label={`${pct}% full`}
+              label={k.pctFull(pct)}
               selected={health.storagePct === pct}
               onPress={() => setAlerts({ health: { ...health, storagePct: pct } })}
             />

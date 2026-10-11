@@ -8,6 +8,8 @@ import { SUPPORT_EMAIL } from '@/config';
 import { formatReport, type ReportInput } from '@/diagnostics/core';
 import { useDiagnostics } from '@/diagnostics/log';
 import { emailReport, gatherReport, shareReportFile, supportEmailSet } from '@/diagnostics/send';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
@@ -17,6 +19,7 @@ import { usePalette } from '@/theme/use-palette';
  */
 export default function ReportProblem() {
   const p = usePalette();
+  const r = useT().settings.report;
   const qc = useQueryClient();
   const include = useDiagnostics((s) => s.includeDiagnostics);
   const setInclude = useDiagnostics((s) => s.setIncludeDiagnostics);
@@ -31,7 +34,7 @@ export default function ReportProblem() {
   // formatted in as the user types, so the preview is always exactly what will be sent.
   useEffect(() => {
     let live = true;
-    void gatherReport({ queryClient: qc }).then((i) => live && setInput(i), () => live && setMsg('Couldn’t gather diagnostics.'));
+    void gatherReport({ queryClient: qc }).then((i) => live && setInput(i), () => live && setMsg(tr().settings.report.gatherFailed));
     return () => {
       live = false;
     };
@@ -45,10 +48,10 @@ export default function ReportProblem() {
     setBusy(true);
     try {
       if (how === 'file') await shareReportFile(report);
-      else if (await emailReport(report)) setMsg('Mail opened. Check the message, then tap Send.');
-      else setMsg('Mail isn’t set up on this phone. Use “Share as file” instead.');
+      else if (await emailReport(report)) setMsg(r.mailOpened);
+      else setMsg(r.noMail);
     } catch {
-      setMsg('Couldn’t open the report. Try again in a moment.');
+      setMsg(r.openFailed);
     } finally {
       setBusy(false);
     }
@@ -56,37 +59,34 @@ export default function ReportProblem() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Report a problem' }} />
-      <T muted>
-        Tell us what went wrong. You can read the whole report below before it’s sent, and nothing leaves your phone
-        until you tap Send.
-      </T>
+      <Stack.Screen options={{ title: r.title }} />
+      <T muted>{r.intro}</T>
 
       <Field
-        label="What happened?"
+        label={r.whatHappened}
         value={note}
         onChangeText={setNote}
-        placeholder="For example: the driveway camera won’t play when I’m away"
+        placeholder={r.placeholder}
         multiline
         style={{ minHeight: 90, textAlignVertical: 'top' }}
-        hint="Please don’t type passwords. Addresses and camera names are removed automatically."
+        hint={r.hint}
       />
 
-      <Section footer="Recent connection problems by brand, plus crash reports from iOS and your Hub. Never camera names, addresses, passwords, pictures or video.">
-        <ToggleRow label="Include diagnostics automatically when I report a problem" value={include} onChange={setInclude} last />
+      <Section footer={r.footer}>
+        <ToggleRow label={r.include} value={include} onChange={setInclude} last />
       </Section>
 
       {supportEmailSet ? (
-        <Button title="Email report" onPress={() => void send('mail')} loading={busy} disabled={!report} />
+        <Button title={r.email} onPress={() => void send('mail')} loading={busy} disabled={!report} />
       ) : (
         <T v="caption" muted>
-          This version doesn’t have a support email address yet, so use “Share as file” and send it however you like.
+          {r.noSupportEmail}
         </T>
       )}
-      <Button title="Share as file" kind="secondary" onPress={() => void send('file')} disabled={!report || busy} />
+      <Button title={r.shareFile} kind="secondary" onPress={() => void send('file')} disabled={!report || busy} />
       {msg && <T muted>{msg}</T>}
 
-      <Disclosure title="See what will be sent">
+      <Disclosure title={r.seeWhat}>
         <Card style={{ padding: space.md }}>
           {report ? (
             <Text selectable style={[styles.preview, { color: p.textMuted }]}>
@@ -98,15 +98,15 @@ export default function ReportProblem() {
         </Card>
         {report && report.file !== report.text && (
           <T v="caption" muted>
-            “Share as file” also adds iOS’s technical crash data (app code locations, no personal information).
+            {r.fileExtra}
           </T>
         )}
         {supportEmailSet && (
           <T v="caption" muted>
-            Sent to {SUPPORT_EMAIL}.
+            {r.sentTo(SUPPORT_EMAIL)}
           </T>
         )}
-        {eventCount > 0 && <Button title="Clear recent problems" kind="ghost" onPress={clear} />}
+        {eventCount > 0 && <Button title={r.clearRecent} kind="ghost" onPress={clear} />}
       </Disclosure>
     </Screen>
   );

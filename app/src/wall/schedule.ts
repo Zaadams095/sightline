@@ -4,6 +4,8 @@
  * all day from burning in. Pure (no React Native imports) so it's unit-tested.
  */
 
+import { fmtDate, tr } from '../i18n/index.ts';
+
 export type TourMode = 'grid' | 'single';
 
 export interface NightSettings {
@@ -130,9 +132,7 @@ export function addTakeover(list: Takeover[], t: Takeover, nowMs: number): Takeo
 
 /** "Saturday, October 11" */
 export function dateLine(at: Date): string {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  return `${days[at.getDay()]}, ${months[at.getMonth()]} ${at.getDate()}`;
+  return fmtDate(at, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 /** "9:41" (12-hour unless the phone uses 24-hour time) */
@@ -145,7 +145,8 @@ export function clockText(at: Date, h24 = false): string {
 
 /** "6 cameras · all connected" / "6 cameras · 2 not connected" (no weather, no cloud). */
 export function statusLine(total: number, offline: number): string {
-  const cams = `${total} camera${total === 1 ? '' : 's'}`;
-  if (!total) return 'No cameras';
-  return offline ? `${cams} · ${offline} not connected` : `${cams} · all connected`;
+  const t = tr();
+  const cams = t.common.cameras(total);
+  if (!total) return t.wall.status.noCameras;
+  return offline ? `${cams} · ${t.wall.status.notConnected(offline)}` : `${cams} · ${t.wall.status.allConnected}`;
 }

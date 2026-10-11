@@ -8,6 +8,8 @@
  * - Forward-only recordings (`stream`): a few seconds from each step (every 15 min or hour).
  */
 
+import { formatLocale, getLocale, tr } from '../i18n/index.ts';
+
 export interface Span {
   start: number;
   end: number;
@@ -128,13 +130,29 @@ export function hourTicks(start: number, end: number, labelEvery?: number): Tick
   d.setMinutes(0, 0, 0);
   if (d.getTime() / 1000 < start) d.setHours(d.getHours() + 1);
   const out: Tick[] = [];
+  const twelve = uses12h();
   while (d.getTime() / 1000 <= end) {
     const h = d.getHours();
-    const label = h % every === 0 ? (h === 0 ? '12 AM' : h === 12 ? 'Noon' : h < 12 ? `${h} AM` : `${h - 12} PM`) : undefined;
+    const label = h % every === 0 ? hourLabel(h, twelve) : undefined;
     out.push({ t: d.getTime() / 1000, label });
     d.setHours(d.getHours() + 1);
   }
   return out;
+}
+
+/** Whether the active language/region shows a 12-hour clock ("3 PM") rather than "15 h". */
+function uses12h(): boolean {
+  try {
+    return !!new Intl.DateTimeFormat(formatLocale(), { hour: 'numeric' }).resolvedOptions().hour12;
+  } catch {
+    return getLocale() === 'en';
+  }
+}
+
+function hourLabel(h: number, twelve: boolean): string {
+  const s = tr().viewing.timelapse;
+  if (!twelve) return s.hour24(h);
+  return h === 0 ? s.midnight : h === 12 ? s.noon : h < 12 ? s.hourAm(h) : s.hourPm(h - 12);
 }
 
 /**

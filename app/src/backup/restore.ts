@@ -6,6 +6,7 @@ import { migrateMasks } from '@/alerts/zones';
 import { makeBundle, type Bundle } from '@/backup/bundle';
 import { applySections, extractSections, secretRefs, SECTIONS, type LegacySections, type SecretRef, type SecretValue, type Sections } from '@/backup/sections';
 import { useBackup } from '@/backup/settings';
+import { tr } from '@/i18n';
 import { pullSecretsFromCloud, readSecrets, SECRET, writeSecrets } from '@/state/secrets';
 import { smartBackupSource, smartHydrated, useSmart } from '@/state/smart';
 import { useApp } from '@/state/store';
@@ -93,5 +94,5 @@ export function markAllChanged() {
 export function needsPasswordText(r: RestoreResult): string | null {
   if (!r.needsPassword.length) return null;
   const names = r.needsPassword.join(', ');
-  return `Passwords for ${names} haven’t arrived from iCloud Keychain yet. They usually do within a few minutes. If not, open Settings, tap the system and type its password again.`;
+  return tr().settings.backupMsg.needsPassword(names);
 }

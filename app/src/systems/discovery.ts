@@ -1,3 +1,4 @@
+import { tr } from '@/i18n';
 import { CATALOG, discoveryPorts, type ProbeResult, type SystemDescriptor } from '@/systems/catalog';
 import { matchesScan, type StreamTarget, type SystemTarget } from '@/systems/guides';
 import type { SystemKind } from '@/systems/types';
@@ -19,7 +20,7 @@ export interface Found {
  */
 export async function discover(onProgress?: (msg: string) => void): Promise<Found[]> {
   const byHost = await scanNetwork(discoveryPorts(), onProgress);
-  onProgress?.(`Checking ${byHost.size} device${byHost.size === 1 ? '' : 's'}…`);
+  onProgress?.(tr().onboarding.discovery.checking(byHost.size));
   const results = await Promise.all(
     [...byHost].map(async ([host, hostPorts]) => (await identify(host, hostPorts)) ?? null),
   );
@@ -28,13 +29,13 @@ export async function discover(onProgress?: (msg: string) => void): Promise<Foun
 
 /** Every device on the phone's local network with any of these ports open (host → open ports). */
 export async function scanNetwork(ports: number[], onProgress?: (msg: string) => void): Promise<Map<string, Set<number>>> {
-  if (!WgTunnel) throw new Error('Finding cameras needs the full app (not Expo Go).');
+  if (!WgTunnel) throw new Error(tr().onboarding.discovery.needsFullApp);
   const subnets = JSON.parse(WgTunnel.localSubnets()) as string[];
-  if (!subnets.length) throw new Error('Connect to your home Wi-Fi first.');
+  if (!subnets.length) throw new Error(tr().onboarding.discovery.connectWifi);
 
   const open: string[] = [];
   for (const cidr of subnets) {
-    onProgress?.(`Looking around ${cidr.replace('.0/24', '.x')}…`);
+    onProgress?.(tr().onboarding.discovery.lookingAround(cidr.replace('.0/24', '.x')));
     open.push(...(JSON.parse(await WgTunnel.scanSubnet(cidr, ports.join(','), 400)) as string[]));
   }
 
@@ -74,7 +75,7 @@ async function identify(host: string, ports: Set<number>): Promise<Found | null>
       if (!r.error && fp.match(r)) return { host, kind: d.kind, label: d.label, address: `${host}:${fp.port}` };
     }
   }
-  if (ports.has(554)) return { host, kind: null, label: 'Camera', address: host };
+  if (ports.has(554)) return { host, kind: null, label: tr().onboarding.discovery.camera, address: host };
   return null;
 }
 

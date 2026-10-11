@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { formatSpan, storyTitle, type Story } from '@/stories/group';
 import { openStory } from '@/stories/open';
 import type { ReviewItem } from '@/systems/types';
@@ -13,6 +14,7 @@ import { formatClock } from '@/util/format';
 /** A story in the Recordings list: the steps' pictures, who, the path and how long it took. */
 export function StoryRow({ story, nameOf }: { story: Story<ReviewItem>; nameOf: (cameraKey: string) => string }) {
   const p = usePalette();
+  const t = useT();
   const thumbs = story.steps
     .map((s) => s.items.find((i) => i.thumbnailUrl)?.thumbnailUrl)
     .filter((u): u is string => !!u)
@@ -21,7 +23,7 @@ export function StoryRow({ story, nameOf }: { story: Story<ReviewItem>; nameOf: 
     <Pressable
       onPress={() => openStory(story)}
       accessibilityRole="button"
-      accessibilityLabel={`${storyTitle(story)}. Open story`}
+      accessibilityLabel={t.viewing.story.openA11y(storyTitle(story))}
       style={({ pressed }) => [styles.row, pressed && { backgroundColor: p.surface }]}>
       <View style={styles.strip}>
         {thumbs.length ? (
@@ -37,10 +39,10 @@ export function StoryRow({ story, nameOf }: { story: Story<ReviewItem>; nameOf: 
         )}
       </View>
       <View style={{ gap: 2 }}>
-        <T v="label" numberOfLines={1}>
+        <T v="label">
           {storyTitle(story)} · {formatClock(story.start)}
         </T>
-        <T v="caption" muted numberOfLines={2}>
+        <T v="caption" muted>
           {story.steps.map((s) => nameOf(s.cameraKey)).join(' → ')} ({formatSpan(story.end - story.start)})
         </T>
       </View>

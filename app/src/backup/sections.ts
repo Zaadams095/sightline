@@ -5,6 +5,8 @@ import type { AlertMasks, AlertSettings, CameraGroup, CameraMap, GridView, Saved
 import type { SystemConfig } from '@/systems/types';
 import type { Appearance } from '@/theme/tokens';
 
+import { tr } from '../i18n/index.ts';
+
 /**
  * What a backup contains, and how two phones' copies are reconciled. Pure (no RN imports) so
  * it's covered by `npm test`. Used by both the iCloud backup and the phone-to-phone transfer.
@@ -360,9 +362,10 @@ export function summaryText(sections: Sections): string {
   const systems = Array.isArray(sections.systems) ? sections.systems.length : 0;
   const cameras = countCameras(sections);
   const checkins = countCheckins(sections);
-  const parts = [`${systems} ${systems === 1 ? 'system' : 'systems'}`];
-  if (cameras > 0) parts.push(`${cameras} ${cameras === 1 ? 'camera' : 'cameras'}`);
-  if (checkins > 0) parts.push(`${checkins} ${checkins === 1 ? 'check-in' : 'check-ins'}`);
+  const t = tr();
+  const parts = [t.settings.backupMsg.systems(systems)];
+  if (cameras > 0) parts.push(t.common.cameras(cameras));
+  if (checkins > 0) parts.push(t.settings.backupMsg.checkins(checkins));
   return parts.join(', ');
 }
 

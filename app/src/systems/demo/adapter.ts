@@ -10,13 +10,15 @@ import {
   demoSegments,
   DEMO_GROUPS,
   DEMO_HEALTH,
-  DEMO_KNOWN_NAMES,
+  demoKnownNames,
   DEMO_PRESETS,
+  demoPresetName,
   type DemoEvent,
   type DemoStill,
 } from '@/systems/demo/data';
 import { clipUri, stillUri } from '@/systems/demo/media';
 import { demoPtzAction, demoPtzPreset } from '@/systems/demo/ptz';
+import { tr } from '@/i18n';
 import type {
   Camera,
   CameraSystemAdapter,
@@ -72,7 +74,7 @@ export class DemoAdapter implements CameraSystemAdapter {
 
   async liveStream(cameraId: string): Promise<LiveSource> {
     const cam = demoCamera(cameraId);
-    if (!cam) throw new Error('Camera not found');
+    if (!cam) throw new Error(tr().systems.common.cameraNotFound);
     return {
       kind: 'loop',
       uri: clipUri(cameraId, 'live'),
@@ -134,7 +136,7 @@ export class DemoAdapter implements CameraSystemAdapter {
   }
 
   async knownNames() {
-    return DEMO_KNOWN_NAMES;
+    return demoKnownNames();
   }
 
   async health(): Promise<HealthReport> {
@@ -152,13 +154,14 @@ export class DemoAdapter implements CameraSystemAdapter {
 
   async ptzInfo(cameraId: string): Promise<PtzInfo> {
     const cam = demoCamera(cameraId);
-    return cam?.ptz ? { presets: Object.keys(DEMO_PRESETS), canMove: true, canZoom: true } : { presets: [], canMove: false, canZoom: false };
+    return cam?.ptz ? { presets: Object.keys(DEMO_PRESETS).map(demoPresetName), canMove: true, canZoom: true } : { presets: [], canMove: false, canZoom: false };
   }
 
   async ptz(cameraId: string, action: PtzAction | `preset_${string}`) {
     const key = `${this.config.id}:${cameraId}`;
     if (action.startsWith('preset_')) {
-      const view = DEMO_PRESETS[action.slice('preset_'.length)];
+      const name = action.slice('preset_'.length);
+      const view = DEMO_PRESETS[Object.keys(DEMO_PRESETS).find((k) => demoPresetName(k) === name) ?? name];
       if (view) demoPtzPreset(key, view);
       return;
     }

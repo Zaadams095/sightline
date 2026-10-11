@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 
 import { clearPackage, reminderPlan, updatePackages, type OpenPackage } from '@/alerts/packages';
 import { allowsSpecial } from '@/alerts/rules';
+import { tr } from '@/i18n';
 import { useApp } from '@/state/store';
 import type { ReviewItem } from '@/systems/types';
 import { formatClock } from '@/util/format';
@@ -18,7 +19,7 @@ const REMINDER_ID = 'package-reminder';
 
 export function registerPackageCategory() {
   void Notifications.setNotificationCategoryAsync(PACKAGE_CATEGORY, [
-    { identifier: ACTION_GOT_IT, buttonTitle: 'I got it', options: { opensAppToForeground: false } },
+    { identifier: ACTION_GOT_IT, buttonTitle: tr().alerts.packages.gotIt, options: { opensAppToForeground: false } },
   ]).catch(() => {});
 }
 
@@ -42,13 +43,13 @@ export async function trackPackages(
     if (state[p.cameraKey]) state[p.cameraKey] = { ...state[p.cameraKey], cameraName: name };
     deliveredIds.add(p.reviewId);
     if (!allowsSpecial(st.alerts, p.cameraKey)) continue;
-    await postPackage(p, `Package delivered · ${name}`, `Arrived at ${formatClock(p.since)}.`, { pickedUp: false });
+    await postPackage(p, tr().alerts.packages.delivered(name), tr().alerts.packages.arrivedAt(formatClock(p.since)), { pickedUp: false });
     posted++;
   }
   for (const p of pickedUp) {
     if (!allowsSpecial(st.alerts, p.cameraKey)) continue;
     const name = p.cameraName ?? (await nameOf(p.cameraKey));
-    await postPackage(p, `Package may have been picked up · ${name}`, 'Someone came by after it was delivered, and it hasn’t been seen since.', { pickedUp: true });
+    await postPackage(p, tr().alerts.packages.pickedUp(name), tr().alerts.packages.pickedUpBody, { pickedUp: true });
     posted++;
   }
   useApp.getState().setPackages(state);

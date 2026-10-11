@@ -33,7 +33,7 @@ func cEv(id string, t int64, camera string) backend.Event {
 }
 
 func due(c checkin, st checkinState, now int64) ([]checkinNotice, checkinState) {
-	return dueCheckin(c, st, now, false, chicago)
+	return dueCheckin("en", c, st, now, false, chicago)
 }
 
 func TestCheckinByTime(t *testing.T) {
@@ -115,11 +115,11 @@ func TestCheckinQuietHoursChoice(t *testing.T) {
 	c := momCheckin()
 	st := checkinState{WatchingSince: cAt(2026, 10, 1, 8, 0)}
 	c.DuringQuietHours = false
-	if n, _ := dueCheckin(c, st, cAt(2026, 10, 2, 10, 0), true, chicago); len(n) != 0 {
+	if n, _ := dueCheckin("en", c, st, cAt(2026, 10, 2, 10, 0), true, chicago); len(n) != 0 {
 		t.Fatalf("should wait: %+v", n)
 	}
 	c.DuringQuietHours = true
-	if n, _ := dueCheckin(c, st, cAt(2026, 10, 2, 10, 0), true, chicago); len(n) != 1 {
+	if n, _ := dueCheckin("en", c, st, cAt(2026, 10, 2, 10, 0), true, chicago); len(n) != 1 {
 		t.Fatalf("should come through: %+v", n)
 	}
 }
@@ -153,9 +153,9 @@ func TestCheckinDST(t *testing.T) {
 func TestWhenText(t *testing.T) {
 	now := cAt(2026, 10, 7, 12, 0)
 	for got, want := range map[string]string{
-		whenText(cAt(2026, 10, 7, 9, 5), now, chicago):  "today at 9:05 AM",
-		whenText(cAt(2026, 10, 5, 0, 0), now, chicago):  "on Monday at 12:00 AM",
-		whenText(cAt(2026, 9, 20, 18, 0), now, chicago): "on Sep 20 at 6:00 PM",
+		whenText("en", cAt(2026, 10, 7, 9, 5), now, chicago):  "today at 9:05 AM",
+		whenText("en", cAt(2026, 10, 5, 0, 0), now, chicago):  "on Monday at 12:00 AM",
+		whenText("en", cAt(2026, 9, 20, 18, 0), now, chicago): "on Sep 20 at 6:00 PM",
 	} {
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)

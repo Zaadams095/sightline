@@ -1,4 +1,5 @@
 import type { HealthReport } from './types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Pure mapping for Agent DVR (iSpy). Reference: the official Swagger spec
@@ -46,7 +47,7 @@ export function parseObjects(body: { objectList?: AgentObject[] } | AgentObject[
       const id = String(o.id ?? o.oid);
       return {
         id,
-        name: o.name?.trim() || `Camera ${id}`,
+        name: o.name?.trim() || tr().systems.common.cameraN(id),
         ptz: d.ptzid != null && d.ptzid !== -1,
         aspect: w && h ? w / h : 16 / 9,
         enabled: d.online !== false,

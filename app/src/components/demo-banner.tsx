@@ -2,8 +2,10 @@ import { router } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { removeDemo, sendSampleAlert, useDemoActive, useOnlyDemo } from '@/systems/demo/session';
-import { space } from '@/theme/tokens';
+import { OVERLAY_MAX_SCALE, space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
 /**
@@ -12,6 +14,7 @@ import { usePalette } from '@/theme/use-palette';
  */
 export function DemoBanner() {
   const p = usePalette();
+  const t = useT();
   const active = useDemoActive();
   const only = useOnlyDemo();
   if (!active) return null;
@@ -20,7 +23,7 @@ export function DemoBanner() {
       <View style={styles.head}>
         <SamplePill />
         <T v="caption" muted style={{ flex: 1 }}>
-          {only ? 'You’re exploring with sample video. None of this is a real camera.' : 'Sample cameras are shown along with yours.'}
+          {only ? t.home.demo.exploring : t.home.demo.alongside}
         </T>
       </View>
       <View style={styles.actions}>
@@ -29,12 +32,12 @@ export function DemoBanner() {
           accessibilityRole="button"
           style={({ pressed }) => [styles.primary, { backgroundColor: p.accent, opacity: pressed ? 0.8 : 1 }]}>
           <T v="label" color={p.accentText}>
-            Connect my real cameras
+            {t.home.demo.connectReal}
           </T>
         </Pressable>
         <Pressable onPress={only ? offerSampleAlert : confirmRemoveDemo} accessibilityRole="button" hitSlop={6} style={styles.secondary}>
           <T v="label" color={p.accent}>
-            {only ? 'Try an alert' : 'Remove samples'}
+            {only ? t.home.demo.tryAlert : t.home.demo.removeSamples}
           </T>
         </Pressable>
       </View>
@@ -44,23 +47,27 @@ export function DemoBanner() {
 
 /** A small "SAMPLE" tag for tiles and screens showing sample video. */
 export function SamplePill({ dark }: { dark?: boolean }) {
+  const t = useT();
   return (
-    <View style={[styles.pill, { backgroundColor: dark ? 'rgba(255,255,255,0.2)' : '#FF9F0A' }]} accessibilityLabel="Sample video">
-      <Text style={styles.pillText}>SAMPLE</Text>
+    <View style={[styles.pill, { backgroundColor: dark ? 'rgba(255,255,255,0.2)' : '#FF9F0A' }]} accessibilityLabel={t.home.demo.sampleA11y}>
+      <Text style={styles.pillText} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+        {t.home.demo.sample}
+      </Text>
     </View>
   );
 }
 
 /** Asks first, then sends one sample alert a few seconds later. */
 export function offerSampleAlert() {
-  Alert.alert('See what an alert looks like?', 'Sightline will send you one sample alert in a few seconds. You can lock your phone to see it on the Lock Screen.', [
-    { text: 'Not now', style: 'cancel' },
+  const d = tr().home.demo;
+  Alert.alert(d.alertTitle, d.alertBody, [
+    { text: tr().common.notNow, style: 'cancel' },
     {
-      text: 'Send one',
+      text: d.sendOne,
       onPress: async () => {
         const res = await sendSampleAlert().catch(() => 'denied' as const);
         if (res === 'denied') {
-          Alert.alert('Notifications are off', 'To get alerts, allow notifications for Sightline in the iPhone Settings app.');
+          Alert.alert(tr().home.demo.notificationsOffTitle, tr().home.demo.notificationsOffBody);
         }
       },
     },
@@ -68,17 +75,19 @@ export function offerSampleAlert() {
 }
 
 export function confirmRemoveDemo() {
-  Alert.alert('Remove the sample cameras?', 'They’ll disappear from the app. You can add them again from Settings any time.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Remove', style: 'destructive', onPress: removeDemo },
+  const d = tr().home.demo;
+  Alert.alert(d.removeTitle, d.removeBody, [
+    { text: tr().common.cancel, style: 'cancel' },
+    { text: tr().common.remove, style: 'destructive', onPress: removeDemo },
   ]);
 }
 
 const styles = StyleSheet.create({
   banner: { marginHorizontal: space.lg, padding: space.md, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  primary: { paddingHorizontal: 14, minHeight: 40, borderRadius: 12, justifyContent: 'center' },
+  // Wraps so the second button drops to its own line at big text sizes.
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.md },
+  primary: { paddingHorizontal: 14, paddingVertical: 8, minHeight: 40, borderRadius: 12, justifyContent: 'center' },
   secondary: { minHeight: 40, justifyContent: 'center' },
   pill: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
   pillText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },

@@ -17,12 +17,16 @@ import { DeterControls } from '@/components/talk/deter-controls';
 import { TalkButton } from '@/components/talk/talk-button';
 import { useTalkRoute } from '@/talk/talk';
 import { T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { useAdapter } from '@/systems/registry';
+import { useLargeText } from '@/theme/text-scale';
 import { space } from '@/theme/tokens';
 import { formatClock, formatRelative, nowSec, titleFor } from '@/util/format';
 
 export default function CameraScreen() {
+  const t = useT();
+  const large = useLargeText();
   const { key, poster: tilePoster, unmuted } = useLocalSearchParams<{ key: string; poster?: string; unmuted?: string }>();
   const [openedAt] = useState(() => Math.round(nowSec() * 1000));
   const [systemId, cameraId] = splitKey(key);
@@ -50,7 +54,11 @@ export default function CameraScreen() {
   const toggleSnooze = () => {
     if (isSnoozed) return snooze(key, null);
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: 'Mute alerts from this camera', options: ['For 1 hour', 'Until 7 AM', 'For 24 hours', 'Cancel'], cancelButtonIndex: 3 },
+      {
+        title: t.viewing.camera.muteTitle,
+        options: [t.viewing.camera.muteFor1h, t.viewing.camera.muteUntil7, t.viewing.camera.muteFor24h, t.common.cancel],
+        cancelButtonIndex: 3,
+      },
       (i) => {
         const now = Math.floor(nowSec());
         const until = [now + 3600, nextTimeOfDay(7, 0), now + 86400][i];
@@ -91,24 +99,24 @@ export default function CameraScreen() {
         {waiting ? (
           <>
             <ActivityIndicator color="#fff" />
-            <T color="rgba(255,255,255,0.7)">Connecting…</T>
+            <T color="rgba(255,255,255,0.7)">{t.viewing.camera.connecting}</T>
           </>
         ) : (
           <>
             <SymbolView name="video.slash" tintColor="rgba(255,255,255,0.6)" size={40} />
             <T v="heading" color="#fff" style={{ textAlign: 'center' }}>
-              {systemExists ? 'Can’t reach this camera right now' : 'This camera isn’t available'}
+              {systemExists ? t.viewing.camera.cantReach : t.viewing.camera.notAvailable}
             </T>
             <T color="rgba(255,255,255,0.7)" style={{ textAlign: 'center' }}>
               {systemExists
-                ? (linkError ?? 'Make sure its recorder is turned on. If you’re away from home, check Settings → Away from home.')
-                : 'It may have been removed from Sightline.'}
+                ? (linkError ?? t.viewing.camera.checkRecorder)
+                : t.viewing.camera.removed}
             </T>
           </>
         )}
         <Pressable onPress={() => router.back()} accessibilityRole="button" style={styles.pillBtn}>
           <T v="label" color="#fff">
-            Close
+            {t.common.close}
           </T>
         </Pressable>
       </View>
@@ -154,13 +162,13 @@ export default function CameraScreen() {
         )}
         {!live.data && !liveFailed && adapter.capabilities.live && (
           <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
-            <ActivityIndicator color="#fff" accessibilityLabel="Loading live video" />
+            <ActivityIndicator color="#fff" accessibilityLabel={t.viewing.camera.loadingLive} />
           </View>
         )}
         {steppedDown && liveState === 'playing' && (
           <View style={styles.qualityNote} pointerEvents="none">
-            <T v="caption" color="#fff">
-              Showing faster video. Tap HD for full quality.
+            <T v="caption" color="#fff" overlay>
+              {t.viewing.camera.fasterVideo}
             </T>
           </View>
         )}
@@ -168,8 +176,8 @@ export default function CameraScreen() {
           <View style={[StyleSheet.absoluteFill, styles.center, styles.scrim]}>
             <T color="#fff" style={{ textAlign: 'center', paddingHorizontal: space.xl }}>
               {!adapter.capabilities.live
-                ? 'Live video isn’t available for this camera in this version of the app.'
-                : 'Couldn’t start live video. Make sure the camera and its recorder are turned on, then try again.'}
+                ? t.viewing.camera.liveUnsupported
+                : t.viewing.camera.liveFailed}
             </T>
             {liveFailed && (
               <Pressable
@@ -177,7 +185,7 @@ export default function CameraScreen() {
                 accessibilityRole="button"
                 style={styles.pillBtn}>
                 <T v="label" color="#fff">
-                  Try again
+                  {t.common.retry}
                 </T>
               </Pressable>
             )}
@@ -186,9 +194,9 @@ export default function CameraScreen() {
       </View>
 
       <View style={[styles.topBar, { top: insets.top + 6 }]}>
-        <RoundButton icon="xmark" label="Close" onPress={() => router.back()} />
+        <RoundButton icon="xmark" label={t.common.close} onPress={() => router.back()} />
         <View style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-          <T v="heading" color="#fff" numberOfLines={1} style={{ textAlign: 'center' }}>
+          <T v="heading" color="#fff" numberOfLines={1} overlay style={{ textAlign: 'center' }}>
             {camera?.name ?? cameraId}
           </T>
           {adapter.config.kind === 'demo' && <SamplePill dark />}
@@ -201,22 +209,23 @@ export default function CameraScreen() {
           }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={effectiveQuality === 'main' ? 'High quality on. Switch to faster video' : 'Switch to high quality'}
+          accessibilityLabel={effectiveQuality === 'main' ? t.viewing.camera.hdOn : t.viewing.camera.hdOff}
           style={[styles.round, effectiveQuality === 'main' && styles.hdOn]}>
-          <T v="label" color="#fff" style={{ fontSize: 12 }}>
+          <T v="label" color="#fff" overlay style={{ fontSize: 12 }}>
             HD
           </T>
         </Pressable>
-        <RoundButton icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} label={muted ? 'Turn sound on' : 'Turn sound off'} onPress={() => setMuted((m) => !m)} />
+        <RoundButton icon={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} label={muted ? t.viewing.camera.soundOn : t.viewing.camera.soundOff} onPress={() => setMuted((m) => !m)} />
       </View>
 
       {!landscape && (
         <View style={{ flex: 1, paddingTop: space.lg, gap: space.lg }}>
-          <View style={styles.actions}>
+          <View style={[styles.actions, large && { flexWrap: 'wrap' }]}>
             {adapter.capabilities.review && (
               <Action
                 icon="clock.arrow.circlepath"
-                label="Recordings"
+                label={t.viewing.camera.recordings}
+                large={large}
                 onPress={() =>
                   router.push({
                     pathname: '/playback',
@@ -228,22 +237,25 @@ export default function CameraScreen() {
             {adapter.playback && (
               <Action
                 icon="timelapse"
-                label="Timelapse"
+                label={t.viewing.camera.timelapse}
+                large={large}
                 onPress={() => router.push({ pathname: '/timelapse', params: { systemId, cameraId } })}
               />
             )}
-            {camera?.ptz && <Action icon="move.3d" label="Move camera" active={showPtz} onPress={() => setShowPtz((v) => !v)} />}
+            {camera?.ptz && <Action icon="move.3d" label={t.viewing.camera.moveCamera} large={large} active={showPtz} onPress={() => setShowPtz((v) => !v)} />}
             {camera && zoneSupportFor(adapter, camera) && (
               <Action
                 icon="square.dashed"
-                label="Zones"
-                accessibilityLabel="Alert zones"
+                label={t.viewing.camera.zones}
+                large={large}
+                accessibilityLabel={t.viewing.camera.alertZones}
                 onPress={() => router.push({ pathname: '/settings/zones', params: { key } })}
               />
             )}
             <Action
               icon={isSnoozed ? 'bell.slash.fill' : 'bell'}
-              label={isSnoozed ? `Muted till ${formatClock(snoozedUntil)}` : 'Snooze'}
+              label={isSnoozed ? t.viewing.camera.mutedTill(formatClock(snoozedUntil)) : t.viewing.camera.snooze}
+              large={large}
               active={isSnoozed}
               onPress={toggleSnooze}
             />
@@ -260,7 +272,7 @@ export default function CameraScreen() {
             <PtzPad adapter={adapter} cameraId={cameraId} />
           ) : !adapter.listReview ? (
             <T v="caption" color="rgba(255,255,255,0.5)" style={{ paddingHorizontal: space.lg }}>
-              Recent activity isn’t available for this camera.
+              {t.viewing.camera.recentUnavailable}
             </T>
           ) : (
             <FlatList
@@ -269,7 +281,7 @@ export default function CameraScreen() {
               contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.sm, paddingBottom: insets.bottom + 24 }}
               ListHeaderComponent={
                 <T v="label" color="rgba(255,255,255,0.6)" style={{ marginBottom: 4 }}>
-                  LAST 24 HOURS
+                  {t.viewing.camera.last24h}
                 </T>
               }
               ListEmptyComponent={
@@ -277,14 +289,14 @@ export default function CameraScreen() {
                   <ActivityIndicator color="rgba(255,255,255,0.6)" style={{ alignSelf: 'flex-start' }} />
                 ) : (
                   <T v="caption" color="rgba(255,255,255,0.5)">
-                    {recent.isError ? 'Couldn’t load recent activity from the recorder.' : 'Nothing happened in the last 24 hours.'}
+                    {recent.isError ? t.viewing.camera.recentError : t.viewing.camera.recentEmpty}
                   </T>
                 )
               }
               renderItem={({ item }) => (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`${titleFor(item)}, ${formatRelative(item.startTime)}. Opens the recording.`}
+                  accessibilityLabel={t.viewing.camera.eventA11y(titleFor(item), formatRelative(item.startTime))}
                   style={styles.event}
                   onPress={() =>
                     router.push({
@@ -336,12 +348,14 @@ function Action({
   onPress,
   active,
   accessibilityLabel,
+  large,
 }: {
   icon: React.ComponentProps<typeof SymbolView>['name'];
   label: string;
   onPress: () => void;
   active?: boolean;
   accessibilityLabel?: string;
+  large?: boolean;
 }) {
   return (
     <Pressable
@@ -349,9 +363,9 @@ function Action({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: !!active }}
-      style={[styles.action, active && { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+      style={[styles.action, large && { minWidth: '45%' }, active && { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
       <SymbolView name={icon} tintColor="#fff" size={20} />
-      <T v="caption" color="#fff">
+      <T v="caption" color="#fff" style={{ textAlign: 'center' }}>
         {label}
       </T>
     </Pressable>

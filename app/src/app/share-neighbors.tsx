@@ -9,6 +9,8 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { Button, Chip, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
 import { fileStamp } from '@/export/manifest';
+import { fmtList, tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useAdapter } from '@/systems/registry';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -30,9 +32,10 @@ function fresh(name: string): File {
 }
 
 function foundText(faces: number, plates: number): string {
-  if (!faces && !plates) return 'No faces or license plates were found. Look it over before you share.';
-  const parts = [faces ? `${faces} face${faces === 1 ? '' : 's'}` : '', plates ? `${plates} license plate${plates === 1 ? '' : 's'}` : ''].filter(Boolean);
-  return `Blurred ${parts.join(' and ')}. Automatic blurring can miss some, so look it over before you share.`;
+  const t = tr().exporting.neighbors;
+  if (!faces && !plates) return t.noneFound;
+  const parts = [faces ? t.faces(faces) : '', plates ? t.plates(plates) : ''].filter(Boolean);
+  return t.blurred(fmtList(parts));
 }
 
 /**
@@ -41,6 +44,8 @@ function foundText(faces: number, plates: number): string {
  */
 export default function ShareWithNeighbors() {
   const p = usePalette();
+  const t = useT();
+  const s = t.exporting.neighbors;
   const params = useLocalSearchParams<{ systemId: string; cameraId: string; start: string; end: string; thumb?: string }>();
   const adapter = useAdapter(params.systemId);
   const start = Number(params.start);
@@ -61,7 +66,7 @@ export default function ShareWithNeighbors() {
 
   useEffect(() => {
     const sub = Redact?.addListener('onRedactProgress', (e) => {
-      if (e.jobId === job.current?.id) setPhase({ step: 'working', label: 'Blurring faces and plates…', fraction: 0.3 + 0.7 * e.progress });
+      if (e.jobId === job.current?.id) setPhase({ step: 'working', label: tr().exporting.neighbors.blurring, fraction: 0.3 + 0.7 * e.progress });
     });
     // Leaving the screen stops any work in progress.
     return () => {
@@ -86,17 +91,17 @@ export default function ShareWithNeighbors() {
       // A photo comes from the clip when the iPhone can pull a frame out of it (sharper and at
       // the right moment); otherwise from the event's snapshot or the camera's current one.
       if (canVideo && (kind === 'video' || Redact)) {
-        setPhase({ step: 'working', label: 'Getting the video…', fraction: 0 });
+        setPhase({ step: 'working', label: s.gettingVideo, fraction: 0 });
         const src = adapter.clip!(params.cameraId, start, end);
         source = await File.downloadFileAsync(src.uri, fresh(`${id}-original.mp4`), {
           headers: src.headers,
           signal: abort.signal,
           onProgress: ({ bytesWritten, totalBytes }) =>
-            totalBytes > 0 && setPhase({ step: 'working', label: 'Getting the video…', fraction: 0.3 * (bytesWritten / totalBytes) }),
+            totalBytes > 0 && setPhase({ step: 'working', label: s.gettingVideo, fraction: 0.3 * (bytesWritten / totalBytes) }),
         });
       }
       if (kind === 'photo') {
-        setPhase({ step: 'working', label: 'Getting the photo…', fraction: 0.2 });
+        setPhase({ step: 'working', label: s.gettingPhoto, fraction: 0.2 });
         photo = fresh(`${id}-original.jpg`);
         if (source && Redact) {
           await Redact.frameAt(source.uri, Math.min(5, Math.max(0, (end - start) / 2)), photo.uri);
@@ -109,10 +114,10 @@ export default function ShareWithNeighbors() {
 
       const input = kind === 'photo' ? photo! : source!;
       if (!blur || !Redact) {
-        setPhase({ step: 'ready', uri: input.uri, kind, note: 'Not blurred. Faces and license plates will be visible.' });
+        setPhase({ step: 'ready', uri: input.uri, kind, note: s.notBlurred });
         return;
       }
-      setPhase({ step: 'working', label: 'Blurring faces and plates…', fraction: 0.3 });
+      setPhase({ step: 'working', label: s.blurring, fraction: 0.3 });
       if (kind === 'photo') {
         const out = fresh(`${name} blurred.jpg`);
         const n = await Redact.redactImage(input.uri, out.uri, true, true);
@@ -128,7 +133,7 @@ export default function ShareWithNeighbors() {
         return;
       }
       setPhase({ step: 'idle' });
-      Alert.alert('Couldn’t prepare it', e instanceof Error ? e.message : String(e));
+      Alert.alert(s.couldntPrepare,e instanceof Error ? e.message : String(e));
     } finally {
       if (job.current?.id === id) job.current = null;
     }
@@ -149,45 +154,44 @@ export default function ShareWithNeighbors() {
   if (phase.step === 'ready') {
     return (
       <Screen>
-        <Stack.Screen options={{ title: 'Check before sharing' }} />
+        <Stack.Screen options={{ title: s.checkTitle }} />
         {phase.kind === 'photo' ? (
           <Image source={{ uri: phase.uri }} style={styles.preview} contentFit="contain" />
         ) : (
           <VideoPreview uri={phase.uri} />
         )}
         <T muted>{phase.note}</T>
-        <Button title="Share" onPress={() => void share(phase.uri, phase.kind)} />
-        <Button title="Start over" kind="ghost" onPress={() => setPhase({ step: 'idle' })} />
+        <Button title={t.common.share} onPress={() => void share(phase.uri, phase.kind)} />
+        <Button title={s.startOver} kind="ghost"onPress={() => setPhase({ step: 'idle' })} />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Share with neighbors' }} />
-      <T muted>For a neighborhood group or a neighbor. Blurring happens on this iPhone; nothing is uploaded until you share.</T>
-      <Section title="What to share">
+      <Stack.Screen options={{ title: s.title }} />
+      <T muted>{s.intro}</T>
+      <Section title={s.whatToShare}>
         <View style={styles.chips}>
-          <Chip label="Video clip" selected={kind === 'video'} onPress={() => setKind('video')} disabled={!canVideo} />
-          <Chip label="Photo" selected={kind === 'photo'} onPress={() => setKind('photo')} />
+          <Chip label={s.videoClip} selected={kind === 'video'} onPress={() => setKind('video')} disabled={!canVideo} />
+          <Chip label={s.photo} selected={kind === 'photo'} onPress={() => setKind('photo')} />
         </View>
       </Section>
       {!canVideo && (
         <T v="caption" muted style={{ marginTop: -space.sm }}>
-          This recorder can’t make video clips for sharing, so a photo is shared instead.
+          {s.noVideo}
         </T>
       )}
-      <Section
-        footer={
-          Redact
-            ? 'Faces and license plates are found automatically and blurred in a copy. It can miss some, so you’ll see the result first.'
-            : 'Blurring needs the newest version of Sightline. Update the app to use it.'
-        }>
-        <ToggleRow label="Blur faces and license plates" value={blur && !!Redact} onChange={(v) => setBlur(v && !!Redact)} last />
+      <Section footer={Redact ? s.blurFooter : s.updateFooter}>
+        <ToggleRow label={s.blurToggle} value={blur && !!Redact} onChange={(v) => setBlur(v && !!Redact)} last />
       </Section>
-      <Button title={blur && Redact ? 'Blur and preview' : 'Preview'} onPress={() => void prepare()} disabled={!adapter} />
-      <Button title="Cancel" kind="ghost" onPress={() => router.back()} />
-      {!blur && <T v="caption" color={p.warning}>Faces and license plates will be visible to everyone you share with.</T>}
+      <Button title={blur && Redact ? s.blurAndPreview : s.preview} onPress={() => void prepare()} disabled={!adapter} />
+      <Button title={t.common.cancel} kind="ghost" onPress={() => router.back()} />
+      {!blur && (
+        <T v="caption" color={p.warning}>
+          {s.visibleWarning}
+        </T>
+      )}
     </Screen>
   );
 }
@@ -203,10 +207,11 @@ function VideoPreview({ uri }: { uri: string }) {
 
 function Working({ label, fraction, onCancel }: { label: string; fraction: number; onCancel: () => void }) {
   const p = usePalette();
+  const t = useT();
   useKeepAwake();
   return (
     <Screen scroll={false} style={{ justifyContent: 'center' }}>
-      <Stack.Screen options={{ title: 'Preparing' }} />
+      <Stack.Screen options={{ title: t.exporting.neighbors.preparing }} />
       <View style={{ gap: space.lg }}>
         <T v="heading" style={{ textAlign: 'center' }}>
           {label}
@@ -214,14 +219,14 @@ function Working({ label, fraction, onCancel }: { label: string; fraction: numbe
         <View style={[styles.bar, { backgroundColor: p.surfaceRaised }]} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(fraction * 100) }}>
           <View style={{ width: `${Math.max(2, fraction * 100)}%`, height: '100%', backgroundColor: p.accent }} />
         </View>
-        <Button title="Cancel" kind="secondary" onPress={onCancel} />
+        <Button title={t.common.cancel} kind="secondary" onPress={onCancel} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', gap: space.sm, padding: space.lg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, padding: space.lg },
   preview: { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' },
   bar: { height: 12, borderRadius: 6, overflow: 'hidden' },
 });

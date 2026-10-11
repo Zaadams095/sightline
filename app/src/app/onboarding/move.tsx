@@ -9,12 +9,15 @@ import type { Bundle } from '@/backup/bundle';
 import { needsPasswordText, type RestoreResult } from '@/backup/restore';
 import { applyBundle, readBackupFile, receiveTransfer } from '@/backup/transfer';
 import { Button, Card, Field, Screen, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
 /** "Moving from another phone?": scan the old phone's transfer code, or open a backup file. */
 export default function MoveFromPhone() {
   const p = usePalette();
+  const t = useT();
+  const m = t.onboarding.move;
   const insets = useSafeAreaInsets();
   const [perm, requestPerm] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
@@ -33,7 +36,7 @@ export default function MoveFromPhone() {
   const scan = async () => {
     setError(null);
     if (!perm?.granted && !(await requestPerm()).granted) {
-      setError('Camera access is needed to scan the code. You can use a backup file instead.');
+      setError(m.cameraNeeded);
       return;
     }
     scanned.current = false;
@@ -78,13 +81,18 @@ export default function MoveFromPhone() {
     const note = needsPasswordText(done.result);
     return (
       <Screen style={{ paddingTop: insets.top + 56 }}>
-        <T v="title">You’re all set</T>
+        <T v="title">{m.allSet}</T>
         <T color={p.success}>
-          {done.result.systems === 1 ? 'Your recorder is' : `Your ${done.result.systems} recorders and cameras are`} set up
-          {done.from ? `, just like on ${done.from}` : ''}.
+          {done.result.systems === 1
+            ? done.from
+              ? m.setUpOneFrom(done.from)
+              : m.setUpOne
+            : done.from
+              ? m.setUpManyFrom(done.result.systems, done.from)
+              : m.setUpMany(done.result.systems)}
         </T>
         {note && <T muted>{note}</T>}
-        <Button title="See my cameras" onPress={() => router.replace('/')} />
+        <Button title={m.seeMyCameras} onPress={() => router.replace('/')} />
       </Screen>
     );
   }
@@ -92,33 +100,30 @@ export default function MoveFromPhone() {
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
       <View style={{ gap: space.xs }}>
-        <T v="title">Moving from another phone?</T>
-        <T muted>Bring your cameras, passwords and settings over in a minute. Nothing needs typing again.</T>
+        <T v="title">{m.title}</T>
+        <T muted>{m.intro}</T>
       </View>
 
       <Card style={{ padding: space.lg, gap: space.md }}>
-        <T v="label">With your old phone nearby</T>
-        <T muted>
-          On the old phone, open Sightline, then Settings → Backup & new phone → Transfer to another phone. Keep both phones on the
-          same home Wi-Fi, then scan the code it shows.
-        </T>
-        <Button title="Scan the code" onPress={() => void scan()} loading={busy && !file} />
+        <T v="label">{m.oldPhoneNearby}</T>
+        <T muted>{m.oldPhoneBody}</T>
+        <Button title={m.scanCode} onPress={() => void scan()} loading={busy && !file} />
       </Card>
 
       <Card style={{ padding: space.lg, gap: space.md }}>
-        <T v="label">With a backup file</T>
-        <T muted>If you saved a Sightline backup file (AirDrop, Files or iCloud Drive), open it here and type the passcode you chose.</T>
+        <T v="label">{m.withBackup}</T>
+        <T muted>{m.withBackupBody}</T>
         {file ? (
           <>
             <T v="caption" muted>
               {file.name}
             </T>
-            <Field label="Passcode" value={passcode} onChangeText={setPasscode} secureTextEntry autoFocus placeholder="The passcode you chose" />
-            <Button title="Restore" onPress={() => void openFile()} loading={busy} disabled={!passcode} />
-            <Button title="Choose a different file" kind="ghost" onPress={() => void pickFile()} />
+            <Field label={m.passcode} value={passcode} onChangeText={setPasscode} secureTextEntry autoFocus placeholder={m.passcodePlaceholder} />
+            <Button title={m.restore} onPress={() => void openFile()} loading={busy} disabled={!passcode} />
+            <Button title={m.differentFile} kind="ghost" onPress={() => void pickFile()} />
           </>
         ) : (
-          <Button title="Open a backup file" kind="secondary" onPress={() => void pickFile()} />
+          <Button title={m.openBackup} kind="secondary" onPress={() => void pickFile()} />
         )}
       </Card>
 
@@ -132,10 +137,10 @@ export default function MoveFromPhone() {
             onBarcodeScanned={({ data }) => void onScanned(data)}
           />
           <View style={[styles.scanFooter, { paddingBottom: insets.bottom + space.lg }]}>
-            <T color="#fff" style={{ textAlign: 'center' }}>
-              Point the camera at the code on your old phone
+            <T overlay color="#fff" style={{ textAlign: 'center' }}>
+              {m.pointOldPhone}
             </T>
-            <Button title="Cancel" kind="secondary" onPress={() => setScanning(false)} />
+            <Button title={t.common.cancel} kind="secondary" onPress={() => setScanning(false)} />
           </View>
         </View>
       </Modal>

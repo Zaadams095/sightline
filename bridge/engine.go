@@ -38,10 +38,13 @@ type size struct {
 }
 
 type device struct {
-	ID          string            `json:"id"`
-	PushToken   string            `json:"pushToken"`
-	SystemID    string            `json:"systemId"`
-	Timezone    string            `json:"timezone"`
+	ID        string `json:"id"`
+	PushToken string `json:"pushToken"`
+	SystemID  string `json:"systemId"`
+	Timezone  string `json:"timezone"`
+	// Lang is the app's language for push text ("en", "es", "fr", "de", "pt-BR"; i18n.go).
+	// Older apps don't send it: English.
+	Lang        string            `json:"lang,omitempty"`
 	DefaultRule rule              `json:"defaultRule"`
 	Rules       map[string]rule   `json:"rules"` // keyed by camera ID
 	CameraNames map[string]string `json:"cameraNames"`
@@ -333,28 +336,29 @@ func inQuietHours(d device, now time.Time) bool {
 }
 
 func buildMessage(d device, r backend.Event) pushMessage {
+	lang := normLang(d.Lang)
 	name := d.CameraNames[r.Camera]
 	if name == "" {
 		name = r.Camera
 	}
 	// Same as the app's titleFor: recognized names first, else object labels.
-	what := "Motion"
+	what := tr(lang, "obj.motion")
 	objs := uniq(r.Objects)
 	if names := uniq(r.SubLabels); len(names) > 0 {
-		what = strings.Join(names, " & ")
+		what = joinAnd(lang, names)
 	} else if len(objs) > 0 {
 		for i, o := range objs {
-			objs[i] = strings.ToUpper(o[:1]) + strings.ReplaceAll(o[1:], "_", " ")
+			objs[i] = objectLabel(lang, o)
 		}
-		what = strings.Join(objs, " & ")
+		what = joinAnd(lang, objs)
 	}
 	body := ""
 	if len(r.Zones) > 0 {
-		body = "In " + strings.ReplaceAll(strings.Join(r.Zones, ", "), "_", " ")
+		body = tr(lang, "alert.zones", strings.ReplaceAll(strings.Join(r.Zones, ", "), "_", " "))
 	}
 	m := pushMessage{
 		To:       d.PushToken,
-		Title:    what + " · " + name,
+		Title:    tr(lang, "alert.title", what, name),
 		Body:     body,
 		Sound:    "default",
 		Priority: "high",
@@ -371,12 +375,12 @@ func buildMessage(d device, r backend.Event) pushMessage {
 	// Same titles as the app's built-in alerts (rules.ts notificationTitle, packages-notify.ts).
 	switch {
 	case isDoorbell(r):
-		m.Title = "Someone's at the door · " + name
+		m.Title = tr(lang, "alert.doorbell", name)
 		m.CategoryID = "doorbell-ring" // "Watch" action; tapping opens the full-screen call
 		m.InterruptionLevel = "time-sensitive"
 		m.Data["kind"] = "doorbell"
 	case isPackage(r):
-		m.Title = "Package delivered · " + name
+		m.Title = tr(lang, "alert.package", name)
 		m.Data["kind"] = "package"
 	}
 	addAlertFeatures(m.Data, r)

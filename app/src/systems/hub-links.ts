@@ -5,6 +5,7 @@
  * API shapes: docs/HUB_API.md.
  */
 
+import { fmtDate, fmtTime, tr } from '../i18n/index.ts';
 import type { PlaybackSource, SystemCapabilities } from './types';
 
 export type HubRole = 'owner' | 'full' | 'household' | 'temporary' | 'live';
@@ -67,7 +68,7 @@ export function hubPlaybackSource(p: HubPlayback, media: (relative: string) => s
     return { kind: 'stream', source: file };
   }
   if (p.kind === 'vod' && p.url) return { kind: 'vod', uri: media(p.url) };
-  throw new Error('The Hub sent a recording this version of Sightline can’t play. Update the app.');
+  throw new Error(tr().systems.hub.unsupportedPlayback);
 }
 
 /** Adds `token` to a URL that may already have a query. */
@@ -174,41 +175,37 @@ export function looksLikePairingCode(code: string): boolean {
 
 // ---- plain-language text ----
 
+/** Text for a role, read in the current language whenever it's used. */
+const roleText = (role: GuestRole) => ({
+  get label() {
+    return tr().systems.hub.roles[role].label;
+  },
+  get description() {
+    return tr().systems.hub.roles[role].description;
+  },
+});
+
 export const ROLE_INFO: Record<GuestRole, { label: string; description: string }> = {
-  full: {
-    label: 'Full access',
-    description: 'Everything you can do, including sharing with others. For a partner, or your own other phone.',
-  },
-  household: {
-    label: 'Household',
-    description: 'Live view, recordings and alerts for the cameras you pick. For family who live with you.',
-  },
-  temporary: {
-    label: 'Temporary',
-    description: 'Live view and recordings for a set time, then it ends by itself. For a pet sitter or house sitter.',
-  },
-  live: {
-    label: 'Live only',
-    description: 'Just live video, no recordings. For a neighbor keeping an eye on things.',
-  },
+  full: roleText('full'),
+  household: roleText('household'),
+  temporary: roleText('temporary'),
+  live: roleText('live'),
 };
 
 export function roleLabel(role: HubRole): string {
-  return role === 'owner' ? 'Owner' : ROLE_INFO[role].label;
+  return role === 'owner' ? tr().systems.hub.owner : ROLE_INFO[role].label;
 }
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "Oct 12" (same year) or "Oct 12, 2027"; adds the time when it isn't midnight/end of day. */
 export function formatDay(unix: number, now: Date = new Date(), withTime = false): string {
   const d = new Date(unix * 1000);
-  let s = `${MONTHS[d.getMonth()]} ${d.getDate()}`;
-  if (d.getFullYear() !== now.getFullYear()) s += `, ${d.getFullYear()}`;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  let s = fmtDate(d, sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
   if (withTime) {
     const h = d.getHours();
     const m = d.getMinutes();
     const endOfDay = h === 23 && m === 59;
-    if (!(h === 0 && m === 0) && !endOfDay) s += ` ${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+    if (!(h === 0 && m === 0) && !endOfDay) s += ` ${fmtTime(d)}`;
   }
   return s;
 }
@@ -216,29 +213,33 @@ export function formatDay(unix: number, now: Date = new Date(), withTime = false
 /** "ends Oct 12", "ended Oct 2", or null when there's no end date. */
 export function endsText(expiresAt: number | null, now: Date = new Date()): string | null {
   if (expiresAt == null) return null;
-  return `${expiresAt * 1000 <= now.getTime() ? 'ended' : 'ends'} ${formatDay(expiresAt, now, true)}`;
+  const day = formatDay(expiresAt, now, true);
+  return expiresAt * 1000 <= now.getTime() ? tr().systems.hub.ended(day) : tr().systems.hub.ends(day);
 }
 
 /** For guests: "Shared by Home · ends Oct 12". */
 export function sharedByText(hubName: string, expiresAt: number | null, now: Date = new Date()): string {
   const ends = endsText(expiresAt, now);
-  return ends ? `Shared by ${hubName} · ${ends}` : `Shared by ${hubName}`;
+  return ends ? tr().systems.hub.sharedByEnds(hubName, ends) : tr().systems.hub.sharedBy(hubName);
 }
 
 /** One line describing a grant: "2 cameras · recordings Oct 10 – Oct 12 · ends Oct 12". */
 export function grantSummary(g: HubGrant, cameraName: (id: string) => string = (id) => id, now: Date = new Date()): string {
+  const t = tr().systems.hub;
   const parts: string[] = [];
-  if (g.cameras === 'all') parts.push('All cameras');
-  else if (g.cameras.length <= 2) parts.push(g.cameras.map(cameraName).join(' & ') || 'No cameras');
-  else parts.push(`${g.cameras.length} cameras`);
+  if (g.cameras === 'all') parts.push(t.allCameras);
+  else if (g.cameras.length === 2) parts.push(t.twoCameras(cameraName(g.cameras[0]), cameraName(g.cameras[1])));
+  else if (g.cameras.length === 1) parts.push(cameraName(g.cameras[0]) || t.noCameras);
+  else if (g.cameras.length === 0) parts.push(t.noCameras);
+  else parts.push(tr().common.cameras(g.cameras.length));
   if (g.role !== 'owner') {
-    if (g.recordings === 'none') parts.push('live only');
+    if (g.recordings === 'none') parts.push(t.liveOnly);
     else if (typeof g.recordings === 'object')
-      parts.push(`recordings ${formatDay(g.recordings.from, now)} – ${formatDay(g.recordings.to, now)}`);
+      parts.push(t.recordingsRange(formatDay(g.recordings.from, now), formatDay(g.recordings.to, now)));
   }
   const ends = endsText(g.expiresAt, now);
   if (ends) parts.push(ends);
-  if (g.role !== 'owner' && g.devices === 0) parts.push(g.pendingInvite ? 'invite not used yet' : 'not joined');
+  if (g.role !== 'owner' && g.devices === 0) parts.push(g.pendingInvite ? t.inviteNotUsed : t.notJoined);
   return parts.join(' · ');
 }
 
@@ -293,9 +294,9 @@ export function formatLocalDateTime(unix: number): string {
 
 /** Message shared with an invite (Messages, Mail…). */
 export function inviteMessage(hubName: string, role: GuestRole, link: string, webLink?: string): string {
-  const what = role === 'live' ? 'watch my cameras live' : 'see my cameras';
-  const lines = [`I'm sharing access so you can ${what} (${hubName}) in the Sightline app.`];
-  if (webLink) lines.push(`Open this on your iPhone: ${webLink}`);
-  lines.push(`If you already have Sightline: ${link}`);
+  const t = tr().systems.hub;
+  const lines = [role === 'live' ? t.inviteLive(hubName) : t.inviteSee(hubName)];
+  if (webLink) lines.push(t.inviteWeb(webLink));
+  lines.push(t.inviteApp(link));
   return lines.join('\n\n');
 }

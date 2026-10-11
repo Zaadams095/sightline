@@ -37,6 +37,7 @@ import {
   type ProtectPreset,
 } from '@/systems/unifi-protect-format';
 import { fetchWithTimeout } from '@/util/fetch';
+import { tr } from '@/i18n';
 
 /**
  * UniFi Protect on a UniFi OS console (Cloud Key Gen2+, UNVR, Dream Machine, Cloud Gateway).
@@ -95,8 +96,8 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
       return await fetchWithTimeout(url, init, timeoutMs);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.startsWith('No response')) throw new Error('UniFi Protect didn’t answer in time. Check that the console is on and reachable.');
-      throw new Error('Couldn’t reach the UniFi console. Check the address and that your phone is on the same network.');
+      if (msg.startsWith('No response')) throw new Error(tr().systems.unifi.noAnswer);
+      throw new Error(tr().systems.unifi.cantReach);
     }
   }
 
@@ -149,7 +150,7 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
     try {
       return JSON.parse(text) as T;
     } catch {
-      throw new Error('The UniFi console sent an unexpected reply. Check that the address points to your UniFi console.');
+      throw new Error(tr().systems.unifi.unexpectedReply);
     }
   }
 
@@ -176,7 +177,7 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
 
   private async camera(cameraId: string): Promise<ProtectCamera> {
     const cam = (await this.bootstrap()).cameras?.find((c) => c.id === cameraId);
-    if (!cam) throw new Error('That camera is no longer in UniFi Protect.');
+    if (!cam) throw new Error(tr().systems.unifi.cameraGone);
     return cam;
   }
 
@@ -185,8 +186,8 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
     try {
       await this.bootstrap(true);
     } catch (e) {
-      if (e instanceof Error && /HTTP 404|isn’t running/.test(e.message))
-        throw new Error('Signed in, but UniFi Protect isn’t installed or running on this console.');
+      if (e instanceof Error && (/HTTP 404/.test(e.message) || e.message === tr().systems.unifi.notRunning))
+        throw new Error(tr().systems.unifi.notInstalled);
       throw e;
     }
   }
@@ -222,7 +223,7 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
       }
       if (!ch?.rtspAlias)
         throw new Error(
-          'Live video needs this camera’s RTSP stream turned on. In UniFi Protect, open the camera → Settings → Advanced and turn on an RTSP stream (any quality). Or sign in here with an admin account and Sightline turns it on for you.',
+          tr().systems.unifi.rtspOff,
         );
     }
     const boot = await this.bootstrap();
@@ -241,7 +242,7 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
   async playback(cameraId: string, start: number, end: number): Promise<PlaybackSource> {
     const now = Date.now() / 1000;
     const e = Math.min(end, start + MAX_EXPORT_SEC, now);
-    if (e <= start) throw new Error('There’s no recording at that time yet.');
+    if (e <= start) throw new Error(tr().systems.common.noRecordingYet);
     return { kind: 'stream', source: { kind: 'file', uri: `${this.base}${exportPath(cameraId, start, e)}` } };
   }
 
@@ -314,7 +315,7 @@ export class UnifiProtectAdapter implements CameraSystemAdapter {
       if (!this.presets.has(cameraId)) await this.ptzInfo(cameraId);
       const name = action.slice('preset_'.length);
       const preset = this.presets.get(cameraId)?.find((p) => p.name === name);
-      if (!preset) throw new Error('That preset no longer exists on the camera.');
+      if (!preset) throw new Error(tr().systems.common.presetGone);
       await this.write('POST', `${PROTECT}/cameras/${id}/ptz/goto/${preset.slot}`);
       return;
     }

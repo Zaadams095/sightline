@@ -3,6 +3,8 @@
  * Hub is the brand-neutral path, so every brand behind it works on the TV too.
  */
 
+import { t } from './i18n.ts';
+
 export interface TvConfig {
   hubName: string;
   lanUrl: string;
@@ -66,8 +68,8 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Pro
 async function errorFrom(res: Response): Promise<HubError> {
   const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
   if (body.error === 'revoked' || body.error === 'expired' || (res.status === 401 && body.error === 'unauthorized'))
-    return new HubError('This TV was removed from the Hub. Connect it again from your iPhone.', body.error, res.status);
-  return new HubError(body.message ?? `The Hub returned HTTP ${res.status}`, body.error ?? '', res.status);
+    return new HubError(t.removed, body.error, res.status);
+  return new HubError(body.message ?? t.hubHttp(res.status), body.error ?? '', res.status);
 }
 
 /** Redeems the invite the phone handed over; the TV gets its own token. */
@@ -94,7 +96,7 @@ export async function redeem(p: PairBody): Promise<TvConfig> {
     }
   }
   if (last instanceof HubError) throw last;
-  throw new HubError('The TV couldn’t reach the Hub. Is the TV on the same network as the Hub?');
+  throw new HubError(t.unreachable);
 }
 
 /** The Hub's home address when the TV can reach it, else its public link. */
@@ -112,7 +114,7 @@ export async function pickBase(c: TvConfig): Promise<string> {
       if (e instanceof HubError && e.status) throw e;
     }
   }
-  throw last instanceof HubError ? last : new HubError(`Can’t reach ${c.hubName}. Check that the Hub is on.`);
+  throw last instanceof HubError ? last : new HubError(t.cantReach(c.hubName));
 }
 
 export async function listCameras(base: string, token: string): Promise<HubCamera[]> {

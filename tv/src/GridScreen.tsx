@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { snapshotUrl, type HubCamera } from './hub';
+import { t } from './i18n';
 import { colors } from './theme';
 
 const REFRESH_MS = 5000;
@@ -94,19 +95,19 @@ export function GridScreen({
         <View style={styles.actions}>
           {cameras.length > 0 && (
             <Pressable onPress={onTour} style={({ focused }) => [styles.button, focused && styles.buttonFocused]}>
-              <Text style={styles.buttonText}>Tour</Text>
+              <Text style={styles.buttonText}>{t.tour}</Text>
             </Pressable>
           )}
           <Pressable onPress={() => onColumns(columns === 2 ? 3 : 2)} style={({ focused }) => [styles.button, focused && styles.buttonFocused]}>
             <Text style={styles.buttonText}>{columns === 2 ? '3 × 3' : '2 × 2'}</Text>
           </Pressable>
           <Pressable onPress={onDisconnect} style={({ focused }) => [styles.button, focused && styles.buttonFocused]}>
-            <Text style={styles.buttonText}>Disconnect TV</Text>
+            <Text style={styles.buttonText}>{t.disconnect}</Text>
           </Pressable>
         </View>
       </View>
       {cameras.length === 0 ? (
-        <Text style={styles.empty}>No cameras are shared with this TV.</Text>
+        <Text style={styles.empty}>{t.noCameras}</Text>
       ) : (
         <FlatList
           key={columns}

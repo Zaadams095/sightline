@@ -60,7 +60,7 @@ export function TimelapseScrubber({ start, end, time, segments, events, onSeek }
           ticks
             .filter((t) => t.label)
             .map((t) => (
-              <Text key={t.t} style={[styles.label, { left: Math.min(w - 36, Math.max(0, x(t.t) - 18)) }]}>
+              <Text key={t.t} maxFontSizeMultiplier={1.3} style={[styles.label, { left: Math.min(w - 44, Math.max(0, x(t.t) - 22)) }]}>
                 {t.label}
               </Text>
             ))}
@@ -77,6 +77,6 @@ const styles = StyleSheet.create({
   event: { position: 'absolute', top: 4, width: 6, height: 6, borderRadius: 3 },
   played: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: 'rgba(124,92,255,0.18)' },
   head: { position: 'absolute', top: 0, bottom: 0, width: 3, borderRadius: 2, backgroundColor: '#fff' },
-  labels: { height: 14 },
-  label: { position: 'absolute', width: 36, textAlign: 'center', fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
+  labels: { height: 18 },
+  label: { position: 'absolute', width: 44, textAlign: 'center', fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
 });

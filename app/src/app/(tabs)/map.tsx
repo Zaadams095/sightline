@@ -8,10 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CameraMapView } from '@/components/map/camera-map-view';
 import { Button, Chip, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { neighborsOf } from '@/map/graph';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter, useAllCameras } from '@/systems/registry';
+import { useLargeText } from '@/theme/text-scale';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { nowSec } from '@/util/format';
@@ -21,6 +23,8 @@ const ACTIVE_WINDOW_SEC = 180;
 
 export default function MapScreen() {
   const p = usePalette();
+  const t = useT();
+  const large = useLargeText();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const map = useApp((s) => s.cameraMap);
@@ -92,27 +96,27 @@ export default function MapScreen() {
   return (
     <ScrollView style={{ backgroundColor: p.bg }} contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingHorizontal: space.lg, paddingBottom: 140, gap: space.lg }}>
       <View style={styles.header}>
-        <T v="title">Map</T>
+        <T v="title">{t.home.tabs.map}</T>
         <View style={styles.row}>
-          <Chip label="View" selected={mode === 'view'} onPress={() => setMode('view')} accessibilityLabel="View: watch activity" />
-          <Chip label="Place" selected={mode === 'place'} onPress={() => setMode('place')} accessibilityLabel="Place: put cameras on the map" />
+          <Chip label={t.home.map.view} selected={mode === 'view'} onPress={() => setMode('view')} accessibilityLabel={t.home.map.viewA11y} />
+          <Chip label={t.home.map.place} selected={mode === 'place'} onPress={() => setMode('place')} accessibilityLabel={t.home.map.placeA11y} />
           <Chip
-            label="Connect"
+            label={t.home.map.connect}
             selected={mode === 'link'}
             onPress={() => {
               setMode('link');
               setLinkFrom(null);
             }}
-            accessibilityLabel="Connect: link cameras someone can walk between"
+            accessibilityLabel={t.home.map.connectA11y}
           />
         </View>
       </View>
       <T v="caption" muted>
         {mode === 'view'
-          ? 'Viewing your map. Switch to Place to put cameras on it, or Connect to link cameras next to each other.'
+          ? t.home.map.viewHelp
           : mode === 'place'
-            ? 'Placing cameras: add them below, then drag each pin to where the camera is.'
-            : 'Connecting cameras: tells Sightline which cameras a person walks between, so it can follow them.'}
+            ? t.home.map.placeHelp
+            : t.home.map.connectHelp}
       </T>
 
       <CameraMapView
@@ -129,38 +133,38 @@ export default function MapScreen() {
       {mode === 'view' && (
         <T muted>
           {Object.keys(map.placements).length === 0
-            ? 'Place your cameras to see activity move around your property, follow people from camera to camera, and watch nearby cameras side by side during playback.'
-            : 'Cameras glow when something happened in the last few minutes. Tap one to watch it.'}
+            ? t.home.map.emptyHelp
+            : t.home.map.glowHelp}
         </T>
       )}
 
       {mode === 'place' && (
         <View style={{ gap: space.md }}>
-          <Button title={map.background ? 'Change map image' : 'Add floor plan or satellite screenshot'} kind="secondary" onPress={pickBackground} />
+          <Button title={map.background ? t.home.map.changeImage : t.home.map.addImage} kind="secondary" onPress={pickBackground} />
           {sel && selected && (
             <View style={[styles.panel, { backgroundColor: p.surface, borderColor: p.border }]}>
               <T v="label">{names.get(selected)}</T>
               <T v="caption" muted>
-                Drag the pin to move it. Aim it so the cone matches what the camera sees.
+                {t.home.map.aimHelp}
               </T>
               <View style={styles.row}>
                 <Chip
-                  label="Turn left"
-                  accessibilityLabel="Turn left 15 degrees"
+                  label={t.home.map.turnLeft}
+                  accessibilityLabel={t.home.map.turnLeftA11y}
                   selected={false}
                   onPress={() => updateSelected({ heading: (sel.heading + 345) % 360 })}
                 />
                 <Chip
-                  label="Turn right"
-                  accessibilityLabel="Turn right 15 degrees"
+                  label={t.home.map.turnRight}
+                  accessibilityLabel={t.home.map.turnRightA11y}
                   selected={false}
                   onPress={() => updateSelected({ heading: (sel.heading + 15) % 360 })}
                 />
-                <Chip label="Narrower" selected={false} onPress={() => updateSelected({ fov: Math.max(30, sel.fov - 15) })} />
-                <Chip label="Wider" selected={false} onPress={() => updateSelected({ fov: Math.min(180, sel.fov + 15) })} />
+                <Chip label={t.home.map.narrower} selected={false} onPress={() => updateSelected({ fov: Math.max(30, sel.fov - 15) })} />
+                <Chip label={t.home.map.wider} selected={false} onPress={() => updateSelected({ fov: Math.min(180, sel.fov + 15) })} />
               </View>
               <Button
-                title="Remove from map"
+                title={t.home.map.removeFromMap}
                 kind="ghost"
                 onPress={() => {
                   const placements = { ...map.placements };
@@ -174,14 +178,14 @@ export default function MapScreen() {
           {unplaced.length > 0 && (
             <View style={{ gap: space.sm }}>
               <T v="label" muted>
-                Tap to add to the map
+                {t.home.map.tapToAdd}
               </T>
               <View style={styles.wrap}>
                 {unplaced.map((e) => (
                   <Chip
                     key={e.camera.key}
                     label={e.camera.name}
-                    accessibilityLabel={`Add ${e.camera.name} to the map`}
+                    accessibilityLabel={t.home.map.addToMap(e.camera.name)}
                     selected={false}
                     onPress={() => place(e.camera.key)}
                   />
@@ -196,22 +200,22 @@ export default function MapScreen() {
         <View style={{ gap: space.sm }}>
           <T muted>
             {linkFrom
-              ? `Now tap the camera someone would reach next from ${names.get(linkFrom)}.`
-              : 'Tap two cameras a person can walk between (like Driveway → Front Door). Tap a linked pair again to unlink.'}
+              ? t.home.map.nextFrom(names.get(linkFrom) ?? '')
+              : t.home.map.linkHelp}
           </T>
           {map.links.length > 0 && (
             <T v="caption" muted>
-              The time is about how long it takes to walk between them. Tap it to change.
+              {t.home.map.walkTimeHelp}
             </T>
           )}
           {map.links.map((l) => (
-            <View key={`${l.a}|${l.b}`} style={[styles.linkRow, { borderColor: p.border }]}>
-              <T style={{ flex: 1 }} numberOfLines={1}>
-                {names.get(l.a)} and {names.get(l.b)}
+            <View key={`${l.a}|${l.b}`} style={[styles.linkRow, { borderColor: p.border }, large && styles.linkRowStacked]}>
+              <T style={large ? undefined : { flex: 1 }}>
+                {t.home.map.pair(names.get(l.a) ?? '', names.get(l.b) ?? '')}
               </T>
               <Chip
-                label={`About ${l.transitSec}s`}
-                accessibilityLabel={`Walk time about ${l.transitSec} seconds. Tap to change.`}
+                label={t.home.map.about(l.transitSec)}
+                accessibilityLabel={t.home.map.walkTimeA11y(l.transitSec)}
                 selected={false}
                 onPress={() =>
                   setMap({
@@ -237,4 +241,5 @@ const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   panel: { padding: space.lg, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, gap: space.sm },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth },
+  linkRowStacked: { flexDirection: 'column', alignItems: 'flex-start' },
 });

@@ -1,0 +1,15 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Sightline",
+    "NSCameraUsageDescription": "Escanea un código QR para conectarte a tu Sightline Hub, a una invitación compartida o a la VPN de tu casa.",
+    "NSLocalNetworkUsageDescription": "Conéctate a las cámaras y grabadores de la red de tu casa.",
+    "NSMicrophoneUsageDescription": "Sightline solo usa el micrófono mientras mantienes pulsado el botón para hablar, así puedes hablar a través de tu cámara o timbre, o mientras dices una pregunta para tus cámaras.",
+    "NSSpeechRecognitionUsageDescription": "Sightline convierte tu pregunta hablada en texto en tu iPhone. Tu voz nunca sale de tu teléfono.",
+    "NSFaceIDUsageDescription": "Usa Face ID para desbloquear tus cámaras.",
+    "NSPhotoLibraryUsageDescription": "Elige un plano o un mapa para colocar tus cámaras, o fotos de personas y vehículos para que Sightline los reconozca en este iPhone.",
+    "NSLocationWhenInUseUsageDescription": "Indica dónde está tu casa para que Sightline pueda silenciar las alertas mientras estás en ella.",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "Sightline usa tu ubicación solo para saber cuándo llegas a casa o sales, y así silenciar las alertas mientras estás allí. Tu ubicación nunca sale de tu teléfono.",
+    "NSLocationAlwaysUsageDescription": "Sightline usa tu ubicación solo para saber cuándo llegas a casa o sales, y así silenciar las alertas mientras estás allí. Tu ubicación nunca sale de tu teléfono.",
+    "NSMotionUsageDescription": "Permite que Sightline detecte tu actividad de movimiento."
+  }
+}

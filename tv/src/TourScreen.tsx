@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View, useTVEventHandler } from 'react-native';
 
 import { HubError, liveUrl, pollRings, snapshotUrl, type HubCamera } from './hub';
+import { lang, locale, t } from './i18n';
 import { colors } from './theme';
 import { advance, clockText, dimOpacity, onRings, pixelShift, shownIndex, TOUR_INTERVAL_MS, type TourState } from './tour';
 
@@ -74,18 +75,29 @@ export function TourScreen({ base, token, cameras }: { base: string; token: stri
       </View>
       {ringing && (
         <View style={styles.ring}>
-          <Text style={styles.ringText}>Someone’s at the door</Text>
+          <Text style={styles.ringText}>{t.atTheDoor}</Text>
         </View>
       )}
       <View style={[styles.label, { left: 64 + shift.x, bottom: 56 + shift.y }]}>
         <Text style={styles.name}>{camera.name}</Text>
         <Text style={styles.hint}>
-          {clockText(new Date(now))} · Tour{ringsOff ? '' : ' · shows the doorbell when someone rings'}   ◀ ▶
+          {timeText(new Date(now))} · {t.tour}
+          {ringsOff ? '' : ` · ${t.tourDoorbell}`}   ◀ ▶
         </Text>
       </View>
       {dim > 0 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: dim }]} />}
     </View>
   );
+}
+
+/** "9:05 PM" in English; other languages get the TV's own clock format ("21:05"). */
+function timeText(at: Date): string {
+  if (lang === 'en') return clockText(at);
+  try {
+    return at.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return clockText(at);
+  }
 }
 
 /** One camera: HLS live over a refreshing snapshot (which shows while video connects). */

@@ -1,4 +1,5 @@
 import type { RecordingSegment, ReviewItem, Severity } from './types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Pure helpers for the Reolink HTTP API (`/cgi-bin/api.cgi`). No app imports, so they run
@@ -113,9 +114,9 @@ export function parseResponse(text: string): ReolinkItem[] {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new ReolinkError('This address doesn’t seem to be a Reolink device. Check the address and try again.');
+    throw new ReolinkError(tr().systems.device.notThisBrand('Reolink'));
   }
-  if (!Array.isArray(data)) throw new ReolinkError('The Reolink device sent an unexpected reply.');
+  if (!Array.isArray(data)) throw new ReolinkError(tr().systems.reolink.unexpectedReply);
   return data as ReolinkItem[];
 }
 
@@ -139,20 +140,20 @@ export function errorMessage(item: ReolinkItem | undefined): string {
   const detail = (item?.error?.detail ?? '').toLowerCase();
   const code = item?.error?.rspCode;
   if (detail.includes('locked')) {
-    return 'The Reolink device has locked this account after too many wrong passwords. Wait a few minutes, then try again.';
+    return tr().systems.reolink.locked;
   }
   // Detail strings as matched by reolink_aio's send() ("invalid user", "login failed", "password wrong").
   if (/invalid user|login failed|password wrong/.test(detail)) {
-    return 'The Reolink device rejected the username or password.';
+    return tr().systems.device.rejectedLogin('Reolink');
   }
   if (detail.includes('max session')) {
-    return 'Too many apps are signed in to the Reolink device. Close the Reolink app or web page on other devices, then try again.';
+    return tr().systems.reolink.tooManySessions;
   }
-  if (isLoginExpired(item)) return 'The Reolink device signed us out. Try again.';
+  if (isLoginExpired(item)) return tr().systems.reolink.signedOut;
   if (detail.includes('ability') || detail.includes('not support') || code === -9) {
-    return 'This Reolink device doesn’t support that.';
+    return tr().systems.device.notSupported('Reolink');
   }
-  return `The Reolink device couldn’t do that${item?.error?.detail ? ` (${item.error.detail})` : ''}.`;
+  return item?.error?.detail ? tr().systems.device.couldntDoDetail('Reolink', item.error.detail) : tr().systems.device.couldntDo('Reolink');
 }
 
 export function loginBody(user: string, password: string) {
@@ -163,7 +164,7 @@ export function parseLogin(items: ReolinkItem[]): { token: string; leaseSec: num
   const item = items.find((i) => i.cmd === 'Login') ?? items[0];
   if (!item || item.code !== 0) throw new ReolinkError(errorMessage(item), item?.error?.rspCode);
   const tok = item.value?.Token;
-  if (!tok?.name) throw new ReolinkError('The Reolink device sent an unexpected sign-in reply.');
+  if (!tok?.name) throw new ReolinkError(tr().systems.reolink.unexpectedLogin);
   return { token: String(tok.name), leaseSec: Number(tok.leaseTime) || 3600 };
 }
 
@@ -217,13 +218,13 @@ export function parseChannels(dev: DevInfo, channelStatus: any | undefined): Cha
       .filter((s) => Number(s.online) === 1)
       .map((s) => ({
         channel: Number(s.channel),
-        name: String(s.name ?? '').trim() || `Camera ${Number(s.channel) + 1}`,
+        name: String(s.name ?? '').trim() || tr().systems.common.cameraN(Number(s.channel) + 1),
         online: true,
         ...(isReolinkDoorbellModel(s.typeInfo) && { doorbell: true }),
       }))
       .sort((a, b) => a.channel - b.channel);
   }
-  return Array.from({ length: dev.channelNum }, (_, ch) => ({ channel: ch, name: `Camera ${ch + 1}`, online: true }));
+  return Array.from({ length: dev.channelNum }, (_, ch) => ({ channel: ch, name: tr().systems.common.cameraN(ch + 1), online: true }));
 }
 
 /** GetAbility → per-channel `ver` of a capability (0 when missing). */
@@ -346,7 +347,7 @@ export function parsePresets(value: any): Map<string, number> {
   const out = new Map<string, number>();
   for (const p of value?.PtzPreset ?? []) {
     if (Number(p.enable) !== 1) continue;
-    const name = String(p.name ?? '').trim() || `Preset ${p.id}`;
+    const name = String(p.name ?? '').trim() || tr().systems.common.presetN(p.id);
     if (!out.has(name)) out.set(name, Number(p.id));
   }
   return out;

@@ -5,6 +5,7 @@ import * as Print from 'expo-print';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
 
+import { tr } from '@/i18n';
 import { ensureTunnel } from '@/net/connection';
 import type { CameraEntry } from '@/systems/registry';
 import type { CameraSystemAdapter, PlaybackSource, ReviewItem } from '@/systems/types';
@@ -120,9 +121,10 @@ function methodOf(pb: PlaybackSource): VideoMethod {
 
 /** Why a method gives no video, in plain words. */
 export function methodNote(m: VideoMethod): string | undefined {
-  if (m === 'replay') return WgTunnel?.startRecording ? 'Copied from the recorder’s playback at normal speed' : undefined;
-  if (m === 'files') return 'The recorder’s own files covering this time (they may start a little earlier or end a little later)';
-  if (m === 'none') return 'This recorder doesn’t let apps save its video, so only event snapshots are included';
+  const t = tr().exporting.run;
+  if (m === 'replay') return WgTunnel?.startRecording ? t.noteReplay : undefined;
+  if (m === 'files') return t.noteFiles;
+  if (m === 'none') return t.noteNone;
   return undefined;
 }
 
@@ -244,7 +246,7 @@ export async function runExport(opts: {
   // Progress: every camera reports 0–1; packing is the last 10%.
   const parts = new Map<string, number>();
   let bytes = 0;
-  let label = 'Getting ready…';
+  let label = tr().exporting.screen.gettingReady;
   const report = (extra = 0) => {
     const cams = opts.jobs.length || 1;
     const sum = [...parts.values()].reduce((a, b) => a + b, 0);
@@ -267,7 +269,7 @@ export async function runExport(opts: {
         gathered.push(await gatherCamera(job, w, zone, { videoDir, photoDir, taken, signal }, (f, b) => {
           parts.set(job.entry.camera.key, f);
           if (b) bytes += b;
-          label = `Copying ${job.entry.camera.name}…`;
+          label = tr().exporting.run.copying(job.entry.camera.name);
           report();
         }));
         parts.set(job.entry.camera.key, 1);
@@ -281,7 +283,7 @@ export async function runExport(opts: {
     const order = new Map(opts.jobs.map((j, i) => [j.entry.camera.key, i]));
     gathered.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
 
-    label = 'Calculating fingerprints…';
+    label = tr().exporting.run.fingerprints;
     report(0.02);
     const packInJs = !WgTunnel?.zipFolder;
     const crcs = new Map<string, number>();
@@ -317,7 +319,7 @@ export async function runExport(opts: {
     const sign = await signer();
 
     // PDF summary (thumbnails embedded so the PDF stands on its own).
-    label = 'Writing the summary…';
+    label = tr().exporting.run.writingSummary;
     report(0.04);
     const reportEvents: ReportEvent[] = [];
     for (const g of gathered) {
@@ -362,7 +364,7 @@ export async function runExport(opts: {
     check(signal);
 
     // Pack.
-    label = 'Packing the .zip…';
+    label = tr().exporting.run.packing;
     report(0.07);
     const zip = new File(root, `${folderName}.zip`);
     if (zip.exists) zip.delete();
@@ -372,7 +374,7 @@ export async function runExport(opts: {
       await packInJsZip(dir, zip, folderName, crcs, signal);
     }
     check(signal);
-    label = 'Done';
+    label = tr().common.done;
     report(0.1);
     return { zipUri: zip.uri, bytes: zip.size ?? bytes, cameras, signed: !!sign && new File(dir, SIGNATURE_FILE).exists };
   } catch (e) {
@@ -385,7 +387,7 @@ export async function runExport(opts: {
 async function packInJsZip(dir: Directory, zip: File, folderName: string, crcs: Map<string, number>, signal: AbortSignal) {
   const all = walk(dir);
   const total = all.reduce((a, f) => a + (f.file.size ?? 0), 0);
-  if (total > ZIP_MAX_BYTES) throw new Error('This export is too big to pack on this version of Sightline. Pick a shorter time or fewer cameras.');
+  if (total > ZIP_MAX_BYTES) throw new Error(tr().exporting.run.tooBig);
   // Files hashed without a CRC (manifest, signature, key) get theirs now.
   for (const f of all) {
     if (!crcs.has(f.path)) crcs.set(f.path, (await fingerprint(f.file, true)).crc);
@@ -419,24 +421,25 @@ async function packInJsZip(dir: Directory, zip: File, folderName: string, crcs: 
 }
 
 function readmeText(signed: boolean): string {
+  const t = tr().exporting.readme;
   return [
-    'Video export made with Sightline.',
+    t.intro,
     '',
-    'Summary.pdf      What is in this export: cameras, the time covered (with time zone), events and fingerprints.',
-    'video/           Video files, named by camera and local start time.',
-    'photos/          Snapshots of events.',
-    'manifest.json    The SHA-256 fingerprint of every file. If any file is changed, its fingerprint won’t match.',
+    `Summary.pdf      ${t.summary}`,
+    `video/           ${t.video}`,
+    `photos/          ${t.photos}`,
+    `manifest.json    ${t.manifest}`,
     ...(signed
       ? [
-          `${SIGNATURE_FILE}     Signature of manifest.json, made with a key that never leaves the iPhone that made this export.`,
-          `${PUBLIC_KEY_FILE}   The matching public key.`,
+          `${SIGNATURE_FILE}     ${t.signature}`,
+          `${PUBLIC_KEY_FILE}   ${t.publicKey}`,
           '',
-          'To check the signature:',
+          t.checkSignature,
           `  openssl dgst -sha256 -verify ${PUBLIC_KEY_FILE} -signature ${SIGNATURE_FILE} manifest.json`,
         ]
       : []),
     '',
-    'To check a file: sha256sum "video/<file>.mp4" (Mac: shasum -a 256) and compare with manifest.json.',
+    t.checkFile,
     '',
   ].join('\n');
 }
@@ -566,10 +569,10 @@ async function gatherCamera(
   if (!outcome.note) {
     if (files.length) outcome.note = methodNote(job.method);
     else if (job.method === 'none') outcome.note = methodNote('none');
-    else if (attempts === 0) outcome.note = 'No recordings in this time';
-    else outcome.note = 'The recorder didn’t send video for this time';
+    else if (attempts === 0) outcome.note = tr().exporting.screen.noRecordings;
+    else outcome.note = tr().exporting.run.noteNoVideo;
   }
-  if (outcome.video !== 'included' && files.length && failures) outcome.note = `${outcome.note ?? ''} (some parts couldn’t be copied)`.trim();
+  if (outcome.video !== 'included' && files.length && failures) outcome.note = tr().exporting.run.someParts(outcome.note ?? '').trim();
   return { key: camera.key, outcome, events, thumbs, files };
 }
 
@@ -587,7 +590,7 @@ async function recordReplay(
   const hostPort = `${u.hostname}:${u.port || '554'}`;
   let viaTunnel = false;
   if (!(await t.probe(hostPort, false, 1500))) {
-    if (!adapter.config.endpoint.useTunnel) throw new Error('This recorder isn’t reachable from this network.');
+    if (!adapter.config.endpoint.useTunnel) throw new Error(tr().exporting.run.unreachable);
     await ensureTunnel();
     viaTunnel = true;
   }
@@ -612,7 +615,7 @@ async function recordReplay(
 }
 
 export async function shareExport(zipUri: string) {
-  await Sharing.shareAsync(zipUri, { mimeType: 'application/zip', UTI: 'public.zip-archive', dialogTitle: 'Video export' });
+  await Sharing.shareAsync(zipUri, { mimeType: 'application/zip', UTI: 'public.zip-archive', dialogTitle: tr().exporting.run.shareTitle });
 }
 
 /** Removes old exports (they can be large). Keeps the newest hour's in case sharing is retried. */

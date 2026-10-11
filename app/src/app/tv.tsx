@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { Button, Row, Screen, Section, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { connectSystem } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { canShare, HubAdapter } from '@/systems/hub';
@@ -18,6 +19,8 @@ import { fetchWithTimeout } from '@/util/fetch';
  */
 export default function ConnectTv() {
   const p = usePalette();
+  const t = useT();
+  const s = t.onboarding.tv;
   const params = useLocalSearchParams<{ h?: string; k?: string; n?: string }>();
   const link = parseTvLink(params);
   const systems = useApp((s) => s.systems);
@@ -37,7 +40,7 @@ export default function ConnectTv() {
     try {
       const route = await connectSystem(system);
       const a = route.mode === 'offline' ? null : getAdapter(system, route);
-      if (!(a instanceof HubAdapter)) throw new Error(route.error ?? 'Couldn’t reach the Hub.');
+      if (!(a instanceof HubAdapter)) throw new Error(route.error ?? t.onboarding.cantReachHub);
       adapter = a;
       const { grant, invite } = await adapter.createGrant({ name: link.name, role: 'live', cameras: 'all', expiresAt: null });
       grantId = grant.id;
@@ -56,7 +59,7 @@ export default function ConnectTv() {
       );
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `The TV answered HTTP ${res.status}.`);
+        throw new Error(body.error ?? s.tvAnswered(res.status));
       }
       setDone(true);
     } catch (e) {
@@ -65,7 +68,7 @@ export default function ConnectTv() {
       const message = e instanceof Error ? e.message : String(e);
       setError(
         /Network request failed|No response|abort/i.test(message)
-          ? 'Couldn’t reach the TV. Make sure this iPhone is on the same Wi-Fi as the Apple TV, and that the Sightline code is still on the TV screen.'
+          ? s.cantReachTv
           : message,
       );
     } finally {
@@ -75,35 +78,33 @@ export default function ConnectTv() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Connect Apple TV', headerShown: true }} />
+      <Stack.Screen options={{ title: s.title, headerShown: true }} />
       {!link ? (
-        <T>That isn’t a Sightline TV code. Open Sightline on the Apple TV and scan the code it shows.</T>
+        <T>{s.notTvCode}</T>
       ) : done ? (
         <>
-          <T v="heading">Your Apple TV is connected</T>
-          <T muted>It shows the cameras on your Hub. To remove it later, open Settings → Sharing and remove “{link.name}”.</T>
-          <Button title="Done" onPress={() => router.replace('/')} />
+          <T v="heading">{s.connected}</T>
+          <T muted>{s.connectedBody(link.name)}</T>
+          <Button title={t.common.done} onPress={() => router.replace('/')} />
         </>
       ) : hubs.length === 0 ? (
         <>
-          <T v="heading">Apple TV needs a Sightline Hub</T>
-          <T muted>
-            The TV app shows cameras through your Sightline Hub, so it works with every brand. Set up a Hub (Settings → Instant Alerts or Sharing), then scan the TV code again.
-          </T>
-          <Button title="Close" kind="secondary" onPress={() => router.back()} />
+          <T v="heading">{s.needsHub}</T>
+          <T muted>{s.needsHubBody}</T>
+          <Button title={t.common.close} kind="secondary" onPress={() => router.back()} />
         </>
       ) : (
         <>
-          <T v="heading">Show your cameras on “{link.name}”?</T>
-          <T muted>The TV gets live view and snapshots of all cameras, nothing else. You can remove it anytime in Sharing.</T>
+          <T v="heading">{s.showOn(link.name)}</T>
+          <T muted>{s.grantBody}</T>
           {hubs.length > 1 && (
-            <Section title="Which Hub">
+            <Section title={s.whichHub}>
               {hubs.map((h, i) => (
-                <Row key={h.id} label={h.extra?.hubName || h.name} detail={h.id === hub?.id ? 'Selected' : undefined} onPress={() => setHubId(h.id)} last={i === hubs.length - 1} />
+                <Row key={h.id} label={h.extra?.hubName || h.name} detail={h.id === hub?.id ? s.selected : undefined} onPress={() => setHubId(h.id)} last={i === hubs.length - 1} />
               ))}
             </Section>
           )}
-          <Button title="Connect TV" onPress={() => hub && void connect(hub)} loading={busy} disabled={!hub} />
+          <Button title={s.connectTv} onPress={() => hub && void connect(hub)} loading={busy} disabled={!hub} />
           {error && <T color={p.danger}>{error}</T>}
         </>
       )}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View, useTVEventHandler } from 'react-native';
 
 import { liveUrl, snapshotUrl, type HubCamera } from './hub';
+import { t } from './i18n';
 import { colors } from './theme';
 
 /**
@@ -54,8 +55,8 @@ export function LiveScreen({
       <View style={styles.label}>
         <Text style={styles.name}>{camera.name}</Text>
         <Text style={styles.hint}>
-          {failed ? 'Live video unavailable — showing snapshots' : status === 'loading' ? 'Connecting…' : 'Live'}
-          {cameras.length > 1 ? '   ◀ ▶ other cameras' : ''}
+          {failed ? t.liveUnavailable : status === 'loading' ? t.connecting : t.live}
+          {cameras.length > 1 ? `   ${t.otherCameras}` : ''}
         </Text>
       </View>
     </View>

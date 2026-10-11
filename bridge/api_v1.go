@@ -896,6 +896,7 @@ func (h *hub) handleDevicePut(w http.ResponseWriter, r *http.Request) {
 	}
 	d.ID = id
 	d.GrantID = g.ID
+	d.Lang = normLang(d.Lang)
 	d.UpdatedAt = time.Now().Unix()
 	if err := h.store.put(d); err != nil {
 		apiError(w, http.StatusInternalServerError, "storage", err.Error())

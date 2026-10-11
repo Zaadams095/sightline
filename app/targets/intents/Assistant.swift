@@ -60,11 +60,11 @@ enum Assistant {
     return try? JSONDecoder().decode(AssistantData.self, from: data)
   }
 
-  static let noData = AssistantReply(
-    text: "I don't have anything from your cameras yet. Open Sightline once, then ask again.",
+  static var noData: AssistantReply { AssistantReply(
+    text: String(localized: "I don't have anything from your cameras yet. Open Sightline once, then ask again."),
     image: nil,
     caption: nil
-  )
+  ) }
 
   // MARK: Words
 
@@ -79,19 +79,23 @@ enum Assistant {
   static func when(_ t: Double, now: Date = Date()) -> String {
     let date = Date(timeIntervalSince1970: t)
     let minutes = Int(now.timeIntervalSince(date) / 60)
-    if minutes < 1 { return "just now" }
-    if minutes < 60 { return minutes == 1 ? "a minute ago" : "\(minutes) minutes ago" }
+    if minutes < 1 { return String(localized: "just now") }
+    if minutes < 60 { return minutes == 1 ? String(localized: "a minute ago") : String(localized: "\(minutes) minutes ago") }
     let cal = Calendar.current
-    if cal.isDateInToday(date) { return "at \(clock(t))" }
-    if cal.isDateInYesterday(date) { return "yesterday at \(clock(t))" }
+    let time = clock(t)
+    if cal.isDateInToday(date) { return String(localized: "at \(time)") }
+    if cal.isDateInYesterday(date) { return String(localized: "yesterday at \(time)") }
     let f = DateFormatter()
     f.setLocalizedDateFormatFromTemplate("EEEE")
-    return "on \(f.string(from: date)) at \(clock(t))"
+    let day = f.string(from: date)
+    return String(localized: "on \(day) at \(time)")
   }
 
   static func list(_ items: [String]) -> String {
     if items.count <= 1 { return items.first ?? "" }
-    return items.dropLast().joined(separator: ", ") + " and " + items[items.count - 1]
+    let head = items.dropLast().joined(separator: ", ")
+    let last = items[items.count - 1]
+    return String(localized: "\(head) and \(last)")
   }
 
   static let vehicles: Set<String> = ["car", "truck", "vehicle", "van", "bus", "motorcycle", "motorbike", "license_plate", "boat"]
@@ -106,18 +110,54 @@ enum Assistant {
   static func subject(_ e: AssistantEvent) -> String {
     let names = people(e)
     if !names.isEmpty { return list(names) }
-    if e.doorbell { return "someone ringing the doorbell" }
-    if e.package { return "a package" }
-    if e.objects.contains("person") || e.objects.contains("face") { return "someone" }
-    if let v = e.objects.first(where: { vehicles.contains($0) }) { return v == "truck" ? "a truck" : "a car" }
-    if let a = e.objects.first(where: { animals.contains($0) }) { return a == "animal" ? "an animal" : "a \(a)" }
-    if let o = e.objects.first { return "a \(o.replacingOccurrences(of: "_", with: " "))" }
-    return "motion"
+    if e.doorbell { return String(localized: "someone ringing the doorbell") }
+    if e.package { return String(localized: "a package") }
+    if e.objects.contains("person") || e.objects.contains("face") { return String(localized: "someone") }
+    if let v = e.objects.first(where: { vehicles.contains($0) }) { return v == "truck" ? String(localized: "a truck") : String(localized: "a car") }
+    if let a = e.objects.first(where: { animals.contains($0) }) { return animal(a) }
+    if let o = e.objects.first { return thing(o) }
+    return String(localized: "motion")
+  }
+
+  /// "a dog", "an animal"… in the phone's language.
+  static func animal(_ a: String) -> String {
+    switch a {
+    case "dog": return String(localized: "a dog")
+    case "cat": return String(localized: "a cat")
+    case "bird": return String(localized: "a bird")
+    case "deer": return String(localized: "a deer")
+    case "bear": return String(localized: "a bear")
+    case "horse": return String(localized: "a horse")
+    case "fox": return String(localized: "a fox")
+    case "raccoon": return String(localized: "a raccoon")
+    case "squirrel": return String(localized: "a squirrel")
+    case "rabbit": return String(localized: "a rabbit")
+    case "cow": return String(localized: "a cow")
+    case "sheep": return String(localized: "a sheep")
+    case "goat": return String(localized: "a goat")
+    case "skunk": return String(localized: "a skunk")
+    case "opossum": return String(localized: "an opossum")
+    case "coyote": return String(localized: "a coyote")
+    case "pet": return String(localized: "a pet")
+    default: return String(localized: "an animal")
+    }
+  }
+
+  /// Any other detected object: "a bicycle", else the raw label ("a umbrella").
+  static func thing(_ o: String) -> String {
+    switch o {
+    case "bicycle": return String(localized: "a bicycle")
+    case "license_plate": return String(localized: "a license plate")
+    default:
+      let label = o.replacingOccurrences(of: "_", with: " ")
+      return String(localized: "a \(label)")
+    }
   }
 
   static func freshness(_ data: AssistantData, now: Date = Date()) -> String {
     let age = now.timeIntervalSince1970 - data.updatedAt
-    return age > staleSeconds ? " Sightline last checked your cameras \(when(data.updatedAt, now: now))." : ""
+    let checked = when(data.updatedAt, now: now)
+    return age > staleSeconds ? " " + String(localized: "Sightline last checked your cameras \(checked).") : ""
   }
 
   /// A picture for an event: its own, else the camera's latest widget snapshot.
@@ -141,10 +181,12 @@ enum Assistant {
     }
     let stale = freshness(data, now: now)
     guard let latest = atDoor.first else {
-      let where_ = doorKeys.isEmpty ? "" : " at the door"
       let key = doorKeys.first ?? data.cameras.first?.key
+      let nobody = doorKeys.isEmpty
+        ? String(localized: "I haven't seen anyone in the last two days.")
+        : String(localized: "I haven't seen anyone at the door in the last two days.")
       return AssistantReply(
-        text: "I haven't seen anyone\(where_) in the last two days.\(stale)",
+        text: nobody + stale,
         image: key.flatMap { picture(for: $0, event: nil) },
         caption: nil
       )
@@ -152,13 +194,20 @@ enum Assistant {
     let age = now.timeIntervalSince1970 - latest.time
     let ongoing = latest.end == nil
     let who = subject(latest)
+    let camera = latest.camera
+    let at = when(latest.time, now: now)
     let text: String
     if age < doorFreshSeconds || ongoing {
-      text = latest.doorbell && people(latest).isEmpty
-        ? "Someone rang the doorbell at \(latest.camera) \(when(latest.time, now: now))."
-        : "\(capitalized(who)) \(ongoing ? "is" : "was") at \(latest.camera) \(when(latest.time, now: now))."
+      let whoCap = capitalized(who)
+      if latest.doorbell && people(latest).isEmpty {
+        text = String(localized: "Someone rang the doorbell at \(camera) \(at).")
+      } else if ongoing {
+        text = String(localized: "\(whoCap) is at \(camera) \(at).")
+      } else {
+        text = String(localized: "\(whoCap) was at \(camera) \(at).")
+      }
     } else {
-      text = "Nobody right now, as far as I can tell. The last one was \(who) at \(latest.camera) \(when(latest.time, now: now))."
+      text = String(localized: "Nobody right now, as far as I can tell. The last one was \(who) at \(camera) \(at).")
     }
     return AssistantReply(
       text: text + stale,
@@ -173,23 +222,28 @@ enum Assistant {
     let startOfDay = Calendar.current.startOfDay(for: now).timeIntervalSince1970
     if !data.packages.isEmpty {
       let parts = data.packages.map { "\($0.camera) \(when($0.since, now: now))" }
-      let text = data.packages.count == 1
-        ? "Yes. A package was delivered to \(parts[0]), and it looks like it's still there."
-        : "Yes, \(data.packages.count) packages look like they're still outside: \(list(parts))."
-      let first = data.packages[0]
+      let count = data.packages.count
+      let first = parts[0]
+      let all = list(parts)
+      let text = count == 1
+        ? String(localized: "Yes. A package was delivered to \(first), and it looks like it's still there.")
+        : String(localized: "Yes, \(count) packages look like they're still outside: \(all).")
+      let pkg = data.packages[0]
       return AssistantReply(
         text: text + stale,
-        image: first.image ?? picture(for: first.key, event: nil),
-        caption: "\(first.camera) · \(clock(first.since))"
+        image: pkg.image ?? picture(for: pkg.key, event: nil),
+        caption: "\(pkg.camera) · \(clock(pkg.since))"
       )
     }
     let today = data.events.filter { $0.time >= startOfDay && ($0.package || $0.objects.contains { carriers.contains($0) } || $0.names.contains { carriers.contains($0.lowercased()) }) }
     guard let latest = today.first else {
-      return AssistantReply(text: "No packages today, as far as Sightline has seen.\(stale)", image: nil, caption: nil)
+      return AssistantReply(text: String(localized: "No packages today, as far as Sightline has seen.") + stale, image: nil, caption: nil)
     }
+    let camera = latest.camera
+    let at = when(latest.time, now: now)
     let text = latest.package
-      ? "Yes. A package was seen at \(latest.camera) \(when(latest.time, now: now)). It may have been picked up since."
-      : "A delivery came to \(latest.camera) \(when(latest.time, now: now))."
+      ? String(localized: "Yes. A package was seen at \(camera) \(at). It may have been picked up since.")
+      : String(localized: "A delivery came to \(camera) \(at).")
     return AssistantReply(text: text + stale, image: picture(for: latest.key, event: latest), caption: "\(latest.camera) · \(clock(latest.time))")
   }
 
@@ -198,10 +252,15 @@ enum Assistant {
     let stale = freshness(data, now: now)
     let startOfDay = Calendar.current.startOfDay(for: now).timeIntervalSince1970
     let events = data.events.filter { $0.time >= startOfDay && (cameraKey == nil || $0.key == cameraKey) }
-    let place = cameraName.map { " on \($0)" } ?? ""
     guard let latest = events.first else {
+      let nothing: String
+      if let name = cameraName {
+        nothing = String(localized: "Nothing happened on \(name) today, as far as Sightline has seen.")
+      } else {
+        nothing = String(localized: "Nothing happened today, as far as Sightline has seen.")
+      }
       return AssistantReply(
-        text: "Nothing happened\(place) today, as far as Sightline has seen.\(stale)",
+        text: nothing + stale,
         image: cameraKey.flatMap { picture(for: $0, event: nil) },
         caption: nil
       )
@@ -216,13 +275,31 @@ enum Assistant {
     add("doorbell ring", events.filter { $0.doorbell }.count)
     var parts = counts.map { label, n -> String in
       switch label {
-      case "person": return n == 1 ? "someone once" : "people \(n) times"
-      default: return n == 1 ? "a \(label)" : "\(n) \(label)s"
+      case "person": return n == 1 ? String(localized: "someone once") : String(localized: "people \(n) times")
+      case "vehicle": return n == 1 ? String(localized: "a vehicle") : String(localized: "\(n) vehicles")
+      case "animal": return n == 1 ? String(localized: "an animal") : String(localized: "\(n) animals")
+      case "package": return n == 1 ? String(localized: "a package") : String(localized: "\(n) packages")
+      default: return n == 1 ? String(localized: "a doorbell ring") : String(localized: "\(n) doorbell rings")
       }
     }
     if !named.isEmpty { parts.insert(list(named.sorted()), at: 0) }
-    let summary = parts.isEmpty ? (events.count == 1 ? "some motion" : "motion \(events.count) times") : list(parts)
-    let text = "Today\(place): \(summary). The latest was \(subject(latest))\(cameraKey == nil ? " on \(latest.camera)" : "") \(when(latest.time, now: now))."
+    let motionCount = events.count
+    let summary = parts.isEmpty
+      ? (motionCount == 1 ? String(localized: "some motion") : String(localized: "motion \(motionCount) times"))
+      : list(parts)
+    let todayText: String
+    if let name = cameraName {
+      todayText = String(localized: "Today on \(name): \(summary).")
+    } else {
+      todayText = String(localized: "Today: \(summary).")
+    }
+    let what = subject(latest)
+    let camera = latest.camera
+    let at = when(latest.time, now: now)
+    let latestText = cameraKey == nil
+      ? String(localized: "The latest was \(what) on \(camera) \(at).")
+      : String(localized: "The latest was \(what) \(at).")
+    let text = todayText + " " + latestText
     return AssistantReply(text: text + stale, image: picture(for: latest.key, event: latest), caption: "\(latest.camera) · \(clock(latest.time))")
   }
 }

@@ -52,6 +52,7 @@ import type {
   TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
+import { tr } from '@/i18n';
 
 /**
  * Dahua CGI adapter: Dahua recorders and cameras, and the many brands built on them (Amcrest,
@@ -144,7 +145,7 @@ export class DahuaAdapter implements CameraSystemAdapter {
   async connect(): Promise<void> {
     // Proves the address and password; the reply is e.g. `type=NVR4108HS-4KS2`.
     const body = await this.cgi('magicBox.cgi?action=getDeviceType');
-    if (isErrorBody(body)) throw new Error('This doesn’t look like a Dahua, Amcrest or Lorex device. Check the address.');
+    if (isErrorBody(body)) throw new Error(tr().systems.dahua.notDahua);
     const rtsp = await this.kv('configManager.cgi?action=getConfig&name=RTSP').catch(() => ({}) as Record<string, string>);
     const port = Number(rtsp['table.RTSP.Port']);
     if (port > 0) this.rtspPort = port;
@@ -235,7 +236,7 @@ export class DahuaAdapter implements CameraSystemAdapter {
     const run = async (): Promise<FindResult> => {
       const clock = await this.clock();
       const id = parseFinderId(await this.cgi('mediaFileFind.cgi?action=factory.create'));
-      if (!id) throw new Error('The recorder couldn’t start a search. Try again in a moment.');
+      if (!id) throw new Error(tr().systems.dahua.searchFailed);
       const files: DahuaFile[] = [];
       const count = Math.min(PAGE, opts.count ?? PAGE);
       try {
@@ -443,7 +444,7 @@ export class DahuaAdapter implements CameraSystemAdapter {
       const name = action.slice('preset_'.length);
       if (!this.presets.has(cameraId)) await this.ptzInfo(cameraId);
       const preset = this.presets.get(cameraId)?.find((p) => p.name === name);
-      if (!preset) throw new Error('That preset no longer exists on the camera.');
+      if (!preset) throw new Error(tr().systems.common.presetGone);
       await this.cgi(`ptz.cgi?action=start&channel=${ch}&code=GotoPreset&arg1=0&arg2=${preset.index}&arg3=0`);
       return;
     }
@@ -478,7 +479,7 @@ export class DahuaAdapter implements CameraSystemAdapter {
       info = parseCoaxStatus(await this.cgi(coaxStatusPath(Number(cameraId))));
     } catch (e) {
       // Cameras without deterrence answer 400/404: nothing to show. Network trouble is retried.
-      if (e instanceof Error && /reach|in time/i.test(e.message)) throw e;
+      if (e instanceof Error && [tr().systems.dahua.noAnswer, tr().systems.dahua.cantReach, tr().systems.dahua.unreachable].includes(e.message)) throw e;
       info = { light: false, siren: false };
     }
     this.deterCache.set(cameraId, info);
@@ -487,9 +488,9 @@ export class DahuaAdapter implements CameraSystemAdapter {
 
   async deter(cameraId: string, action: DeterAction): Promise<void> {
     const info = await this.deterInfo(cameraId);
-    if (action === 'siren' ? !info.siren : !info.light) throw new Error('This camera doesn’t have that.');
+    if (action === 'siren' ? !info.siren : !info.light) throw new Error(tr().systems.common.cameraLacksThat);
     const body = await this.cgi(coaxControlPath(Number(cameraId), action));
-    if (isErrorBody(body)) throw new Error('The camera didn’t accept that. Try again in a moment.');
+    if (isErrorBody(body)) throw new Error(tr().systems.dahua.cameraRefused);
   }
 
   dispose() {}

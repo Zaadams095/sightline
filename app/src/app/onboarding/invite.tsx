@@ -5,6 +5,7 @@ import { Modal, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card, Field, Screen, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { finishHubJoin, joinAndSaveHub } from '@/systems/hub-join';
 import { looksLikePairingCode, normalizeHubAddress, parseHubLink, type HubLink } from '@/systems/hub-links';
 import { parseTvLink } from '@/tv/link';
@@ -17,6 +18,8 @@ import { usePalette } from '@/theme/use-palette';
  */
 export default function Invite() {
   const p = usePalette();
+  const t = useT();
+  const s = t.onboarding.invite;
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ kind?: string; url?: string; code?: string; lan?: string; remote?: string; name?: string }>();
   const fromLink = useMemo<HubLink | null>(() => {
@@ -41,7 +44,7 @@ export default function Invite() {
   const scan = async () => {
     setError(null);
     if (!perm?.granted && !(await requestPerm()).granted) {
-      setError('Camera access is needed to scan the code. You can type the code instead.');
+      setError(s.cameraNeeded);
       return;
     }
     setScanning(true);
@@ -52,11 +55,7 @@ export default function Invite() {
     setError(null);
     try {
       const r = await joinAndSaveHub(l);
-      setDone(
-        l.kind === 'pair'
-          ? `Connected to ${r.hubName}. Found ${r.cameras} camera${r.cameras === 1 ? '' : 's'}.`
-          : `You're in. ${r.hubName} shared ${r.cameras} camera${r.cameras === 1 ? '' : 's'} with you.`,
-      );
+      setDone(l.kind === 'pair' ? t.onboarding.connectedToHub(r.hubName, r.cameras) : s.guestJoined(r.hubName, r.cameras));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -73,9 +72,9 @@ export default function Invite() {
   if (done) {
     return (
       <Screen style={{ paddingTop: insets.top + 56 }}>
-        <T v="title">All set</T>
+        <T v="title">{s.allSet}</T>
         <T color={p.success}>{done}</T>
-        <Button title="See cameras" onPress={() => void finishHubJoin()} />
+        <Button title={s.seeCameras} onPress={() => void finishHubJoin()} />
       </Screen>
     );
   }
@@ -83,13 +82,9 @@ export default function Invite() {
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
       <View style={{ gap: space.xs }}>
-        <T v="title">{link?.kind === 'pair' ? 'Connect to your Hub' : 'Shared cameras'}</T>
+        <T v="title">{link?.kind === 'pair' ? s.titlePair : s.titleShared}</T>
         <T muted>
-          {link
-            ? link.kind === 'pair'
-              ? `Pair this phone with ${link.name ?? 'your Sightline Hub'}.`
-              : `${link.name ?? 'Someone'} shared cameras with you. Tap Join to start watching.`
-            : 'Scan the QR code someone shared with you, or the code on your Sightline Hub’s setup page.'}
+          {link ? (link.kind === 'pair' ? s.pairWith(link.name ?? s.yourHub) : s.sharedBy(link.name ?? s.someone)) : s.scanIntro}
         </T>
       </View>
 
@@ -98,12 +93,12 @@ export default function Invite() {
           <Card style={{ padding: space.lg, gap: space.xs }}>
             <T v="label">{link.name ?? 'Sightline Hub'}</T>
             <T v="caption" muted>
-              {link.kind === 'pair' ? 'Pairing code' : 'Invite code'} {link.code}
+              {link.kind === 'pair' ? s.pairingCode(link.code) : s.inviteCode(link.code)}
             </T>
           </Card>
-          <Button title={link.kind === 'pair' ? 'Connect' : 'Join'} onPress={() => void join(link)} loading={busy} />
+          <Button title={link.kind === 'pair' ? t.onboarding.connect.connect : s.join} onPress={() => void join(link)} loading={busy} />
           <Button
-            title="Scan a different code"
+            title={s.scanDifferent}
             kind="ghost"
             onPress={() => {
               setLink(null);
@@ -113,21 +108,21 @@ export default function Invite() {
         </>
       ) : (
         <>
-          <Button title="Scan QR code" onPress={scan} />
+          <Button title={s.scanQr} onPress={scan} />
           {!manual ? (
-            <Button title="Type a code instead" kind="ghost" onPress={() => setManual(true)} />
+            <Button title={s.typeCode} kind="ghost" onPress={() => setManual(true)} />
           ) : (
             <>
               <Field
-                label="Hub address"
+                label={s.hubAddress}
                 value={address}
                 onChangeText={setAddress}
-                placeholder="192.168.1.20:8086 or https://….ts.net"
+                placeholder={s.hubAddressPlaceholder}
                 keyboardType="url"
-                hint="From the invite message, or the Hub’s setup page."
+                hint={s.hubAddressHint}
               />
-              <Field label="Code" value={code} onChangeText={setCode} placeholder="ABCDE-FGHJK or 6 digits" autoCapitalize="characters" />
-              <Button title="Join" onPress={joinManual} loading={busy} disabled={!address.trim() || !code.trim()} />
+              <Field label={s.code} value={code} onChangeText={setCode} placeholder={s.codePlaceholder} autoCapitalize="characters" />
+              <Button title={s.join} onPress={joinManual} loading={busy} disabled={!address.trim() || !code.trim()} />
             </>
           )}
         </>
@@ -151,7 +146,7 @@ export default function Invite() {
                 return;
               }
               if (!parsed) {
-                setError('That QR code isn’t a Sightline code. Scan the code on the Hub’s setup page or in the invite.');
+                setError(s.notSightlineCode);
                 return;
               }
               setLink(parsed);
@@ -159,10 +154,10 @@ export default function Invite() {
             }}
           />
           <View style={[styles.scanFooter, { paddingBottom: insets.bottom + space.lg }]}>
-            <T color="#fff" style={{ textAlign: 'center' }}>
-              Point the camera at the Sightline QR code
+            <T overlay color="#fff" style={{ textAlign: 'center' }}>
+              {s.pointCamera}
             </T>
-            <Button title="Cancel" kind="secondary" onPress={() => setScanning(false)} />
+            <Button title={t.common.cancel} kind="secondary" onPress={() => setScanning(false)} />
           </View>
         </View>
       </Modal>

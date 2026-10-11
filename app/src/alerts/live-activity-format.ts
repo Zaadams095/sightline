@@ -2,6 +2,7 @@
  * Pure helpers for the Lock Screen Live Activity (live-activity.ts), kept free of native
  * imports so they can be unit tested.
  */
+import { tr } from '../i18n/index.ts';
 
 /** How long a ring / an event stays on the Lock Screen if nothing ends it sooner. */
 export const RING_MAX_SEC = 3 * 60;
@@ -9,7 +10,8 @@ export const EVENT_MAX_SEC = 5 * 60;
 /** An ended event stays visible (marked "Ended") this long. */
 export const ENDED_LINGER_SEC = 60;
 
-export const RING_HEADLINE = "Someone's at the door";
+/** "Someone's at the door", in the app's language. */
+export const ringHeadline = () => tr().alerts.ringHeadline;
 
 /** One activity per ring. */
 export function ringKey(p: { systemId: string; cameraId: string; at?: string; reviewId?: string }): string {

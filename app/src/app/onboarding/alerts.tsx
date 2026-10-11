@@ -5,12 +5,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { registerBackgroundAlerts, requestNotificationPermission } from '@/alerts/background';
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
 export default function OnboardingAlerts() {
   const insets = useSafeAreaInsets();
+  const t = useT();
+  const a = t.onboarding.alerts;
   const setAlerts = useApp((s) => s.setAlerts);
   const onboarded = useApp((s) => s.onboarded);
   const currentMode = useApp((s) => s.alerts.mode);
@@ -31,32 +34,20 @@ export default function OnboardingAlerts() {
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
       <View style={{ gap: space.xs }}>
-        <T v="title">Alerts</T>
-        <T muted>Choose how alerts reach you. You can pick which cameras and what kind of activity alert you any time in Settings.</T>
+        <T v="title">{a.title}</T>
+        <T muted>{a.intro}</T>
       </View>
-      <Option
-        selected={mode === 'built-in'}
-        onSelect={() => setMode('built-in')}
-        title="Built-in"
-        tag="No setup"
-        body="Sightline checks your cameras in the background and sends notifications with a picture. iPhone decides when that runs, so alerts can be several minutes late."
-      />
+      <Option selected={mode === 'built-in'} onSelect={() => setMode('built-in')} title={a.builtIn} tag={a.noSetup} body={a.builtInBody} />
       <Option
         selected={mode === 'instant'}
         onSelect={() => setMode('instant')}
         disabled={!hasHub}
-        title="Instant Alerts"
-        tag={hasHub ? 'Recommended' : 'Needs a Sightline Hub'}
-        body={
-          hasHub
-            ? 'Alerts arrive within a second, through your Sightline Hub. Pictures and video stay at home.'
-            : 'Alerts within a second need a Sightline Hub at home: a free add-on for Home Assistant, or a small app for a NAS or always-on computer. Start with Built-in and switch any time.'
-        }
+        title={a.instant}
+        tag={hasHub ? a.recommended : a.needsHub}
+        body={hasHub ? a.instantBody : a.instantBodyNoHub}
       />
-      {!hasHub && (
-        <Button title="Set up a Sightline Hub" kind="ghost" onPress={() => router.push({ pathname: '/onboarding/connect', params: { kind: 'hub' } })} />
-      )}
-      <Button title="Finish" onPress={finish} />
+      {!hasHub && <Button title={a.setUpHub} kind="ghost" onPress={() => router.push({ pathname: '/onboarding/connect', params: { kind: 'hub' } })} />}
+      <Button title={a.finish} onPress={finish} />
     </Screen>
   );
 }
@@ -100,5 +91,6 @@ function Option({
 
 const styles = StyleSheet.create({
   option: { padding: space.lg, borderRadius: 16, borderWidth: 2, gap: space.sm },
-  optionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  // Wraps so the tag drops under the title at large text sizes or in longer languages.
+  optionHead: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', columnGap: space.sm, rowGap: 2 },
 });

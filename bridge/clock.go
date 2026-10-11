@@ -87,28 +87,30 @@ func clockText(h, m int) string {
 	return fmt.Sprintf("%d:%02d %s", h12, m, ampm)
 }
 
-func clockAt(ts int64, loc *time.Location) string {
+// clockAt is the time of ts in lang: "9:15 PM" (English) or "21:15".
+func clockAt(lang string, ts int64, loc *time.Location) string {
 	t := time.Unix(ts, 0).In(loc)
-	return clockText(t.Hour(), t.Minute())
+	return clockTextIn(lang, t.Hour(), t.Minute())
 }
 
-// whenText is "today at 9:15 AM" / "yesterday at 9:15 PM" / "on Monday at …" / "on Oct 3 at …".
-func whenText(ts, now int64, loc *time.Location) string {
+// whenText is "today at 9:15 AM" / "yesterday at 9:15 PM" / "on Monday at …" / "on Oct 3 at …"
+// (in lang; i18n.go).
+func whenText(lang string, ts, now int64, loc *time.Location) string {
 	t := time.Unix(ts, 0).In(loc)
 	n := time.Unix(now, 0).In(loc)
-	at := "at " + clockText(t.Hour(), t.Minute())
+	at := clockTextIn(lang, t.Hour(), t.Minute())
 	d0 := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 	d1 := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
 	days := int(math.Round(d1.Sub(d0).Hours() / 24))
 	switch {
 	case days <= 0:
-		return "today " + at
+		return tr(lang, "when.today", at)
 	case days == 1:
-		return "yesterday " + at
+		return tr(lang, "when.yesterday", at)
 	case days < 7:
-		return "on " + t.Weekday().String() + " " + at
+		return tr(lang, "when.weekday", weekdayText(lang, t.Weekday()), at)
 	}
-	return fmt.Sprintf("on %s %d %s", t.Month().String()[:3], t.Day(), at)
+	return tr(lang, "when.date", dateText(lang, t), at)
 }
 
 type sunPlace struct {

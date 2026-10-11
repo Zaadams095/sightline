@@ -27,6 +27,7 @@ import type {
   Severity,
   SystemCapabilities,
 } from '@/systems/types';
+import { tr } from '@/i18n';
 
 /**
  * Agent DVR (iSpy). Local HTTP API on port 8090; reference: the official Swagger spec at
@@ -67,7 +68,7 @@ export class AgentDvrAdapter extends HttpSystem implements CameraSystemAdapter {
     const body = await this.json<T & { error?: string }>(path, { headers: await this.headers() }, q);
     // Agent reports some failures as HTTP 200 with an `error` key (agent-py treats it as an error).
     if (body && typeof body === 'object' && !Array.isArray(body) && typeof body.error === 'string') {
-      throw new Error(`Agent DVR couldn’t do that (${body.error}).`);
+      throw new Error(tr().systems.http.couldntDo('Agent DVR', body.error));
     }
     return body;
   }
@@ -75,7 +76,7 @@ export class AgentDvrAdapter extends HttpSystem implements CameraSystemAdapter {
   async connect(): Promise<void> {
     const status = await this.api<{ version?: string; unique?: string }>('/command/getStatus');
     if (!status || (status.version == null && status.unique == null)) {
-      throw new Error('That address answered, but it doesn’t look like Agent DVR. Check the address and port (usually 8090).');
+      throw new Error(tr().systems.http.notThisSystem('Agent DVR', '8090'));
     }
     this.cams = null;
   }
@@ -191,7 +192,7 @@ export class AgentDvrAdapter extends HttpSystem implements CameraSystemAdapter {
 
   async playback(cameraId: string, start: number, end: number): Promise<PlaybackSource> {
     const rec = fileAt(await this.recordings(cameraId, start - 3600), start, end);
-    if (!rec) throw new Error('No recording at this time.');
+    if (!rec) throw new Error(tr().systems.common.noRecording);
     return { kind: 'stream', source: { kind: 'file', uri: this.fileUrl(cameraId, rec.fn), startTime: rec.start } };
   }
 

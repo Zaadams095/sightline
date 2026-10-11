@@ -3,6 +3,7 @@ import { useLinks } from '@/net/connection';
 import { httpMessage, withQuery, type Query } from '@/systems/http-kit';
 import type { SystemConfig } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
+import { tr } from '@/i18n';
 
 /**
  * Shared plumbing for adapters that speak HTTP through the loopback gateway. Brand-neutral:
@@ -25,7 +26,7 @@ export abstract class HttpSystem {
 
   protected requireBase(): string {
     const b = this.baseUrl;
-    if (!b) throw new Error(`Still connecting to ${this.label}. Try again in a moment.`);
+    if (!b) throw new Error(tr().systems.http.stillConnecting(this.label));
     return b;
   }
 
@@ -41,8 +42,8 @@ export abstract class HttpSystem {
     } catch (e) {
       noteRequestProblem(this.config.kind, path, e);
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.startsWith('No response')) throw new Error(`${this.label} didn’t answer in time. Check that it’s on and reachable.`);
-      throw new Error(`Couldn’t reach ${this.label}. Check the address and that your phone is on the same network.`);
+      if (msg.startsWith('No response')) throw new Error(tr().systems.http.noAnswer(this.label));
+      throw new Error(tr().systems.http.cantReach(this.label));
     }
   }
 
@@ -62,7 +63,7 @@ export abstract class HttpSystem {
       return JSON.parse(text) as T;
     } catch {
       noteRequestProblem(this.config.kind, path, 'unexpected reply');
-      throw new Error(`${this.label} sent an unexpected reply. Check that the address points to ${this.label}.`);
+      throw new Error(tr().systems.http.unexpectedReply(this.label));
     }
   }
 }

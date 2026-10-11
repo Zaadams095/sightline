@@ -3,6 +3,7 @@
  * covers them). The native side is tunnel/wgtunnel/talk.go; the Hub's is bridge/talk.go.
  */
 
+import { tr } from '../i18n/index.ts';
 import type { DeterInfo, SystemCapabilities, TalkTarget } from '../systems/types';
 
 /** The talk layer's own wire format: 16-bit little-endian mono PCM at this rate. */
@@ -42,8 +43,8 @@ export function deterButtons(caps: SystemCapabilities, info: DeterInfo | null | 
 
 /** The siren confirmation, in plain words. */
 export function sirenConfirmText(info: DeterInfo): string {
-  const secs = info.sirenSec ? ` for about ${info.sirenSec} seconds` : '';
-  return `It’s very loud and plays${secs}, then stops by itself.`;
+  const t = tr().viewing.talk;
+  return info.sirenSec ? t.sirenConfirmFor(info.sirenSec) : t.sirenConfirm;
 }
 
 // ---- push-to-talk button: hold to talk, or tap to latch ----
@@ -68,24 +69,26 @@ export function pressOut(mode: TalkPress, heldMs: number): { mode: TalkPress; ac
 export type TalkState = 'idle' | 'connecting' | 'talking';
 
 export function talkLabel(state: TalkState, mode: TalkPress): { title: string; hint: string } {
-  if (state === 'connecting') return { title: 'Connecting…', hint: mode === 'latched' ? 'Tap to cancel' : 'Keep holding' };
-  if (state === 'talking') return { title: 'Talking…', hint: mode === 'latched' ? 'Tap to stop' : 'Let go to stop' };
-  return { title: 'Talk', hint: 'Hold to talk, or tap' };
+  const t = tr().viewing.talk;
+  if (state === 'connecting') return { title: t.connecting, hint: mode === 'latched' ? t.tapToCancel : t.keepHolding };
+  if (state === 'talking') return { title: t.talking, hint: mode === 'latched' ? t.tapToStop : t.letGo };
+  return { title: t.talk, hint: t.holdOrTap };
 }
 
 /** A failure from the mic page or the camera, as something anyone can act on. */
 export function talkErrorText(code: string): string {
+  const t = tr().viewing.talk;
   switch (code) {
     case 'mic-denied':
-      return 'Sightline isn’t allowed to use the microphone. You can turn it on in Settings → Sightline → Microphone.';
+      return t.micDenied;
     case 'mic-failed':
-      return 'The microphone couldn’t start. Close other apps that are using it and try again.';
+      return t.micFailed;
     case 'closed':
-      return 'The camera ended the conversation.';
+      return t.closed;
     case 'unreachable':
-      return 'Can’t reach this camera’s speaker right now.';
+      return t.unreachable;
     default:
       // The tunnel library and the Hub already send plain-language reasons.
-      return code || 'Couldn’t connect to the camera’s speaker.';
+      return code || t.connectFailed;
   }
 }

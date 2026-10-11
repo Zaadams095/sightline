@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Screen, T } from '@/components/ui/primitives';
 import { VpnSetup } from '@/components/vpn-setup';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -19,6 +20,8 @@ type Choice = 'hub' | 'vpn' | null;
  */
 export default function OnboardingAway() {
   const p = usePalette();
+  const t = useT();
+  const v = t.onboarding.vpn;
   const insets = useSafeAreaInsets();
   const hasHub = useApp((s) => s.systems.some((x) => x.kind === 'hub'));
   const [choice, setChoice] = useState<Choice>(null);
@@ -30,9 +33,9 @@ export default function OnboardingAway() {
     // The Hub already provides remote access; nothing to set up here.
     return (
       <Screen style={{ paddingTop: insets.top + 56 }}>
-        <T v="title">Away from home</T>
-        <T muted>Your Sightline Hub takes care of this. Your cameras will work anywhere.</T>
-        <Button title="Continue" onPress={next} />
+        <T v="title">{v.awayTitle}</T>
+        <T muted>{v.hubHandles}</T>
+        <Button title={t.common.continue} onPress={next} />
       </Screen>
     );
   }
@@ -40,43 +43,24 @@ export default function OnboardingAway() {
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
       <View style={{ gap: space.xs }}>
-        <T v="title">Watching when you’re away</T>
-        <T muted>At home, Sightline connects directly. To see your cameras from anywhere else, pick one:</T>
+        <T v="title">{v.title}</T>
+        <T muted>{v.intro}</T>
       </View>
 
-      <Option
-        icon="server.rack"
-        title="Sightline Hub (easiest)"
-        body="A free add-on for Home Assistant, or a small app for a NAS or always-on computer. No router settings. Also gives instant alerts and sharing with family."
-        selected={choice === 'hub'}
-        onPress={() => setChoice('hub')}
-      />
-      <Option
-        icon="lock.shield"
-        title="My own VPN (advanced)"
-        body="If your router already has a VPN you connect to from your phone, scan its QR code. Sightline turns it on by itself only when needed."
-        selected={choice === 'vpn'}
-        onPress={() => setChoice('vpn')}
-      />
+      <Option icon="server.rack" title={v.hubOption} body={v.hubBody} selected={choice === 'hub'} onPress={() => setChoice('hub')} />
+      <Option icon="lock.shield" title={v.vpnOption} body={v.vpnBody} selected={choice === 'vpn'} onPress={() => setChoice('vpn')} />
 
       {choice === 'hub' && (
         <View style={{ gap: space.sm }}>
-          <T muted>
-            Install the Hub, open its setup page, then scan the QR code it shows. You can do this any time from Settings.
-          </T>
-          <Button title="I have the Hub running: scan its code" onPress={() => router.push('/onboarding/invite')} />
+          <T muted>{v.hubSteps}</T>
+          <Button title={v.haveHub} onPress={() => router.push('/onboarding/invite')} />
         </View>
       )}
-      {choice === 'vpn' &&
-        (isExpoGo ? (
-          <T muted>Preview mode: your own VPN only works in the full app.</T>
-        ) : (
-          <VpnSetup onSaved={next} />
-        ))}
+      {choice === 'vpn' && (isExpoGo ? <T muted>{v.previewOnly}</T> : <VpnSetup onSaved={next} />)}
 
-      <Button title="Only at home for now" kind="ghost" onPress={next} />
+      <Button title={v.homeOnly} kind="ghost" onPress={next} />
       <T v="caption" color={p.textMuted} style={{ textAlign: 'center' }}>
-        You can change this later in Settings.
+        {v.changeLater}
       </T>
     </Screen>
   );

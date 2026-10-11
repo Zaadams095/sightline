@@ -7,6 +7,7 @@
  * camera key = `${systemId}:${cameraId}`. Points are normalized 0..1 from the picture's top-left,
  * so they don't depend on resolution.
  */
+import { fmtList, tr, type Strings } from '../i18n/index.ts';
 
 export interface Pt {
   x: number;
@@ -15,12 +16,14 @@ export interface Pt {
 
 /** Kinds of things a zone can be about. An empty list means anything that moves. */
 export type ZoneObject = 'person' | 'vehicle' | 'animal' | 'package';
-export const ZONE_OBJECTS: { v: ZoneObject; label: string }[] = [
-  { v: 'person', label: 'People' },
-  { v: 'vehicle', label: 'Vehicles' },
-  { v: 'animal', label: 'Animals' },
-  { v: 'package', label: 'Packages' },
-];
+const zoneObject = (v: ZoneObject) => ({
+  v,
+  /** In the app's language, read when shown. */
+  get label() {
+    return tr().alerts.zones.objects[v];
+  },
+});
+export const ZONE_OBJECTS: { v: ZoneObject; label: string }[] = [zoneObject('person'), zoneObject('vehicle'), zoneObject('animal'), zoneObject('package')];
 
 export interface AlertZone {
   id: string;
@@ -113,7 +116,7 @@ export function migrateMasks(masks: Record<string, Pt[][]> | undefined, zones: A
     if (!usable.length) continue;
     out[key] = usable.map((points, i) => ({
       id: `mask-${i + 1}`,
-      name: usable.length === 1 ? 'Ignored area' : `Ignored area ${i + 1}`,
+      name: usable.length === 1 ? tr().alerts.zones.ignoredArea : tr().alerts.zones.ignoredAreaN(i + 1),
       mode: 'exclude',
       points: points.map(clampPt),
       objects: [],
@@ -142,14 +145,27 @@ export function legacyMasks(zones: AlertZone[]): Pt[][] {
 
 /** Quick shapes for people who'd rather not draw. */
 export const ZONE_PRESETS: { label: string; name: string; points: Pt[] }[] = [
-  { label: 'Whole picture', name: 'Whole picture', points: rect(0, 0, 1, 1) },
-  { label: 'Left half', name: 'Left side', points: rect(0, 0, 0.5, 1) },
-  { label: 'Right half', name: 'Right side', points: rect(0.5, 0, 1, 1) },
-  { label: 'Top half', name: 'Far side', points: rect(0, 0, 1, 0.5) },
-  { label: 'Bottom half', name: 'Near side', points: rect(0, 0.5, 1, 1) },
-  { label: 'Bottom third', name: 'Close to the camera', points: rect(0, 2 / 3, 1, 1) },
-  { label: 'Middle', name: 'Middle', points: rect(0.25, 0.25, 0.75, 0.75) },
+  preset('whole', rect(0, 0, 1, 1)),
+  preset('left', rect(0, 0, 0.5, 1)),
+  preset('right', rect(0.5, 0, 1, 1)),
+  preset('top', rect(0, 0, 1, 0.5)),
+  preset('bottom', rect(0, 0.5, 1, 1)),
+  preset('bottomThird', rect(0, 2 / 3, 1, 1)),
+  preset('middle', rect(0.25, 0.25, 0.75, 0.75)),
 ];
+
+/** A preset whose label and name are read in the app's language when shown. */
+function preset(k: keyof Strings['alerts']['zones']['presetLabel'], points: Pt[]) {
+  return {
+    get label() {
+      return tr().alerts.zones.presetLabel[k];
+    },
+    get name() {
+      return tr().alerts.zones.presetName[k];
+    },
+    points,
+  };
+}
 
 function rect(x0: number, y0: number, x1: number, y1: number): Pt[] {
   return [
@@ -212,14 +228,10 @@ export function nearestVertex(points: Pt[], p: Pt, radius: number, aspect = 1): 
 
 /** Plain-language summary: "Alert only for vehicles here" / "Ignore everything here". */
 export function describeZone(z: AlertZone): string {
-  const what = z.objects.length ? listOf(z.objects.map((o) => ZONE_OBJECTS.find((x) => x.v === o)?.label.toLowerCase() ?? o)) : null;
-  if (z.mode === 'include') return what ? `Alert only for ${what} here` : 'Alert only for things here';
-  return what ? `Ignore ${what} here` : 'Ignore everything here';
-}
-
-function listOf(items: string[]): string {
-  if (items.length <= 1) return items.join('');
-  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+  const t = tr().alerts.zones;
+  const what = z.objects.length ? fmtList(z.objects.map((o) => t.inSentence[o] ?? o)) : null;
+  if (z.mode === 'include') return what ? t.alertOnlyFor(what) : t.alertOnlyAny;
+  return what ? t.ignore(what) : t.ignoreAll;
 }
 
 /** Polygon area (normalized units), for skipping slivers. */

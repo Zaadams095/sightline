@@ -6,6 +6,7 @@ import { Modal, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Field, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { saveTunnelConfig } from '@/net/connection';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -13,6 +14,7 @@ import { usePalette } from '@/theme/use-palette';
 /** Import a WireGuard client config by QR code, .conf file, or pasted text. */
 export function VpnSetup({ onSaved }: { onSaved: () => void }) {
   const p = usePalette();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export function VpnSetup({ onSaved }: { onSaved: () => void }) {
 
   const save = async (conf: string) => {
     const err = await saveTunnelConfig(conf);
-    if (err) setError(`That doesn't look like a valid WireGuard config: ${err}`);
+    if (err) setError(t.home.vpn.invalid(err));
     else {
       setError(null);
       onSaved();
@@ -39,7 +41,7 @@ export function VpnSetup({ onSaved }: { onSaved: () => void }) {
 
   const scan = async () => {
     if (!perm?.granted && !(await requestPerm()).granted) {
-      setError('Camera access is needed to scan a QR code.');
+      setError(t.home.vpn.cameraNeeded);
       return;
     }
     setScanning(true);
@@ -47,27 +49,27 @@ export function VpnSetup({ onSaved }: { onSaved: () => void }) {
 
   return (
     <View style={{ gap: space.md }}>
-      <Button title="Scan the QR code from my router" onPress={scan} />
+      <Button title={t.home.vpn.scan} onPress={scan} />
       <T v="caption" muted>
-        In your router’s app, open its VPN (WireGuard) settings and add a device or “client”: it shows a QR code.
+        {t.home.vpn.scanHelp}
       </T>
       {error && <T color={p.danger}>{error}</T>}
-      <Button title={showOther ? 'Hide other ways' : 'Other ways (file or text)'} kind="ghost" onPress={() => setShowOther((v) => !v)} />
+      <Button title={showOther ? t.home.vpn.hideOther : t.home.vpn.otherWays} kind="ghost" onPress={() => setShowOther((v) => !v)} />
       {showOther && (
         <View style={{ gap: space.md }}>
-          <Button title="Choose a .conf file" kind="secondary" onPress={pickFile} />
+          <Button title={t.home.vpn.chooseFile} kind="secondary" onPress={pickFile} />
           <Field
-            label="Or paste the configuration text"
+            label={t.home.vpn.pasteLabel}
             value={text}
             onChangeText={setText}
             multiline
             placeholder={'[Interface]\nPrivateKey = …\n…\n[Peer]\nEndpoint = …'}
           />
-          <Button title="Save" onPress={() => save(text)} disabled={!text.trim()} />
+          <Button title={t.common.save} onPress={() => save(text)} disabled={!text.trim()} />
         </View>
       )}
       <T v="caption" muted>
-        Only Sightline uses this connection, and only when you’re away. The rest of your phone isn’t affected.
+        {t.home.vpn.onlySightline}
       </T>
 
       <Modal visible={scanning} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setScanning(false)}>
@@ -84,9 +86,9 @@ export function VpnSetup({ onSaved }: { onSaved: () => void }) {
           />
           <View style={[styles.scanFooter, { paddingBottom: insets.bottom + space.lg }]}>
             <T color="#fff" style={{ textAlign: 'center' }}>
-              Scan the QR code from your router&apos;s WireGuard client setup
+              {t.home.vpn.scanFooter}
             </T>
-            <Button title="Cancel" kind="secondary" onPress={() => setScanning(false)} />
+            <Button title={t.common.cancel} kind="secondary" onPress={() => setScanning(false)} />
           </View>
         </View>
       </Modal>

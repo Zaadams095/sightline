@@ -5,8 +5,11 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { autoLayout, CELL_ASPECT, gridHeight, tileRect } from '@/components/camera-grid';
 import { Button, Chip, Field, Screen, T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { GRID_COLUMNS, useApp, type GridTile, type GridView } from '@/state/store';
 import { useAllCameras } from '@/systems/registry';
+import { useLargeText } from '@/theme/text-scale';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
@@ -15,7 +18,13 @@ const SIZES: { label: string; w: number; h: number }[] = [
   { label: 'M', w: 4, h: 4 },
   { label: 'L', w: 6, h: 6 },
   { label: 'XL', w: 8, h: 8 },
-  { label: 'Wide', w: 12, h: 8 },
+  {
+    get label() {
+      return tr().settings.grid.wide;
+    },
+    w: 12,
+    h: 8,
+  },
 ];
 
 function overlaps(a: GridTile, b: GridTile) {
@@ -38,6 +47,9 @@ function place(t: Omit<GridTile, 'x' | 'y'>, tiles: GridTile[]): GridTile {
 
 export default function GridEditor() {
   const p = usePalette();
+  const t = useT();
+  const g = t.settings.grid;
+  const large = useLargeText();
   const { width } = useWindowDimensions();
   const { entries } = useAllCameras();
   const views = useApp((s) => s.gridViews);
@@ -57,22 +69,22 @@ export default function GridEditor() {
   if (!editing) {
     return (
       <Screen>
-        <T muted>Build camera walls for iPad. Make important cameras bigger, and switch between views from the Live tab.</T>
+        <T muted>{g.intro}</T>
         {views.map((v) => (
           <View key={v.id} style={[styles.viewRow, { backgroundColor: p.surface, borderColor: p.border }]}>
-            <T v="label" style={{ flex: 1 }}>
+            <T v="label" style={large ? { width: '100%' } : { flex: 1 }}>
               {v.name}
             </T>
-            <Chip label="Edit" selected={false} onPress={() => setEditing(v)} />
-            <Chip label="Delete" selected={false} onPress={() => remove(v.id)} />
+            <Chip label={t.common.edit} selected={false} onPress={() => setEditing(v)} />
+            <Chip label={t.common.delete} selected={false} onPress={() => remove(v.id)} />
           </View>
         ))}
         <Button
-          title="New layout"
+          title={g.newLayout}
           onPress={() =>
             setEditing({
               id: Date.now().toString(36),
-              name: `Layout ${views.length + 1}`,
+              name: g.layoutN(views.length + 1),
               tiles: autoLayout(entries.map((e) => e.camera.key), 1200),
             })
           }
@@ -102,9 +114,9 @@ export default function GridEditor() {
 
   return (
     <ScrollView style={{ backgroundColor: p.bg }} contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: 80 }}>
-      <Field label="Layout name" value={editing.name} onChangeText={(name) => setEditing({ ...editing, name })} autoCapitalize="words" />
+      <Field label={g.layoutName} value={editing.name} onChangeText={(name) => setEditing({ ...editing, name })} autoCapitalize="words" />
       <T v="caption" muted>
-        Tap a camera to select it, drag to move it, and pick a size below.
+        {g.tapHint}
       </T>
 
       <View style={{ width: canvasW, height: Math.max(gridHeight(tiles, canvasW), cellH * 6) + cellH * 4, backgroundColor: p.surface, borderRadius: 12 }}>
@@ -133,10 +145,10 @@ export default function GridEditor() {
                     zIndex: d ? 10 : 1,
                   },
                 ]}>
-                <T v="caption" numberOfLines={1}>
-                  {names.get(t.cameraKey) ?? 'Camera'}
+                <T v="caption" numberOfLines={1} overlay>
+                  {names.get(t.cameraKey) ?? g.camera}
                 </T>
-                <T v="caption" muted>
+                <T v="caption" muted overlay>
                   {t.w}×{t.h}
                 </T>
               </Pressable>
@@ -153,7 +165,7 @@ export default function GridEditor() {
               <Chip key={s.label} label={s.label} selected={sel.w === s.w && sel.h === s.h} onPress={() => resize(s.w, s.h)} />
             ))}
             <Chip
-              label="Remove"
+              label={t.common.remove}
               selected={false}
               onPress={() => {
                 update(tiles.filter((t) => t.cameraKey !== sel.cameraKey));
@@ -167,7 +179,7 @@ export default function GridEditor() {
       {unused.length > 0 && (
         <View style={{ gap: space.sm }}>
           <T v="label" muted>
-            Add camera
+            {g.addCamera}
           </T>
           <View style={styles.wrap}>
             {unused.map((e) => (
@@ -178,7 +190,7 @@ export default function GridEditor() {
       )}
 
       <Button
-        title="Save layout"
+        title={g.saveLayout}
         onPress={() => {
           save(editing);
           setActive(editing.id);
@@ -186,13 +198,13 @@ export default function GridEditor() {
           router.back();
         }}
       />
-      <Button title="Cancel" kind="ghost" onPress={() => setEditing(null)} />
+      <Button title={t.common.cancel} kind="ghost" onPress={() => setEditing(null)} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  viewRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
+  viewRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   tile: { position: 'absolute', borderRadius: 8, borderWidth: 2, padding: 6, justifyContent: 'space-between' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
 });

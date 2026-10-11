@@ -11,6 +11,7 @@ import { StepPlayer } from '@/components/stories/step-player';
 import { placedSteps, StoryMap } from '@/components/stories/story-map';
 import { T } from '@/components/ui/primitives';
 import { withFamiliarNames } from '@/familiar/recognize';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { formatSpan, groupStories, storyFromItems, storySummary, storyTitle, type Story } from '@/stories/group';
@@ -28,6 +29,7 @@ const LEAD = 3;
  * "Play story", which plays each camera's part back to back with the next camera alongside.
  */
 export default function StoryScreen() {
+  const t = useT();
   const params = useLocalSearchParams<{ storyId?: string; systemId?: string; ids?: string; start?: string; end?: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -101,10 +103,10 @@ export default function StoryScreen() {
           <ActivityIndicator color="#fff" />
         ) : (
           <T color="#fff" style={{ textAlign: 'center', padding: space.xl }}>
-            This story isn’t available any more. Its recordings may have been removed.
+            {t.viewing.story.unavailable}
           </T>
         )}
-        <Pressable onPress={() => router.back()} style={[styles.round, { position: 'absolute', top: insets.top + 6, left: 12 }]} accessibilityLabel="Close">
+        <Pressable onPress={() => router.back()} style={[styles.round, { position: 'absolute', top: insets.top + 6, left: 12 }]} accessibilityLabel={t.common.close}>
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
       </View>
@@ -129,14 +131,14 @@ export default function StoryScreen() {
   return (
     <View style={styles.root}>
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={styles.round}>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t.common.close} style={styles.round}>
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <T v="label" color="#fff" numberOfLines={1}>
+          <T v="label" color="#fff" numberOfLines={2}>
             {storyTitle(story)}
           </T>
-          <T v="caption" color="rgba(255,255,255,0.7)" numberOfLines={1}>
+          <T v="caption" color="rgba(255,255,255,0.7)">
             {formatDay(story.start)} · {formatClock(story.start)} · {formatSpan(story.end - story.start)}
           </T>
         </View>
@@ -156,7 +158,7 @@ export default function StoryScreen() {
             onDone={onDone}
           />
         ) : (
-          <Pressable onPress={() => playFrom(step)} style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Play story">
+          <Pressable onPress={() => playFrom(step)} style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel={t.viewing.story.play}>
             {cur?.items.find((i) => i.thumbnailUrl) && (
               <Image source={{ uri: cur.items.find((i) => i.thumbnailUrl)!.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="contain" />
             )}
@@ -169,7 +171,7 @@ export default function StoryScreen() {
         )}
         {cur && (
           <View style={styles.camLabel} pointerEvents="none">
-            <T v="caption" color="#fff">
+            <T v="caption" color="#fff" overlay numberOfLines={1}>
               {step + 1}/{steps.length} · {nameOf(cur.cameraKey)}
               {playing && wall ? ` · ${formatClock(wall, true)}` : ''}
             </T>
@@ -181,7 +183,7 @@ export default function StoryScreen() {
             <SyncedPip
               adapter={nextAdapter}
               cameraId={next.cameraId}
-              name={`Next: ${nameOf(next.cameraKey)}`}
+              name={t.viewing.story.next(nameOf(next.cameraKey))}
               winStart={next.start - 60}
               winEnd={next.end + 30}
               wall={wall}
@@ -195,18 +197,18 @@ export default function StoryScreen() {
       </View>
 
       <View style={styles.controls}>
-        <Ctl icon="backward.end.fill" label="Previous camera" disabled={step === 0} onPress={() => playFrom(Math.max(0, step - 1))} />
+        <Ctl icon="backward.end.fill" label={t.viewing.story.prevCamera} disabled={step === 0} onPress={() => playFrom(Math.max(0, step - 1))} />
         <Pressable
           onPress={() => (playing ? setPlaying(false) : playFrom(step))}
           accessibilityRole="button"
-          accessibilityLabel={playing ? 'Pause story' : 'Play story'}
+          accessibilityLabel={playing ? t.viewing.story.pauseStory : t.viewing.story.play}
           style={styles.playPill}>
           <SymbolView name={playing ? 'pause.fill' : 'play.fill'} tintColor="#fff" size={16} />
           <T v="label" color="#fff">
-            {playing ? 'Pause' : 'Play story'}
+            {playing ? t.viewing.playback.pause : t.viewing.story.play}
           </T>
         </Pressable>
-        <Ctl icon="forward.end.fill" label="Next camera" disabled={step >= steps.length - 1} onPress={() => playFrom(Math.min(steps.length - 1, step + 1))} />
+        <Ctl icon="forward.end.fill" label={t.viewing.story.nextCamera} disabled={step >= steps.length - 1} onPress={() => playFrom(Math.min(steps.length - 1, step + 1))} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: insets.bottom + space.xxl }}>
@@ -224,19 +226,19 @@ export default function StoryScreen() {
                 onPress={() => playFrom(i)}
                 style={[styles.stepRow, i === step && { backgroundColor: 'rgba(255,255,255,0.08)' }]}
                 accessibilityRole="button"
-                accessibilityLabel={`Play ${nameOf(s.cameraKey)}`}>
+                accessibilityLabel={t.viewing.story.playCamera(nameOf(s.cameraKey))}>
                 <View style={styles.rail}>
                   <View style={[styles.dot, i === step && styles.dotOn]} />
                   {i < steps.length - 1 && <View style={styles.line} />}
                 </View>
                 <View style={styles.thumb}>{thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}</View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <T v="label" color="#fff" numberOfLines={1}>
+                  <T v="label" color="#fff">
                     {nameOf(s.cameraKey)}
                   </T>
-                  <T v="caption" color="rgba(255,255,255,0.65)" numberOfLines={1}>
+                  <T v="caption" color="rgba(255,255,255,0.65)">
                     {formatClock(s.start, true)} · {titleFor({ objects: s.objects, subLabels: s.names })}
-                    {gap != null ? ` · ${gap <= 0 ? 'at the same time' : `${formatSpan(gap)} later`}` : ''}
+                    {gap != null ? ` · ${gap <= 0 ? t.viewing.story.sameTime : t.viewing.story.later(formatSpan(gap))}` : ''}
                   </T>
                 </View>
                 <Pressable
@@ -245,7 +247,7 @@ export default function StoryScreen() {
                   }
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Open ${nameOf(s.cameraKey)} recordings`}>
+                  accessibilityLabel={t.viewing.story.openRecordings(nameOf(s.cameraKey))}>
                   <SymbolView name="arrow.up.forward.square" tintColor="rgba(255,255,255,0.7)" size={18} />
                 </Pressable>
               </Pressable>
@@ -254,7 +256,7 @@ export default function StoryScreen() {
         </View>
         {!story.mapped && (
           <T v="caption" color="rgba(255,255,255,0.5)">
-            Grouped by timing only. Place your cameras on the Map tab and link the ones people walk between for better stories.
+            {t.viewing.story.unmapped}
           </T>
         )}
       </ScrollView>
@@ -276,11 +278,11 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingBottom: 8 },
   round: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   playBig: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  camLabel: { position: 'absolute', left: 8, top: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.55)' },
+  camLabel: { position: 'absolute', left: 8, top: 8, maxWidth: '70%', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.55)' },
   pip: { position: 'absolute', right: 8, bottom: 8 },
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 10 },
+  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 10, paddingHorizontal: 12 },
   ctl: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  playPill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, height: 44, borderRadius: 22, backgroundColor: 'rgba(124,92,255,0.75)' },
+  playPill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, minHeight: 44, borderRadius: 22, backgroundColor: 'rgba(124,92,255,0.75)' },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 6, paddingRight: 8, borderRadius: 10 },
   rail: { width: 14, alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.4)' },

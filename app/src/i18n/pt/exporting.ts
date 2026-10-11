@@ -1,5 +1,155 @@
 import type en from '../en/exporting.ts';
+import { plural } from '../plural.ts';
 
-const exporting: typeof en = {};
+const p = plural('pt-BR');
+
+const exporting: typeof en = {
+  window: {
+    last30: 'Últimos 30 minutos',
+    last2h: 'Últimas 2 horas',
+    lastNight: 'Ontem à noite (20h – 7h)',
+    endBeforeStart: 'O horário final precisa ser depois do inicial.',
+    notYet: 'Esse horário ainda não chegou.',
+    tooLong: 'Escolha 24 horas ou menos. Para mais tempo, faça algumas exportações.',
+    sizeWarning: (size) =>
+      `Isso pode ter cerca de ${size}. É muito para enviar por Mail ou Mensagens. AirDrop ou Salvar em Arquivos funciona melhor, ou escolha um período menor ou menos câmeras.`,
+    replayWarning: (duration) =>
+      `Algumas das suas câmeras só reproduzem gravações em velocidade normal, então copiar o vídeo delas leva cerca de ${duration}. Deixe o Sightline aberto até terminar.`,
+  },
+  screen: {
+    title: 'Exportar para a polícia ou o seguro',
+    intro:
+      'O Sightline reúne o vídeo de todas as câmeras no período que você escolher, com um resumo em PDF para quem for receber. Tudo é feito neste iPhone e só sai dele quando você compartilha.',
+    checking: 'Verificando…',
+    noRecordings: 'Nenhuma gravação nesse período',
+    events: (n) => p(n, { one: `${n} evento`, other: `${n} eventos` }),
+    video: 'Vídeo',
+    videoReplay: 'Vídeo, copiado em velocidade normal',
+    snapshotsOnly: 'Só fotos — este gravador não deixa apps salvarem vídeo',
+    gettingReady: 'Preparando…',
+    failed: 'A exportação não terminou',
+    beforeYouStart: 'Antes de começar',
+    startExport: 'Começar exportação',
+    readyTitle: 'Exportação pronta',
+    readyHeading: 'Sua exportação está pronta',
+    signedByPhone: 'assinada por este iPhone',
+    noVideoFrom: 'Sem vídeo de',
+    shareAgain: 'Compartilhar ou salvar de novo',
+    when: 'Quando',
+    pickTime: 'Escolher horário',
+    fromRecording: 'Da gravação que você estava vendo',
+    pickDifferent: 'Toque para escolher outro horário',
+    from: 'De',
+    until: 'Até',
+    cameras: 'Câmeras',
+    camerasFooter: 'As câmeras com gravações ou eventos nesse período já vêm escolhidas.',
+    noCameras: 'Nenhuma câmera com gravações',
+    noCamerasDetail: 'Para exportar, é preciso um gravador (NVR, Frigate, Sightline Hub…).',
+    aboutSize: (size) => `Cerca de ${size} de vídeo.`,
+    snapshotsOnlyFrom: (names) =>
+      `Só fotos de ${names}: o gravador não deixa apps salvarem o vídeo dele, então só as fotos dos eventos são incluídas.`,
+    makeExport: 'Criar exportação',
+    makingTitle: 'Criando sua exportação',
+    soFar: (size) => `${size} até agora`,
+    keepOpen: 'Deixe o Sightline aberto até terminar. A tela fica ligada.',
+  },
+  run: {
+    copying: (camera) => `Copiando ${camera}…`,
+    fingerprints: 'Calculando impressões digitais…',
+    writingSummary: 'Escrevendo o resumo…',
+    packing: 'Compactando o .zip…',
+    noteReplay: 'Copiado da reprodução do gravador em velocidade normal',
+    noteFiles: 'Os próprios arquivos do gravador para esse período (podem começar um pouco antes ou terminar um pouco depois)',
+    noteNone: 'Este gravador não deixa apps salvarem o vídeo dele, então só as fotos dos eventos são incluídas',
+    noteNoVideo: 'O gravador não enviou vídeo desse período',
+    someParts: (note) => `${note} (algumas partes não puderam ser copiadas)`,
+    tooBig: 'Esta exportação é grande demais para esta versão do Sightline. Escolha um período menor ou menos câmeras.',
+    unreachable: 'Não dá para acessar este gravador nesta rede.',
+    shareTitle: 'Exportação de vídeo',
+  },
+  readme: {
+    intro: 'Exportação de vídeo feita com o Sightline.',
+    summary: 'O que há nesta exportação: câmeras, o período coberto (com fuso horário), eventos e impressões digitais.',
+    video: 'Arquivos de vídeo, com o nome da câmera e o horário local de início.',
+    photos: 'Fotos dos eventos.',
+    manifest: 'A impressão digital SHA-256 de cada arquivo. Se algum arquivo for alterado, a impressão digital dele não vai bater.',
+    signature: 'Assinatura do manifest.json, feita com uma chave que nunca sai do iPhone que criou esta exportação.',
+    publicKey: 'A chave pública correspondente.',
+    checkSignature: 'Para verificar a assinatura:',
+    checkFile: 'Para verificar um arquivo: sha256sum "video/<arquivo>.mp4" (Mac: shasum -a 256) e compare com o manifest.json.',
+  },
+  report: {
+    title: 'Exportação de vídeo',
+    homeCameras: 'Câmeras da casa',
+    videoIncluded: 'Vídeo incluído',
+    videoPartial: 'Parte do vídeo incluída',
+    videoNone: 'Sem vídeo — só fotos',
+    until: (time) => `até ${time}`,
+    signed: (q) =>
+      `A lista de impressões digitais (${q.manifest}) também é <b>assinada</b> com uma chave que nunca sai do iPhone que criou esta exportação.
+A assinatura está em ${q.signature} e a chave pública correspondente em ${q.publicKey}
+(impressão digital da chave ${q.fingerprint}).
+Se a lista for editada, a assinatura deixa de conferir. Para verificar:`,
+    unsigned:
+      'Esta exportação não está assinada (a versão do app que a criou não conseguia assinar), mas as impressões digitais abaixo ainda mostram se algum arquivo foi alterado.',
+    summary: 'Resumo',
+    timeCovered: 'Período coberto',
+    isoRange: (start, end) => `${start} a ${end}`,
+    cameras: 'Câmeras',
+    eventsInTime: 'Eventos nesse período',
+    exported: 'Exportado em',
+    madeWith: 'Feito com',
+    madeWithValue: (app, device) => `${app} em ${device}`,
+    missing: (names) =>
+      `Estas câmeras não conseguiram exportar vídeo desse período, então só as fotos dos eventos delas estão incluídas: ${names}.`,
+    colCamera: 'Câmera',
+    colSystem: 'Sistema',
+    colVideo: 'Vídeo',
+    colEvents: 'Eventos',
+    colNotes: 'Observações',
+    events: 'Eventos',
+    colTime: 'Horário',
+    colWhat: 'O quê',
+    more: (n) => `…e mais ${n}, listados no manifest.json.`,
+    noEvents: 'Nenhum evento foi registrado nesse período.',
+    howToTell: 'Como saber que nada foi alterado',
+    howToTellBody: (manifest) =>
+      `Cada arquivo desta exportação tem uma <b>impressão digital</b> (SHA-256), listada abaixo e em ${manifest}.
+A impressão digital é calculada a partir de cada byte do arquivo: <b>se algum arquivo for alterado, mesmo que em um único quadro, a impressão digital dele não vai bater.</b>
+A impressão digital deste relatório está no manifest.json.`,
+    files: 'Arquivos e impressões digitais',
+    colFile: 'Arquivo',
+    colSize: 'Tamanho',
+    phoneZone: 'o fuso horário do telefone',
+    timesShown: (zone, offset) =>
+      `Os horários estão em ${zone} (${offset}). Os relógios das câmeras podem estar alguns segundos adiantados ou atrasados.`,
+  },
+  neighbors: {
+    title: 'Compartilhar com vizinhos',
+    intro: 'Para um grupo do bairro ou um vizinho. O desfoque é feito neste iPhone; nada é enviado até você compartilhar.',
+    noneFound: 'Nenhum rosto ou placa foi encontrado. Confira antes de compartilhar.',
+    faces: (n) => p(n, { one: `${n} rosto`, other: `${n} rostos` }),
+    plates: (n) => p(n, { one: `${n} placa`, other: `${n} placas` }),
+    blurred: (what) => `Desfocado: ${what}. O desfoque automático pode deixar passar algo, então confira antes de compartilhar.`,
+    gettingVideo: 'Buscando o vídeo…',
+    gettingPhoto: 'Buscando a foto…',
+    blurring: 'Desfocando rostos e placas…',
+    notBlurred: 'Sem desfoque. Rostos e placas vão aparecer.',
+    couldntPrepare: 'Não foi possível preparar',
+    checkTitle: 'Confira antes de compartilhar',
+    startOver: 'Começar de novo',
+    whatToShare: 'O que compartilhar',
+    videoClip: 'Clipe de vídeo',
+    photo: 'Foto',
+    noVideo: 'Este gravador não cria clipes de vídeo para compartilhar, então uma foto será compartilhada.',
+    blurFooter: 'Rostos e placas são encontrados automaticamente e desfocados em uma cópia. Algo pode passar, então você vê o resultado primeiro.',
+    updateFooter: 'O desfoque precisa da versão mais recente do Sightline. Atualize o app para usar.',
+    blurToggle: 'Desfocar rostos e placas',
+    blurAndPreview: 'Desfocar e ver',
+    preview: 'Pré-visualizar',
+    visibleWarning: 'Rostos e placas vão ficar visíveis para todos com quem você compartilhar.',
+    preparing: 'Preparando',
+  },
+};
 
 export default exporting;

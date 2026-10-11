@@ -6,10 +6,14 @@
  * `periodMin`), so the same moment always has the same id and objects, and the newest
  * events are never older than one slot: the demo always looks like it's happening now.
  */
+import { tr } from '../../i18n/index.ts';
 import type { Camera, HealthReport, MotionPoint, RecordingSegment, ReviewItem, SearchHit, Severity } from '@/systems/types';
 
 export const DEMO_SYSTEM_ID = 'demo';
-export const DEMO_SYSTEM_NAME = 'Sample cameras';
+/** The sample system's name, in the current language. */
+export function demoSystemName(): string {
+  return tr().systems.demo.systemName;
+}
 
 /** Clip files bundled per camera (see systems/demo/media.ts). */
 export type DemoClip = 'live' | 'event';
@@ -152,6 +156,11 @@ export const DEMO_CAMERAS: DemoCameraDef[] = [
 export const DEMO_RETENTION_DAYS = 7;
 const DAY = 86400;
 
+/** What people see for a camera, zone or known name (the definitions above are the English). */
+const camName = (c: DemoCameraDef) => tr().systems.demo.cameras[c.id] ?? c.name;
+const zoneName = (z: string) => tr().systems.demo.zones[z] ?? z;
+const subLabel = (s: string) => (s === 'Family car' ? tr().systems.demo.familyCar : s);
+
 export function demoCamera(id: string): DemoCameraDef | undefined {
   return DEMO_CAMERAS.find((c) => c.id === id);
 }
@@ -161,9 +170,9 @@ export function demoCameras(systemId = DEMO_SYSTEM_ID): Camera[] {
     key: `${systemId}:${c.id}`,
     systemId,
     id: c.id,
-    name: c.name,
+    name: camName(c),
     enabled: true,
-    zones: c.zones,
+    zones: c.zones.map(zoneName),
     objects: c.objects,
     ptz: c.ptz,
     aspect: c.aspect,
@@ -201,8 +210,8 @@ function eventInSlot(cam: DemoCameraDef, k: number, systemId: string): DemoEvent
     endTime: start + kind.duration,
     severity: kind.severity,
     objects: kind.objects,
-    subLabels: kind.subLabels ?? [],
-    zones: kind.zones,
+    subLabels: (kind.subLabels ?? []).map(subLabel),
+    zones: kind.zones.map(zoneName),
     reviewed: false,
     detections: [`${cam.id}-${k}`],
     kind,
@@ -294,14 +303,33 @@ export function demoRecordingDays(now: number): string[] {
   return [...new Set(days)];
 }
 
-export const DEMO_KNOWN_NAMES = ['Sam', 'Alex', 'Family car'];
+export function demoKnownNames(): string[] {
+  return ['Sam', 'Alex', 'Family car'].map(subLabel);
+}
 
-export const DEMO_GROUPS = [
-  { name: 'Outside', cameraIds: ['front-door', 'driveway', 'backyard'] },
-  { name: 'Inside', cameraIds: ['garage', 'living-room'] },
-];
+/** `id` stays the same in every language; `name` is read when it's used. */
+const demoGroup = (id: string, cameraIds: string[]) => ({
+  id,
+  get name() {
+    return tr().systems.demo.groups[id] ?? id;
+  },
+  cameraIds,
+});
 
-export const DEMO_HEALTH: HealthReport = { offline: [], storage: [{ path: 'Recordings', usedPct: 64, freeGb: 1120 }] };
+export const DEMO_GROUPS = [demoGroup('Outside', ['front-door', 'driveway', 'backyard']), demoGroup('Inside', ['garage', 'living-room'])];
+
+export const DEMO_HEALTH: HealthReport = {
+  offline: [],
+  storage: [
+    {
+      get path() {
+        return tr().systems.demo.recordings;
+      },
+      usedPct: 64,
+      freeGb: 1120,
+    },
+  ],
+};
 
 /** Words people type, mapped to what the sample detector reports. */
 const SYNONYMS: Record<string, string[]> = {
@@ -335,7 +363,7 @@ export function demoSearch(
       const hay = [
         ...e.objects.flatMap((o) => SYNONYMS[o] ?? [o]),
         ...e.subLabels.map((s) => s.toLowerCase()),
-        ...cam.name.toLowerCase().split(' '),
+        ...camName(cam).toLowerCase().split(' '),
         ...e.zones.map((z) => z.toLowerCase()),
       ];
       const night = new Date(e.startTime * 1000).getHours();
@@ -354,6 +382,11 @@ export function demoSearch(
     endTime: e.endTime,
     thumbnailUrl: still(e.kind.thumb),
   }));
+}
+
+/** A preset's name in the current language (DEMO_PRESETS keys are the English). */
+export function demoPresetName(key: string): string {
+  return tr().systems.demo.presets[key] ?? key;
 }
 
 /** Pan/zoom presets for the moving camera (see systems/demo/ptz.ts). */

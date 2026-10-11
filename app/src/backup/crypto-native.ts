@@ -1,6 +1,7 @@
 import { AESEncryptionKey, AESSealedData, aesDecryptAsync, aesEncryptAsync, getRandomBytes } from 'expo-crypto';
 
 import { fromBase64, toBase64, type Aead, type DeriveKey } from '@/backup/bundle';
+import { tr } from '@/i18n';
 import { WgTunnel } from '@modules/wg-tunnel';
 
 /** AES-256-GCM through expo-crypto (CryptoKit on iOS). Same layout as the tests' WebCrypto. */
@@ -22,9 +23,9 @@ export const hasTransferSupport = () =>
 
 /** PBKDF2-HMAC-SHA256 in Go (fast enough for 600k rounds; JS would take minutes). */
 export const nativeDeriveKey: DeriveKey = async (passcode, salt, iterations) => {
-  if (!WgTunnel?.deriveKey) throw new Error('Update Sightline to use backup files.');
+  if (!WgTunnel?.deriveKey) throw new Error(tr().settings.backupMsg.updateForFiles);
   const b64 = await WgTunnel.deriveKey(passcode, toBase64(salt), iterations);
-  if (!b64) throw new Error('Couldn’t use that passcode.');
+  if (!b64) throw new Error(tr().settings.backupMsg.passcodeFailed);
   return fromBase64(b64);
 };
 

@@ -1,3 +1,5 @@
+import { tr } from '../i18n/index.ts';
+
 /**
  * Pure ONVIF helpers: SOAP envelope building, WS-Security UsernameToken, and small
  * namespace-agnostic XML extractors for the responses Sightline needs. No platform imports
@@ -249,11 +251,11 @@ export function isAuthFault(f: SoapFault): boolean {
 
 /** Plain-language message for a fault (no SOAP jargon). */
 export function faultMessage(f: SoapFault): string {
-  if (isAuthFault(f)) return 'Wrong username or password.';
+  if (isAuthFault(f)) return tr().systems.onvif.wrongLogin;
   if (f.codes.some((c) => /ActionNotSupported|NotSupported|NoSuchService/i.test(c))) {
-    return 'The camera doesn’t support this feature.';
+    return tr().systems.onvif.notSupported;
   }
-  return f.reason ? `The camera refused the request: ${f.reason}` : 'The camera refused the request.';
+  return f.reason ? tr().systems.onvif.refusedReason(f.reason) : tr().systems.onvif.refused;
 }
 
 // ---------------------------------------------------------------------------------------------

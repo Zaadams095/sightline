@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 
 import { registerBackgroundAlerts, requestNotificationPermission } from '@/alerts/background';
 import { syncHubDevices } from '@/alerts/bridge';
+import { tr } from '@/i18n';
 import { connectSystem, disconnectSystem } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { forgetHubToken, joinHub } from '@/systems/hub';
@@ -20,7 +21,7 @@ export async function joinAndSaveHub(link: HubLink, systemName?: string): Promis
     disconnectSystem(system.id);
     dropAdapter(system.id);
     const conn = await connectSystem(system);
-    if (conn.mode === 'offline') throw new Error(conn.error ?? 'Couldn’t reach the Hub.');
+    if (conn.mode === 'offline') throw new Error(conn.error ?? tr().onboarding.cantReachHub);
     const adapter = getAdapter(system, conn)!;
     await adapter.connect();
     const cams = await adapter.listCameras();

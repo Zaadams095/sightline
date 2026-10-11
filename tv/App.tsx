@@ -5,6 +5,7 @@ import { ActivityIndicator, BackHandler, Pressable, StyleSheet, Text, TVEventCon
 import { TvPairing } from './modules/tv-pairing';
 import { GridScreen } from './src/GridScreen';
 import { HubError, listCameras, pickBase, type HubCamera, type TvConfig } from './src/hub';
+import { t } from './src/i18n';
 import { LiveScreen } from './src/LiveScreen';
 import { PairScreen } from './src/PairScreen';
 import { TourScreen } from './src/TourScreen';
@@ -93,10 +94,10 @@ export default function App() {
         <Text style={styles.message}>{phase.message}</Text>
         <View style={styles.row}>
           <Pressable hasTVPreferredFocus onPress={() => void connect(config)} style={({ focused }) => [styles.button, focused && styles.buttonFocused]}>
-            <Text style={styles.buttonText}>Try again</Text>
+            <Text style={styles.buttonText}>{t.tryAgain}</Text>
           </Pressable>
           <Pressable onPress={disconnect} style={({ focused }) => [styles.button, focused && styles.buttonFocused]}>
-            <Text style={styles.buttonText}>{phase.repair ? 'Connect again' : 'Disconnect TV'}</Text>
+            <Text style={styles.buttonText}>{phase.repair ? t.connectAgain : t.disconnect}</Text>
           </Pressable>
         </View>
       </View>

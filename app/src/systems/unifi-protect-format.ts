@@ -1,4 +1,5 @@
 import type { Camera, PtzAction, ReviewItem, Severity } from '@/systems/types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Pure helpers for the UniFi Protect private API on UniFi OS consoles (no React Native
@@ -106,7 +107,7 @@ export function mapCameras(boot: ProtectBootstrap, systemId: string): Camera[] {
         key: `${systemId}:${c.id}`,
         systemId,
         id: c.id,
-        name: c.displayName || c.name || c.marketName || 'Camera',
+        name: c.displayName || c.name || c.marketName || tr().systems.common.camera,
         enabled: true,
         zones: [],
         objects: [...objects],
@@ -130,7 +131,7 @@ export function storageOf(boot: ProtectBootstrap): { path: string; usedPct: numb
   const used = s.used ?? s.size - (s.available ?? 0);
   return [
     {
-      path: 'Recording drive',
+      path: tr().systems.common.recordingDrive,
       usedPct: Math.round((used / s.size) * 100),
       freeGb: Math.round(((s.available ?? s.size - used) / 1e9) * 10) / 10,
     },
@@ -281,11 +282,12 @@ export interface ProtectPreset {
 
 /** Preset names for the pad: Home first (slot -1), then the camera's saved positions. */
 export function presetNames(presets: ProtectPreset[]): { name: string; slot: number }[] {
-  const out = [{ name: 'Home', slot: -1 }];
-  const used = new Set(['Home']);
+  const home = tr().systems.common.presetHome;
+  const out = [{ name: home, slot: -1 }];
+  const used = new Set([home]);
   for (const p of [...presets].sort((a, b) => a.slot - b.slot)) {
     if (p.slot < 0) continue;
-    let name = p.name?.trim() || `Preset ${p.slot + 1}`;
+    let name = p.name?.trim() || tr().systems.common.presetN(p.slot + 1);
     if (used.has(name)) name = `${name} (${p.slot + 1})`;
     used.add(name);
     out.push({ name, slot: p.slot });
@@ -333,30 +335,30 @@ export function nextOpticalZoom(current: number, dir: 1 | -1): number {
 
 export function protectLoginMessage(status: number, body = ''): string {
   if (status === 429 || /too many/i.test(body))
-    return 'Too many sign-in attempts. Wait a few minutes, then try again.';
+    return tr().systems.unifi.tooManyAttempts;
   if (status === 401 || status === 403 || status === 400) {
     if (/mfa|2fa|two.?factor|token required/i.test(body))
-      return 'This account uses two-step verification. Create a local account on your UniFi console (UniFi OS → Admins & Users → add an admin with “Restrict to local access only”) and use that here.';
-    return 'Wrong username or password. Use a local UniFi account (one with “Restrict to local access only”), not your Ubiquiti cloud sign-in.';
+      return tr().systems.unifi.twoStep;
+    return tr().systems.unifi.badLogin;
   }
   if (status === 404)
-    return 'This doesn’t look like a UniFi OS console. Enter the address of your Cloud Key, Dream Machine or NVR.';
+    return tr().systems.unifi.notConsole;
   return protectHttpMessage(status);
 }
 
 export function protectHttpMessage(status: number): string {
   switch (status) {
     case 401:
-      return 'UniFi Protect signed us out. Pull down to refresh; if it keeps happening, check the username and password.';
+      return tr().systems.unifi.signedOut;
     case 403:
-      return 'This UniFi account isn’t allowed to do that. Give it the Protect “View only” role or higher (or Full Management for camera control).';
+      return tr().systems.unifi.forbidden;
     case 404:
-      return 'UniFi Protect isn’t running on this console, or that camera no longer exists.';
+      return tr().systems.unifi.notRunning;
     case 502:
     case 503:
     case 504:
-      return 'Couldn’t reach UniFi Protect. Check that the console is on and Protect has finished starting.';
+      return tr().systems.unifi.unreachable;
     default:
-      return `UniFi Protect answered with an error (HTTP ${status}). Try again in a moment.`;
+      return tr().systems.unifi.httpError(status);
   }
 }

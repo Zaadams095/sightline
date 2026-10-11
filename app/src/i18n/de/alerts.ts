@@ -1,5 +1,183 @@
 import type en from '../en/alerts.ts';
+import { plural } from '../plural.ts';
 
-const alerts: typeof en = {};
+const p = plural('de');
+
+/** Was Kameras sehen: [Einzahl, Mehrzahl]. */
+const THINGS: Record<string, [string, string]> = {
+  person: ['Person', 'Personen'],
+  people: ['Person', 'Personen'],
+  face: ['Gesicht', 'Gesichter'],
+  car: ['Auto', 'Autos'],
+  vehicle: ['Fahrzeug', 'Fahrzeuge'],
+  truck: ['Lkw', 'Lkw'],
+  bus: ['Bus', 'Busse'],
+  motorcycle: ['Motorrad', 'Motorräder'],
+  bicycle: ['Fahrrad', 'Fahrräder'],
+  license_plate: ['Kennzeichen', 'Kennzeichen'],
+  package: ['Paket', 'Pakete'],
+  animal: ['Tier', 'Tiere'],
+  dog: ['Hund', 'Hunde'],
+  cat: ['Katze', 'Katzen'],
+  bird: ['Vogel', 'Vögel'],
+  horse: ['Pferd', 'Pferde'],
+  deer: ['Reh', 'Rehe'],
+  bear: ['Bär', 'Bären'],
+  fox: ['Fuchs', 'Füchse'],
+  raccoon: ['Waschbär', 'Waschbären'],
+  squirrel: ['Eichhörnchen', 'Eichhörnchen'],
+  rabbit: ['Kaninchen', 'Kaninchen'],
+  mouse: ['Maus', 'Mäuse'],
+};
+
+/**
+ * Orte bringen ihre Präposition mit („bei Mama“, „zu Hause“): Sätze setzen sie unverändert
+ * ein („Heute noch keine Aktivität bei Mama“).
+ */
+const alerts: typeof en = {
+  ringHeadline: 'Jemand ist an der Tür',
+  activity: 'Aktivität',
+  inZones: (zones: string) => ` in ${zones}`,
+  snoozeHour: 'Diese Kamera 1 Stunde stummschalten',
+  snoozeMorning: 'Diese Kamera bis 7 Uhr stummschalten',
+  watch: 'Ansehen',
+  health: {
+    offline: (camera: string) => `${camera} ist offline`,
+    offlineBody: (system: string) => `Kein Video von dieser Kamera auf ${system}.`,
+    storageFull: (system: string, pct: number) => `Speicher von ${system} zu ${pct} % voll`,
+    storageBody: (gb: number) => `Noch ${gb} GB frei. Ältere Videos werden früher als sonst überschrieben.`,
+    notResponding: (system: string) => `${system} antwortet nicht`,
+  },
+  packages: {
+    gotIt: 'Hab ich',
+    delivered: (camera: string) => `Paket zugestellt · ${camera}`,
+    arrivedAt: (time: string) => `Angekommen um ${time}.`,
+    pickedUp: (camera: string) => `Paket wurde vielleicht abgeholt · ${camera}`,
+    pickedUpBody: 'Nach der Zustellung kam jemand vorbei, und seitdem wurde das Paket nicht mehr gesehen.',
+    stillAt: (where: string) => `Ein Paket wartet noch (${where})`,
+    stillOutside: (n: number) => p(n, { one: `${n} Paket liegt noch draußen`, other: `${n} Pakete liegen noch draußen` }),
+    reminderBody: 'Es wurde vorhin zugestellt und noch nicht abgeholt.',
+    at: (where: string) => `Gesehen bei: ${where}.`,
+  },
+  learned: {
+    notImportant: 'Nicht wichtig',
+    alwaysTell: 'Darüber immer informieren',
+    undo: 'Widerrufen',
+    stopAlerting: 'Dafür nicht mehr melden',
+    keepAlerting: 'Weiter melden',
+    askTitle: 'Dafür nicht mehr melden?',
+    learnedTitle: 'Sightline hat etwas gelernt',
+    thing: (o: string, n: number) => {
+      const f = THINGS[o];
+      return f ? p(n, { one: f[0], other: f[1] }) : o.replace(/_/g, ' ');
+    },
+    motionAlerts: (n: number) => p(n, { one: 'Bewegungsmeldung', other: 'Bewegungsmeldungen' }),
+    comboAlerts: (things: string, n: number) => p(n, { one: `Meldung zu ${things}`, other: `Meldungen zu ${things}` }),
+    atNight: ' nachts',
+    duringDay: ' tagsüber',
+    inZones: (zones: string) => ` in ${zones}`,
+    or: 'oder',
+    title: (what: string, camera: string, extra: string) => `${what} auf ${camera}${extra}`,
+    always: (what: string, camera: string) => `Du möchtest immer über ${what} auf ${camera} informiert werden. Das wird nie stummgeschaltet.`,
+    counted: (n: number, what: string, camera: string, extra: string) => `${n} ${what} auf ${camera}${extra}`,
+    askPeople: (what: string) =>
+      `Du hast ${what} als unwichtig markiert. Sightline schaltet Personen nie von selbst stumm – dafür nicht mehr melden?`,
+    willStop: (what: string) => `Du hast ${what} als unwichtig markiert – Sightline meldet so etwas ab jetzt nicht mehr.`,
+  },
+  checkins: {
+    placeOf: (who: string) => `bei ${who}`,
+    placeNamed: (place: string) => `in ${place}`,
+    home: 'zu Hause',
+    fine: (who: string) => `${who} geht’s gut`,
+    allFine: 'Alles gut',
+    theCameras: 'den Kameras',
+    or: 'oder',
+    camera: 'Kamera',
+    lastActive: (camera: string, when: string) => `${camera} war zuletzt ${when} aktiv.`,
+    notSeen: (cameras: string) => `Sightline hat seit Beginn der Überwachung niemanden auf ${cameras} gesehen.`,
+    noActivityYet: (place: string) => `Heute noch keine Aktivität ${place}`,
+    itsNow: (time: string, last: string) => `Es ist ${time}. ${last}`,
+    noActivityFor: (place: string, h: number) =>
+      p(h, { one: `Seit ${h} Stunde keine Aktivität ${place}`, other: `Seit ${h} Stunden keine Aktivität ${place}` }),
+    allNormal: (place: string) => `Alles normal ${place}`,
+    summaryBody: (time: string, n: number) =>
+      p(n, { one: `Erste Aktivität ${time} · heute ${n} Moment.`, other: `Erste Aktivität ${time} · heute ${n} Momente.` }),
+    noActivityToday: (place: string) => `Heute keine Aktivität ${place}`,
+    notCheckedYet: 'Noch nicht geprüft.',
+    status: (time: string, n: number) =>
+      p(n, { one: `Heute erste Aktivität ${time} · ${n} Moment.`, other: `Heute erste Aktivität ${time} · ${n} Momente.` }),
+    noActivityYetToday: (last: string) => `Heute noch keine Aktivität. ${last}`,
+    watchCamera: (camera: string) => `${camera} ansehen`,
+    call: (who: string) => `${who} anrufen`,
+    unconfirmedTitle: (place: string) => `Aktivität ${place} noch nicht bestätigt`,
+    unconfirmedBody: (place: string, time: string) =>
+      `Sightline konnte die Kameras ${place} nicht erreichen, um bis ${time} nachzusehen. Tippe, um selbst nachzusehen. Ohne Sightline Hub können Check-ins verspätet kommen.`,
+    today: (time: string) => `heute um ${time}`,
+    yesterday: (time: string) => `gestern um ${time}`,
+    onDay: (day: string, time: string) => `am ${day} um ${time}`,
+    onDate: (month: string, day: number, time: string) => `am ${day}. ${month} um ${time}`,
+    dayNames: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+    months: ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'],
+  },
+  zones: {
+    objects: { person: 'Personen', vehicle: 'Fahrzeuge', animal: 'Tiere', package: 'Pakete' },
+    inSentence: { person: 'Personen', vehicle: 'Fahrzeuge', animal: 'Tiere', package: 'Pakete' },
+    alertOnlyFor: (what: string) => `Hier nur ${what} melden`,
+    alertOnlyAny: 'Nur Bewegung hier melden',
+    ignore: (what: string) => `${what} hier ignorieren`,
+    ignoreAll: 'Hier alles ignorieren',
+    ignoredArea: 'Ignorierter Bereich',
+    ignoredAreaN: (n: number) => `Ignorierter Bereich ${n}`,
+    presetLabel: {
+      whole: 'Ganzes Bild',
+      left: 'Linke Hälfte',
+      right: 'Rechte Hälfte',
+      top: 'Obere Hälfte',
+      bottom: 'Untere Hälfte',
+      bottomThird: 'Unteres Drittel',
+      middle: 'Mitte',
+    },
+    presetName: {
+      whole: 'Ganzes Bild',
+      left: 'Linke Seite',
+      right: 'Rechte Seite',
+      top: 'Hinten',
+      bottom: 'Vorne',
+      bottomThird: 'Nah an der Kamera',
+      middle: 'Mitte',
+    },
+  },
+  bridge: {
+    waitingKey: 'Warte auf deinen Schlüssel für Sofort-Meldungen aus dem iCloud-Schlüsselbund. Versuch es in ein paar Minuten noch einmal.',
+    noPush: 'Push ist in diesem Build nicht eingerichtet (EAS-Projekt-ID fehlt).',
+    notPaired: 'Sofort-Meldungen sind noch nicht gekoppelt.',
+    unreachable: 'Bridge nicht erreichbar',
+    badSecret: 'Die Bridge hat den Schlüssel abgelehnt. Kopiere das Snippet erneut und starte den Container neu.',
+    httpError: (status: number, text: string) => `Bridge meldet HTTP ${status}: ${text}`,
+    addFrigate: 'Füge zuerst ein Frigate-System hinzu.',
+  },
+  presence: {
+    needLocation: 'Sightline braucht Zugriff auf deinen Standort, um dein Zuhause festzulegen.',
+    needAlways: 'Wähle „Immer“ für den Standortzugriff, damit Sightline merkt, wenn du nach Hause kommst.',
+  },
+  errors: {
+    refused: (name: string) =>
+      `${name} ist im Netzwerk, hat die Verbindung unter dieser Adresse aber nicht angenommen. Prüfe die Adresse (und den Port) in der App des Geräts oder am Gerät selbst.`,
+    noSuchHost: 'Unter diesem Namen wurde keine Adresse gefunden. Prüfe sie auf Tippfehler.',
+    notFound: (name: string) =>
+      `${name} wurde in diesem Netzwerk nicht gefunden. Achte darauf, dass dein iPhone im WLAN zu Hause ist und ${name} eingeschaltet ist.`,
+    tls: (name: string) => `${name} hat geantwortet, aber die sichere Verbindung ließ sich nicht aufbauen. Versuch die Adresse mit http:// davor.`,
+    noAway: 'Du bist unterwegs, und es ist noch keine Verbindung für unterwegs eingerichtet (Einstellungen → Unterwegs).',
+    generic: (name: string) => `Keine Verbindung zu ${name}.`,
+    noAnswerViaVpn: (name: string) => `Mit Zuhause verbunden, aber ${name} hat nicht geantwortet. Prüfe, ob es eingeschaltet ist.`,
+    wrongLogin: 'Falscher Benutzername oder falsches Passwort',
+    loginFailed: (status: number) => `Anmeldung fehlgeschlagen (HTTP ${status})`,
+    httpStatus: (name: string, status: number) => `${name} meldet HTTP ${status}`,
+    sameNetwork: (message: string, name: string) => `${message}. Ist das iPhone im selben Netzwerk wie ${name}?`,
+    expoGoTls: 'Keine Verbindung. Expo Go akzeptiert keine selbstsignierten Zertifikate; nutze für Vorschauen eine http://-Adresse.',
+    unreachable: (name: string) => `${name} ist in diesem Netzwerk nicht erreichbar`,
+    cannotExport: 'Dieses System kann keine Clips exportieren.',
+  },
+};
 
 export default alerts;

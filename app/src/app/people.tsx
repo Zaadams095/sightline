@@ -16,7 +16,10 @@ import {
 } from '@/familiar/recognize';
 import { useFamiliar, type FamiliarIdentity, type FamiliarSample } from '@/familiar/store';
 import { scanRecent } from '@/familiar/use-familiar';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useAllCameras } from '@/systems/registry';
+import { useLargeText } from '@/theme/text-scale';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { formatRelative } from '@/util/format';
@@ -27,6 +30,8 @@ import { formatRelative } from '@/util/format';
  */
 export default function PeopleScreen() {
   const p = usePalette();
+  const t = useT();
+  const large = useLargeText();
   const settings = useFamiliar((s) => s.settings);
   const setSettings = useFamiliar((s) => s.setSettings);
   const identities = useFamiliar((s) => s.identities);
@@ -52,10 +57,10 @@ export default function PeopleScreen() {
   if (!familiarSupported()) {
     return (
       <Screen>
-        <Section title="Familiar faces & vehicles">
+        <Section title={t.viewing.people.unsupportedTitle}>
           <View style={{ padding: space.lg, gap: space.sm }}>
-            <T>This needs the newest version of Sightline.</T>
-            <T muted>Update the app from TestFlight or the App Store, then come back here.</T>
+            <T>{t.viewing.people.needsUpdate}</T>
+            <T muted>{t.viewing.people.updateHow}</T>
           </View>
         </Section>
       </Screen>
@@ -66,9 +71,9 @@ export default function PeopleScreen() {
     setScanning(true);
     try {
       const n = await scanRecent(48, 40);
-      Alert.alert(n ? `Looked through ${n} events` : 'Nothing new to look through', n ? 'New faces and vehicles show up under “Who is this?”.' : undefined);
+      Alert.alert(n ? tr().viewing.people.lookedThrough(n) : tr().viewing.people.nothingNew, n ? tr().viewing.people.lookedThroughBody : undefined);
     } catch {
-      Alert.alert('Couldn’t look through events', 'Make sure your cameras are reachable, then try again.');
+      Alert.alert(tr().viewing.people.scanFailed, tr().viewing.people.scanFailedBody);
     } finally {
       setScanning(false);
     }
@@ -87,8 +92,8 @@ export default function PeopleScreen() {
       }
       if (!found.length) {
         Alert.alert(
-          kind === 'face' ? 'No clear face found' : 'No vehicle found',
-          kind === 'face' ? 'Pick photos where the face is large, sharp and looking at the camera.' : 'Pick a photo where the vehicle fills most of the picture.',
+          kind === 'face' ? tr().viewing.people.noFace : tr().viewing.people.noVehicle,
+          kind === 'face' ? tr().viewing.people.noFaceBody : tr().viewing.people.noVehicleBody,
         );
         return;
       }
@@ -101,12 +106,12 @@ export default function PeopleScreen() {
   const askName = (samples: FamiliarSample[], kind: FamiliarKind) => {
     const existing = (kind === 'face' ? people : vehicles).map((i) => i.name);
     const prompt = () =>
-      Alert.prompt(kind === 'face' ? 'Who is this?' : 'Whose vehicle is this?', kind === 'face' ? 'For example “Dad” or “The dog walker”.' : 'For example “Our car”.', (text) => {
+      Alert.prompt(kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle, kind === 'face' ? t.viewing.people.nameExampleFace : t.viewing.people.nameExampleVehicle, (text) => {
         if (text?.trim()) nameSamples(samples, text);
       });
     if (!existing.length) return prompt();
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: kind === 'face' ? 'Who is this?' : 'Whose vehicle is this?', options: [...existing, 'Someone new…', 'Cancel'], cancelButtonIndex: existing.length + 1 },
+      { title: kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle, options: [...existing, t.viewing.people.someoneNew, t.common.cancel], cancelButtonIndex: existing.length + 1 },
       (i) => {
         if (i < existing.length) nameSamples(samples, existing[i]);
         else if (i === existing.length) prompt();
@@ -117,9 +122,15 @@ export default function PeopleScreen() {
   const whoIsThis = (samples: FamiliarSample[]) => {
     const kind = samples[0].kind;
     const existing = (kind === 'face' ? people : vehicles).map((i) => i.name);
-    const options = [...existing, 'Someone new…', kind === 'face' ? 'A stranger: don’t track' : 'Not ours: don’t track', 'Not a face or vehicle (remove)', 'Cancel'];
+    const options = [
+      ...existing,
+      t.viewing.people.someoneNew,
+      kind === 'face' ? t.viewing.people.stranger : t.viewing.people.notOurs,
+      t.viewing.people.notFaceOrVehicle,
+      t.common.cancel,
+    ];
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: kind === 'face' ? 'Who is this?' : 'Whose vehicle is this?', options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: options.length - 2 },
+      { title: kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle, options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: options.length - 2 },
       (i) => {
         if (i < existing.length) nameSamples(samples, existing[i]);
         else if (i === existing.length) askName(samples, kind);
@@ -144,10 +155,10 @@ export default function PeopleScreen() {
         label={i.name}
         detail={
           seen
-            ? `Last seen ${formatRelative(seen.at)} · ${cameraName(seen.systemId, seen.cameraId)}${seenCount(i) > 1 ? ` · ${seenCount(i)} times` : ''}`
+            ? `${t.viewing.people.lastSeen(formatRelative(seen.at), cameraName(seen.systemId, seen.cameraId))}${seenCount(i) > 1 ? ` · ${t.viewing.people.times(seenCount(i))}` : ''}`
             : i.plates.length
               ? i.plates.join(', ')
-              : 'Not seen yet'
+              : t.viewing.people.notSeenYet
         }
         icon={<Avatar uri={avatar} />}
         onPress={() => router.push({ pathname: '/person', params: { id: i.id } })}
@@ -158,36 +169,36 @@ export default function PeopleScreen() {
 
   return (
     <Screen>
-      <Section footer="Sightline looks at pictures from your own cameras on this iPhone with Apple’s built-in image recognition. Pictures and face data never leave your phone. It can be wrong: it only puts a name on someone when it’s quite sure.">
+      <Section footer={t.viewing.people.privacyFooter}>
         <ToggleRow
-          label="Recognize familiar faces & vehicles"
-          detail="Name family, regular visitors and your own cars, so alerts can say who it is."
+          label={t.viewing.people.recognize}
+          detail={t.viewing.people.recognizeDetail}
           value={settings.enabled}
           onChange={(enabled) => update({ enabled })}
           last={!settings.enabled}
         />
-        {settings.enabled && <Row label={scanning ? 'Looking…' : 'Look through the last 2 days now'} onPress={scanning ? undefined : () => void scan()} last />}
+        {settings.enabled && <Row label={scanning ? t.viewing.people.looking : t.viewing.people.scanNow} onPress={scanning ? undefined : () => void scan()} last />}
       </Section>
 
       {settings.enabled && (
         <>
           {clusters.length > 0 && (
-            <Section title="Who is this?" footer="Tap a card to name them. Sightline will recognize them from then on.">
+            <Section title={t.viewing.people.whoIsThis} footer={t.viewing.people.clustersFooter}>
               <View style={{ padding: space.md, gap: space.md }}>
                 {clusters.map((c) => {
                   const newest = [...c].sort((a, b) => b.at - a.at);
                   return (
-                    <Pressable key={c[0].id} onPress={() => whoIsThis(c)} accessibilityRole="button" accessibilityLabel={`Who is this? Seen ${c.length} times`}>
-                      <Card style={styles.cluster}>
+                    <Pressable key={c[0].id} onPress={() => whoIsThis(c)} accessibilityRole="button" accessibilityLabel={t.viewing.people.clusterA11y(c.length)}>
+                      <Card style={large ? { ...styles.cluster, flexDirection: 'column', alignItems: 'flex-start' } : styles.cluster}>
                         <View style={styles.crops}>
                           {newest.slice(0, 3).map((s) => (
                             <Avatar key={s.id} uri={s.crop} size={48} />
                           ))}
                         </View>
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <T v="label">{c[0].kind === 'face' ? 'Who is this?' : 'Whose vehicle is this?'}</T>
+                        <View style={{ flex: large ? undefined : 1, gap: 2 }}>
+                          <T v="label">{c[0].kind === 'face' ? t.viewing.people.whoIsThis : t.viewing.people.whoseVehicle}</T>
                           <T v="caption" muted>
-                            Seen {c.length === 1 ? 'once' : `${c.length} times`} · last {formatRelative(newest[0].at)}
+                            {t.viewing.people.clusterSeen(c.length, formatRelative(newest[0].at))}
                             {newest[0].cameraId ? ` · ${cameraName(newest[0].systemId, newest[0].cameraId)}` : ''}
                             {newest.find((s) => s.plate) ? ` · ${newest.find((s) => s.plate)!.plate}` : ''}
                           </T>
@@ -200,38 +211,38 @@ export default function PeopleScreen() {
             </Section>
           )}
 
-          <Section title="People">
+          <Section title={t.viewing.people.people}>
             {people.map((i) => identityRow(i, false))}
-            <Row label={adding ? 'Adding…' : 'Add someone from photos'} detail="Pick a few clear photos of their face" onPress={adding ? undefined : () => void addFromPhotos('face')} last />
+            <Row label={adding ? t.viewing.people.adding : t.viewing.people.addPerson} detail={t.viewing.people.addPersonDetail} onPress={adding ? undefined : () => void addFromPhotos('face')} last />
           </Section>
 
-          <Section title="Vehicles">
+          <Section title={t.viewing.people.vehicles}>
             {vehicles.map((i) => identityRow(i, false))}
-            <Row label={adding ? 'Adding…' : 'Add a vehicle from photos'} detail="A photo where the vehicle fills the picture" onPress={adding ? undefined : () => void addFromPhotos('vehicle')} last />
+            <Row label={adding ? t.viewing.people.adding : t.viewing.people.addVehicle} detail={t.viewing.people.addVehicleDetail} onPress={adding ? undefined : () => void addFromPhotos('vehicle')} last />
           </Section>
 
           <Section
-            title="Matching"
-            footer="Careful names someone only when it’s quite sure, and asks “Who is this?” more often. Relaxed names more, and can be wrong more often.">
+            title={t.viewing.people.matching}
+            footer={t.viewing.people.matchingFooter}>
             <View style={styles.chips}>
-              <Chip label="Careful" selected={settings.strictness === 'careful'} onPress={() => update({ strictness: 'careful' })} />
-              <Chip label="Relaxed" selected={settings.strictness === 'relaxed'} onPress={() => update({ strictness: 'relaxed' })} />
+              <Chip label={t.viewing.people.careful} selected={settings.strictness === 'careful'} onPress={() => update({ strictness: 'careful' })} />
+              <Chip label={t.viewing.people.relaxed} selected={settings.strictness === 'relaxed'} onPress={() => update({ strictness: 'relaxed' })} />
             </View>
           </Section>
 
-          <Section footer="Instant Alerts come from your Sightline Hub, which can’t recognize faces. With this on, your iPhone looks at the alert’s picture when it arrives and adds the name, such as “Dad is at Front Door”. It only works when the picture is clear enough.">
-            <ToggleRow label="Read licence plates" detail="Recognize your vehicles by their plate when it’s readable." value={settings.plates} onChange={(plates) => update({ plates })} />
-            <ToggleRow label="Names on Instant Alerts" value={settings.instantTitles} onChange={(instantTitles) => update({ instantTitles })} last />
+          <Section footer={t.viewing.people.instantFooter}>
+            <ToggleRow label={t.viewing.people.readPlates} detail={t.viewing.people.readPlatesDetail} value={settings.plates} onChange={(plates) => update({ plates })} />
+            <ToggleRow label={t.viewing.people.instantNames} value={settings.instantTitles} onChange={(instantTitles) => update({ instantTitles })} last />
           </Section>
 
-          <Section footer={ignoredCount ? `${ignoredCount} stranger${ignoredCount === 1 ? '' : 's'} you chose not to track.` : undefined}>
+          <Section footer={ignoredCount ? t.viewing.people.ignored(ignoredCount) : undefined}>
             <Row
-              label="Forget all faces & vehicles"
+              label={t.viewing.people.forgetAll}
               destructive
               onPress={() =>
-                Alert.alert('Forget everyone?', 'Removes every name, face and vehicle Sightline learned on this iPhone.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Forget', style: 'destructive', onPress: forgetEverything },
+                Alert.alert(t.viewing.people.forgetAllTitle, t.viewing.people.forgetAllBody, [
+                  { text: t.common.cancel, style: 'cancel' },
+                  { text: t.viewing.people.forget, style: 'destructive', onPress: forgetEverything },
                 ])
               }
               last
@@ -241,12 +252,12 @@ export default function PeopleScreen() {
       )}
       {!settings.enabled && (
         <View style={{ paddingHorizontal: space.lg }}>
-          <Button title="Turn on" onPress={() => update({ enabled: true })} />
+          <Button title={t.viewing.people.turnOn} onPress={() => update({ enabled: true })} />
         </View>
       )}
       <View style={{ alignItems: 'center' }}>
-        <T v="caption" color={p.textMuted}>
-          Works with every camera brand. Nothing is uploaded.
+        <T v="caption" color={p.textMuted} style={{ textAlign: 'center' }}>
+          {t.viewing.people.everyBrand}
         </T>
       </View>
     </Screen>
@@ -256,5 +267,5 @@ export default function PeopleScreen() {
 const styles = StyleSheet.create({
   cluster: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   crops: { flexDirection: 'row', gap: 4 },
-  chips: { flexDirection: 'row', gap: space.sm, padding: space.md },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, padding: space.md },
 });

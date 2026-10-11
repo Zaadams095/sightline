@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import type { CameraSystemAdapter } from '@/systems/types';
 import { seekPlayer, setPlayerRate } from '@/util/player';
 import { clipSegments, playerToWall, wallToPlayer } from '@/util/vod-time';
@@ -29,6 +30,7 @@ interface Props {
  * window and corrects itself whenever it drifts more than ~1 s from the main wall clock.
  */
 export function SyncedPip({ adapter, cameraId, name, winStart, winEnd, wall, playing, rate, width, onPress }: Props) {
+  const t = useT();
   const segQuery = useQuery({
     queryKey: ['segments', adapter.config.id, cameraId, winStart, winEnd],
     queryFn: () => adapter.recordingSegments!(cameraId, winStart, winEnd),
@@ -69,13 +71,13 @@ export function SyncedPip({ adapter, cameraId, name, winStart, winEnd, wall, pla
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
       {!covered && (
         <View style={[StyleSheet.absoluteFill, styles.center]}>
-          <T v="caption" color="rgba(255,255,255,0.6)">
-            No recording
+          <T v="caption" color="rgba(255,255,255,0.6)" overlay>
+            {t.viewing.playback.noRecording}
           </T>
         </View>
       )}
       <View style={styles.label}>
-        <T v="caption" color="#fff" numberOfLines={1}>
+        <T v="caption" color="#fff" numberOfLines={1} overlay>
           {name}
         </T>
       </View>

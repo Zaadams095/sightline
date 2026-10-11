@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import { TvPairing } from '../modules/tv-pairing';
 import { parsePairBody, redeem, type TvConfig } from './hub';
+import { t } from './i18n';
 import { colors } from './theme';
 
 /**
@@ -17,7 +18,7 @@ export function PairScreen({ onPaired }: { onPaired: (c: TvConfig) => void }) {
 
   useEffect(() => {
     if (!TvPairing) {
-      setError('This build can’t pair. Install Sightline from the App Store or TestFlight.');
+      setError(t.cantPair);
       return;
     }
     const pairing = TvPairing;
@@ -26,10 +27,10 @@ export function PairScreen({ onPaired }: { onPaired: (c: TvConfig) => void }) {
     const sub = pairing.addListener('onPairRequest', ({ id, body }) => {
       const req = parsePairBody(body);
       if (!req || req.key !== key) {
-        pairing.respond(id, 400, JSON.stringify({ error: 'That request didn’t come from Sightline.' }));
+        pairing.respond(id, 400, JSON.stringify({ error: t.notFromSightline }));
         return;
       }
-      setStatus(`Connecting to ${req.hub.name}…`);
+      setStatus(t.connectingTo(req.hub.name));
       setError(null);
       redeem(req)
         .then((config) => {
@@ -52,7 +53,7 @@ export function PairScreen({ onPaired }: { onPaired: (c: TvConfig) => void }) {
       .then((info) => {
         if (!active) return;
         if (!info.host) {
-          setError('This Apple TV isn’t connected to a network.');
+          setError(t.noNetwork);
           return;
         }
         key = info.key;
@@ -72,10 +73,8 @@ export function PairScreen({ onPaired }: { onPaired: (c: TvConfig) => void }) {
     <View style={styles.root}>
       <View style={styles.text}>
         <Text style={styles.title}>Sightline</Text>
-        <Text style={styles.heading}>Scan with your iPhone</Text>
-        <Text style={styles.body}>
-          Open the Camera app (or Sightline) on your iPhone and point it at the code. Your iPhone must be on the same Wi-Fi as this Apple TV, and you need a Sightline Hub.
-        </Text>
+        <Text style={styles.heading}>{t.scanHeading}</Text>
+        <Text style={styles.body}>{t.scanBody}</Text>
         {status && (
           <View style={styles.row}>
             <ActivityIndicator color={colors.accent} />
@@ -83,7 +82,7 @@ export function PairScreen({ onPaired }: { onPaired: (c: TvConfig) => void }) {
           </View>
         )}
         {error && <Text style={[styles.body, { color: colors.danger }]}>{error}</Text>}
-        {!!address && <Text style={styles.muted}>This TV: {address}</Text>}
+        {!!address && <Text style={styles.muted}>{t.thisTv(address)}</Text>}
       </View>
       <View style={styles.qrBox}>{qr ? <Image source={{ uri: qr }} style={styles.qr} /> : <ActivityIndicator size="large" color={colors.accent} />}</View>
     </View>

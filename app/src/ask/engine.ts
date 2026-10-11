@@ -1,3 +1,4 @@
+import { fmtDate, fmtList, fmtTime, getLocale, tr } from '../i18n/index.ts';
 import type { ReviewItem } from '@/systems/types';
 
 /**
@@ -408,7 +409,14 @@ function parseKind(t: string): AskKind {
   return 'list';
 }
 
-/** Rule-based understanding of common questions. Works everywhere, in English. */
+/**
+ * Rule-based understanding of common questions. Works everywhere, in English.
+ * English only on purpose: a question in another language finds no camera, thing or time word
+ * here, so it falls back to the generic answer (everything in the past week). The answers
+ * themselves are localized (see Answers below); the Ask screen's example chips ask their
+ * English question behind a translated label, and with Apple Intelligence the on-device model
+ * understands the user's own language.
+ */
 export function parseQuestion(question: string, ctx: AskContext, now: number): AskQuery {
   const t = norm(question);
   const time = parseTime(t, now);
@@ -501,6 +509,7 @@ export function planContext(ctx: AskContext, now: number): PlanContext {
     kinds: KINDS,
     times: [...TIME_WORDS],
     parts: ['any', ...PARTS_OF_DAY],
+    // In English for the model (it picks from the English words above); never shown to the user.
     now: `${d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
   };
 }
@@ -555,91 +564,97 @@ export function planToQuery(plan: unknown, ctx: AskContext, now: number, parsed:
 // Answers
 // ---------------------------------------------------------------------------------------------
 
-const NOUNS: Record<Concept, [string, string]> = {
-  person: ['someone', 'people'],
-  vehicle: ['a car', 'cars'],
-  package: ['a package', 'packages'],
-  delivery: ['a delivery', 'deliveries'],
-  animal: ['an animal', 'animals'],
-  bicycle: ['a bike', 'bikes'],
-  doorbell: ['a doorbell ring', 'doorbell rings'],
-};
+/** "someone" / "people" for a concept, in the current language. */
+function noun(c: Concept, plural = false): string {
+  const a = tr().ask.answer;
+  return (plural ? a.many : a.one)[c];
+}
 
 function orList(xs: string[]): string {
   if (xs.length <= 1) return xs[0] ?? '';
-  return `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}`;
+  return `${xs.slice(0, -1).join(', ')} ${tr().ask.answer.or} ${xs[xs.length - 1]}`;
 }
 
 function andList(xs: string[]): string {
-  if (xs.length <= 1) return xs[0] ?? '';
-  return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
-}
-
-function cap(s: string): string {
-  return s ? s[0].toUpperCase() + s.slice(1) : s;
+  return fmtList(xs);
 }
 
 function what(q: AskQuery, plural = false): string {
-  if (q.names.length) return orList(q.names);
-  if (!q.concepts.length) return plural ? 'events' : 'anything';
-  return orList(q.concepts.map((c) => NOUNS[c][plural ? 1 : 0]));
+  const a = tr().ask.answer;
+  if (q.names.length) return plural ? a.manyNames(orList(q.names)) : orList(q.names);
+  if (!q.concepts.length) return plural ? a.events : a.nothing;
+  return orList(q.concepts.map((c) => noun(c, plural)));
+}
+
+/** What was asked about, inside a "didn't see …" sentence. */
+function whatNone(q: AskQuery): string {
+  const a = tr().ask.answer;
+  if (q.names.length) return a.noneNames(orList(q.names));
+  if (!q.concepts.length) return a.nothing;
+  return orList(q.concepts.map((c) => a.none[c]));
 }
 
 function where(q: AskQuery, ctx: AskContext): string {
+  const a = tr().ask.answer;
   const cams = ctx.cameras.filter((c) => q.cameraKeys.includes(c.key)).map((c) => c.name);
   const zones = q.zones.map((z) => ctx.zones.find((x) => x.toLowerCase() === z) ?? z);
-  if (zones.length) return ` in ${orList(zones)}${cams.length ? ` on ${orList(cams)}` : ''}`;
-  return cams.length ? ` on ${orList(cams)}` : '';
+  if (zones.length) return cams.length ? a.inZonesOn(orList(zones), orList(cams)) : a.inZones(orList(zones));
+  return cams.length ? a.onCameras(orList(cams)) : '';
+}
+
+/** The query's time label (kept in English for the logic above), in the current language. */
+export function timeLabelText(label: string): string {
+  const a = tr().ask.answer;
+  if (a.times[label]) return a.times[label];
+  const day = /^on (\w+)$/.exec(label);
+  if (day) {
+    const i = WEEKDAYS.indexOf(day[1].toLowerCase());
+    // October 4, 2026 was a Sunday.
+    if (i >= 0) return a.onDay(fmtDate(new Date(2026, 9, 4 + i), { weekday: 'long' }));
+  }
+  const last = /^in the last (?:(\d+) )?(minutes?|mins?|hours?|hrs?|days?)$/.exec(label);
+  // English keeps the word the question used ("3 hrs").
+  if (last && (getLocale() !== 'en' || /^(minute|hour|day)s?$/.test(last[2]))) {
+    const n = last[1] ? Number(last[1]) : 1;
+    return last[2].startsWith('m') ? a.lastMinutes(n) : last[2].startsWith('h') ? a.lastHours(n) : a.lastDays(n);
+  }
+  return label;
 }
 
 function when(q: AskQuery): string {
-  const part = q.partOfDay ? (q.partOfDay === 'night' ? ' at night' : ` in the ${q.partOfDay}`) : '';
-  return `${q.timeLabel}${part}`;
+  const part = q.partOfDay ? tr().ask.answer.parts[q.partOfDay] : '';
+  return `${timeLabelText(q.timeLabel)}${part}`;
 }
 
 export function clock(t: number): string {
-  return new Date(t * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return fmtTime(new Date(t * 1000));
 }
 
 /** "at 3:42 PM", "yesterday at 9:10 PM", "on Tuesday at 7:05 AM". */
 export function spokenTime(t: number, now: number): string {
+  const a = tr().ask.answer;
   const day = startOfDay(t);
-  if (day === startOfDay(now)) return `at ${clock(t)}`;
-  if (day === startOfDay(now, 1)) return `yesterday at ${clock(t)}`;
-  const wd = new Date(t * 1000).toLocaleDateString('en-US', { weekday: 'long' });
-  return `on ${wd} at ${clock(t)}`;
+  if (day === startOfDay(now)) return a.at(clock(t));
+  if (day === startOfDay(now, 1)) return a.yesterdayAt(clock(t));
+  const wd = fmtDate(new Date(t * 1000), { weekday: 'long' });
+  return a.onDayAt(wd, clock(t));
 }
-
-const LABEL_NOUN: Record<string, string> = {
-  person: 'someone',
-  face: 'someone',
-  car: 'a car',
-  truck: 'a truck',
-  vehicle: 'a vehicle',
-  motorcycle: 'a motorcycle',
-  bus: 'a bus',
-  package: 'a package',
-  dog: 'a dog',
-  cat: 'a cat',
-  bird: 'a bird',
-  bicycle: 'a bike',
-  doorbell: 'a doorbell ring',
-};
 
 /** What an event shows, in words: "Emma", "a package", "someone". */
 export function eventSubject(e: EventRecord, q?: AskQuery): string {
+  const a = tr().ask.answer;
   const names = e.names.filter((n) => !CONCEPT_LABELS.delivery.includes(n.toLowerCase()));
   if (names.length) return andList(names);
-  if (e.doorbell && (!q || q.concepts.includes('doorbell'))) return 'a doorbell ring';
+  if (e.doorbell && (!q || q.concepts.includes('doorbell'))) return a.one.doorbell;
   // Prefer the thing that was asked about.
-  for (const c of q?.concepts ?? []) if (c !== 'doorbell' && matchesConcept(e, c)) return c === 'delivery' && !e.package ? 'a delivery' : NOUNS[c][0];
-  for (const l of e.labels) if (LABEL_NOUN[l]) return LABEL_NOUN[l];
-  if (e.labels.length) return `a ${e.labels[0].replace(/_/g, ' ')}`;
-  return 'motion';
+  for (const c of q?.concepts ?? []) if (c !== 'doorbell' && matchesConcept(e, c)) return c === 'delivery' && !e.package ? a.one.delivery : noun(c);
+  for (const l of e.labels) if (a.labels[l]) return a.labels[l];
+  if (e.labels.length) return a.something(tr().common.objects[e.labels[0]] ?? e.labels[0].replace(/_/g, ' '));
+  return a.motion;
 }
 
 function describe(e: EventRecord, now: number, q?: AskQuery): string {
-  return `${eventSubject(e, q)} on ${e.camera} ${spokenTime(e.start, now)}`;
+  return tr().ask.answer.describe(eventSubject(e, q), e.camera, spokenTime(e.start, now));
 }
 
 export interface Answer {
@@ -649,6 +664,7 @@ export interface Answer {
 }
 
 export function composeAnswer(q: AskQuery, matches: EventRecord[], ctx: AskContext, now: number): Answer {
+  const a = tr().ask.answer;
   const n = matches.length;
   const latest = matches[0];
   const w = where(q, ctx);
@@ -656,50 +672,52 @@ export function composeAnswer(q: AskQuery, matches: EventRecord[], ctx: AskConte
   let text: string;
   switch (q.kind) {
     case 'yesno':
-      if (!n) text = q.concepts.length || q.names.length ? `No, I didn't see ${what(q)}${w} ${tw}.` : `No, nothing was recorded${w} ${tw}.`;
-      else if (n === 1) text = `Yes. ${cap(eventSubject(latest, q))} was seen on ${latest.camera} ${spokenTime(latest.start, now)}.`;
-      else text = `Yes, ${n} times ${tw}. The latest was ${describe(latest, now, q)}.`;
+      if (!n) text = q.concepts.length || q.names.length ? a.yesNoNone(whatNone(q), w, tw) : a.yesNoNothing(w, tw);
+      else if (n === 1) text = a.yesOne(eventSubject(latest, q), latest.camera, spokenTime(latest.start, now));
+      else text = a.yesMany(n, tw, describe(latest, now, q));
       break;
     case 'count':
-      if (!n) text = `None. I didn't see ${what(q)}${w} ${tw}.`;
-      else text = `I saw ${what(q, true)}${w} ${n === 1 ? 'once' : `${n} times`} ${tw}. The latest was ${describe(latest, now, q)}.`;
+      if (!n) text = a.countNone(whatNone(q), w, tw);
+      else text = a.countSeen(what(q, true), w, n, tw, describe(latest, now, q));
       break;
     case 'when': {
       if (!n) {
-        text = `I didn't see ${what(q)}${w} ${tw}.`;
+        text = a.whenNone(whatNone(q), w, tw);
         break;
       }
-      text = `${cap(eventSubject(latest, q))} was seen ${spokenTime(latest.start, now)} on ${latest.camera}.`;
-      const earlier = matches.slice(1, 4).map((e) => spokenTime(e.start, now).replace(/^at /, ''));
-      if (earlier.length) text += ` Before that: ${andList(earlier)}.`;
+      text = a.whenSeen(eventSubject(latest, q), spokenTime(latest.start, now), latest.camera);
+      // Earlier the same day reads as just the time.
+      const earlier = matches.slice(1, 4).map((e) => (startOfDay(e.start) === startOfDay(now) ? clock(e.start) : spokenTime(e.start, now)));
+      if (earlier.length) text += a.whenBefore(andList(earlier));
       break;
     }
     case 'who': {
       if (!n) {
-        text = `Nobody was seen${w} ${tw}.`;
+        text = a.whoNone(w, tw);
         break;
       }
       const known = [...new Set(matches.flatMap((e) => e.names.filter((x) => !CONCEPT_LABELS.delivery.includes(x.toLowerCase()))))];
       // Events aren't people (one visitor can make several), so unknowns stay "someone".
       const unknown = matches.some((e) => !e.names.length);
       const shown = known.slice(0, 4);
-      const who = andList([...shown, ...(unknown ? ["someone I don't recognize"] : [])]);
+      const who = andList([...shown, ...(unknown ? [a.someoneUnknown] : [])]);
       const plural = shown.length + (unknown ? 1 : 0) > 1;
-      text = `${cap(who)} ${plural ? 'were' : 'was'} seen${w} ${tw}.`;
-      if (n > 1) text += ` The latest was ${describe(latest, now, q)}.`;
+      text = (plural ? a.whoMany : a.whoOne)(who, w, tw);
+      if (n > 1) text += a.whoLatest(describe(latest, now, q));
       break;
     }
     case 'list':
     default:
-      if (!n) text = `I didn't find ${what(q)}${w} ${tw}.`;
-      else text = `${n === 1 ? 'One match' : `${n} matches`} ${tw}. The latest is ${describe(latest, now, q)}.`;
+      if (!n) text = a.listNone(whatNone(q), w, tw);
+      else text = a.listFound(n, tw, describe(latest, now, q));
   }
 
+  // Field names stay English (acceptModelAnswer reads them back); the values are in the user's language.
   const facts = [
     `Question type: ${q.kind}`,
     `Looking for: ${what(q, true)}${w}, ${tw}`,
     `Matching recordings: ${n}`,
-    ...matches.slice(0, 5).map((e) => `- ${eventSubject(e, q)} on ${e.camera} ${spokenTime(e.start, now)}`),
+    ...matches.slice(0, 5).map((e) => `- ${describe(e, now, q)}`),
     `Draft answer: ${text}`,
   ];
   return { text, facts };

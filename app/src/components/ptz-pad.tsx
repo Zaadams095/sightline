@@ -5,11 +5,14 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Chip, T } from '@/components/ui/primitives';
+import type { Strings } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import type { CameraSystemAdapter, PtzAction } from '@/systems/types';
 import { usePalette } from '@/theme/use-palette';
 
 /** Hold-to-move PTZ pad: press sends a continuous move, release sends STOP. */
 export function PtzPad({ adapter, cameraId }: { adapter: CameraSystemAdapter; cameraId: string }) {
+  const t = useT();
   const info = useQuery({
     queryKey: ['ptz', adapter.config.id, cameraId],
     queryFn: () => adapter.ptzInfo!(cameraId),
@@ -34,7 +37,7 @@ export function PtzPad({ adapter, cameraId }: { adapter: CameraSystemAdapter; ca
       <View style={[styles.root, styles.center]}>
         <ActivityIndicator color="#fff" />
         <T v="caption" color="rgba(255,255,255,0.6)">
-          Getting the camera’s controls…
+          {t.home.ptz.loading}
         </T>
       </View>
     );
@@ -44,12 +47,12 @@ export function PtzPad({ adapter, cameraId }: { adapter: CameraSystemAdapter; ca
     <View style={styles.root}>
       {failed && (
         <T v="caption" color="#FF9F0A" style={{ textAlign: 'center', paddingHorizontal: 16 }}>
-          The camera didn’t respond. Check it’s online, then try again.
+          {t.home.ptz.noResponse}
         </T>
       )}
       {info.isError && (
         <T v="caption" color="rgba(255,255,255,0.6)" style={{ textAlign: 'center', paddingHorizontal: 16 }}>
-          Couldn’t read this camera’s controls, so the basic ones are shown.
+          {t.home.ptz.readFailed}
         </T>
       )}
       <View style={styles.controls}>
@@ -86,22 +89,24 @@ export function PtzPad({ adapter, cameraId }: { adapter: CameraSystemAdapter; ca
   );
 }
 
-const SPOKEN: Partial<Record<PtzAction, string>> = {
-  MOVE_UP: 'Turn camera up',
-  MOVE_DOWN: 'Turn camera down',
-  MOVE_LEFT: 'Turn camera left',
-  MOVE_RIGHT: 'Turn camera right',
-  ZOOM_IN: 'Zoom in',
-  ZOOM_OUT: 'Zoom out',
+const SPOKEN: Partial<Record<PtzAction, keyof Strings['home']['ptz']>> = {
+  MOVE_UP: 'up',
+  MOVE_DOWN: 'down',
+  MOVE_LEFT: 'left',
+  MOVE_RIGHT: 'right',
+  ZOOM_IN: 'zoomIn',
+  ZOOM_OUT: 'zoomOut',
 };
 
 function Btn({ icon, action, send }: { icon: SFSymbol; action: PtzAction; send: (a: PtzAction) => void }) {
   const p = usePalette();
+  const t = useT();
+  const spoken = SPOKEN[action];
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={SPOKEN[action] ?? action}
-      accessibilityHint="Hold to keep moving"
+      accessibilityLabel={spoken ? t.home.ptz[spoken] : action}
+      accessibilityHint={t.home.ptz.holdHint}
       onPressIn={() => {
         void Haptics.selectionAsync();
         send(action);

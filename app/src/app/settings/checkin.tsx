@@ -1,13 +1,15 @@
 import * as Crypto from 'expo-crypto';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { DEFAULT_CHECKIN, okLabel, placeName, type CheckIn } from '@/alerts/checkins';
 import { runsOnHub } from '@/alerts/checkins-run';
-import { clockText, parseHHMM } from '@/alerts/clock';
+import { parseHHMM } from '@/alerts/clock';
 import { deviceTimezone } from '@/alerts/smart';
 import { Button, Chip, Field, Section, Screen, T, TimeStepper, ToggleRow } from '@/components/ui/primitives';
+import { fmtTime } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { useSmart } from '@/state/smart';
 import { useAllCameras } from '@/systems/registry';
@@ -15,9 +17,17 @@ import { space } from '@/theme/tokens';
 
 const QUIET_HOURS = [2, 3, 4, 6, 8];
 
+/** "9:15 PM" / "21:15" for an "HH:MM" setting, in the app's language. */
+const hhmmText = (hhmm: string) => {
+  const [h, m] = parseHHMM(hhmm);
+  return fmtTime(new Date(2000, 0, 1, h, m));
+};
+
 /** Add or edit one family check-in. */
 export default function CheckinEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const t = useT();
+  const k = t.alertSettings.checkin;
   const systems = useApp((s) => s.systems);
   const existing = useSmart((s) => s.checkins.find((c) => c.id === id));
   const save = useSmart((s) => s.saveCheckin);
@@ -50,11 +60,11 @@ export default function CheckinEditor() {
 
   const onSave = () => {
     if (!c.cameras.length) {
-      Alert.alert('Pick at least one camera', 'Choose the cameras that show everyday life, like the kitchen or hallway.');
+      Alert.alert(k.pickCamera, k.pickCameraBody);
       return;
     }
     if (!c.byTime && !c.quietLimitHours && !c.summaryTime) {
-      Alert.alert('Choose when to hear from Sightline', 'Turn on at least one: no activity by a time, a long quiet stretch, or the daily summary.');
+      Alert.alert(k.chooseWhen, k.chooseWhenBody);
       return;
     }
     const names = Object.fromEntries(cams.filter((cam) => c.cameras.includes(cam.id)).map((cam) => [cam.id, cam.name]));
@@ -64,22 +74,23 @@ export default function CheckinEditor() {
 
   return (
     <Screen>
-      <Section title="Who" footer={c.who.trim() ? `Notifications say “${placeName(c)}”, with buttons like “${okLabel(c)}”.` : 'For example “Mom” or “Grandpa”.'}>
+      <Stack.Screen options={{ title: k.title }} />
+      <Section title={k.who} footer={c.who.trim() ? k.whoFooter(placeName(c), okLabel(c)) : k.whoExample}>
         <View style={styles.pad}>
-          <Field label="Who lives there?" value={c.who} onChangeText={(who) => set({ who })} placeholder="Mom" autoCapitalize="words" />
+          <Field label={k.whoLabel} value={c.who} onChangeText={(who) => set({ who })} placeholder={k.whoPlaceholder} autoCapitalize="words" />
           <Field
-            label="Phone number (optional)"
-            hint={`Adds a “Call ${c.who.trim() || 'them'}” button to the notification.`}
+            label={k.phone}
+            hint={k.phoneHint(c.who.trim() || k.them)}
             value={c.phone ?? ''}
             onChangeText={(phone) => set({ phone })}
             keyboardType="phone-pad"
-            placeholder="(555) 123-4567"
+            placeholder={k.phonePlaceholder}
           />
         </View>
       </Section>
 
       {systems.length > 1 && (
-        <Section title="Home">
+        <Section title={k.home}>
           <View style={styles.chips}>
             {systems.map((s) => (
               <Chip key={s.id} label={s.name} selected={s.id === c.systemId} onPress={() => pickSystem(s.id)} />
@@ -88,9 +99,9 @@ export default function CheckinEditor() {
         </Section>
       )}
 
-      <Section title="Cameras that show everyday life" footer="Only cameras you’re allowed to see are listed. Pick rooms they pass through every day.">
+      <Section title={k.camerasTitle} footer={k.camerasFooter}>
         <View style={styles.chips}>
-          {cams.length === 0 && <T muted>No cameras from this system are connected right now.</T>}
+          {cams.length === 0 && <T muted>{k.noCameras}</T>}
           {cams.map((cam) => (
             <Chip key={cam.id} label={cam.name} selected={c.cameras.includes(cam.id)} onPress={() => set({ cameras: toggle(c.cameras, cam.id) })} />
           ))}
@@ -100,7 +111,7 @@ export default function CheckinEditor() {
           .map((cam) => (
             <View key={cam.id} style={[styles.pad, { gap: space.sm }]}>
               <T v="label" muted>
-                {cam.name}: only count {(c.zones[cam.id] ?? []).length ? '' : '(the whole picture)'}
+                {(c.zones[cam.id] ?? []).length ? k.onlyCount(cam.name) : k.onlyCountWhole(cam.name)}
               </T>
               <View style={styles.chips0}>
                 {cam.zones.map((z) => (
@@ -115,27 +126,27 @@ export default function CheckinEditor() {
             </View>
           ))}
         <ToggleRow
-          label="Only count people"
-          detail="Otherwise any movement counts, which could include a pet."
+          label={k.peopleOnly}
+          detail={k.peopleOnlyDetail}
           value={c.peopleOnly}
           onChange={(peopleOnly) => set({ peopleOnly })}
           last
         />
       </Section>
 
-      <Section title="Let me know if">
+      <Section title={k.letMeKnow}>
         <ToggleRow
-          label="There’s no activity by"
+          label={k.noActivityBy}
           value={!!c.byTime}
           onChange={(v) => set({ byTime: v ? '10:00' : null })}
           last={!c.byTime}
         />
-        {c.byTime && <TimeStepper label="Time" value={c.byTime} onChange={(byTime) => set({ byTime })} last />}
+        {c.byTime && <TimeStepper label={k.time} value={c.byTime} onChange={(byTime) => set({ byTime })} last />}
       </Section>
 
       <Section>
         <ToggleRow
-          label="It’s quiet for a long time during the day"
+          label={k.quietLong}
           value={!!c.quietLimitHours}
           onChange={(v) => set({ quietLimitHours: v ? 6 : null })}
           last={!c.quietLimitHours}
@@ -144,62 +155,62 @@ export default function CheckinEditor() {
           <>
             <View style={styles.chips}>
               {QUIET_HOURS.map((h) => (
-                <Chip key={h} label={`${h} hours`} selected={c.quietLimitHours === h} onPress={() => set({ quietLimitHours: h })} />
+                <Chip key={h} label={t.common.hours(h)} selected={c.quietLimitHours === h} onPress={() => set({ quietLimitHours: h })} />
               ))}
             </View>
-            <TimeStepper label="Day starts" value={c.dayStart} onChange={(dayStart) => set({ dayStart })} />
-            <TimeStepper label="Day ends" value={c.dayEnd} onChange={(dayEnd) => set({ dayEnd })} last />
+            <TimeStepper label={k.dayStarts} value={c.dayStart} onChange={(dayStart) => set({ dayStart })} />
+            <TimeStepper label={k.dayEnds} value={c.dayEnd} onChange={(dayEnd) => set({ dayEnd })} last />
           </>
         )}
       </Section>
 
-      <Section footer={c.summaryTime ? `For example: “All normal at ${placeName(c)}: first activity 7:42 AM · 23 moments today.”` : undefined}>
+      <Section footer={c.summaryTime ? k.summaryExample(t.alerts.checkins.allNormal(placeName(c)), hhmmText('7:42')) : undefined}>
         <ToggleRow
-          label="Daily “All normal” summary"
+          label={k.summary}
           value={!!c.summaryTime}
           onChange={(v) => set({ summaryTime: v ? '20:00' : null })}
           last={!c.summaryTime}
         />
-        {c.summaryTime && <TimeStepper label="Send at" value={c.summaryTime} onChange={(summaryTime) => set({ summaryTime })} last />}
+        {c.summaryTime && <TimeStepper label={k.sendAt} value={c.summaryTime} onChange={(summaryTime) => set({ summaryTime })} last />}
       </Section>
 
-      <Section footer="Check-ins ignore Home & Away and snoozed cameras: they’re about their home, not yours.">
+      <Section footer={k.ignoresFooter}>
         <ToggleRow
-          label="Come through during my quiet hours"
-          detail={c.duringQuietHours ? 'With normal sound, even when Focus is on.' : 'Waits until your quiet hours end.'}
+          label={k.duringQuiet}
+          detail={c.duringQuietHours ? k.duringQuietOn : k.duringQuietOff}
           value={c.duringQuietHours}
           onChange={(duringQuietHours) => set({ duringQuietHours })}
           last={!(theirZone && theirZone !== mine)}
         />
         {theirZone && theirZone !== mine && (
           <View style={styles.chips}>
-            <Chip label={`Their time (${theirZone})`} selected={c.timezone === theirZone} onPress={() => set({ timezone: theirZone })} />
-            <Chip label="My time" selected={c.timezone === mine} onPress={() => set({ timezone: mine })} />
+            <Chip label={k.theirTime(theirZone)} selected={c.timezone === theirZone} onPress={() => set({ timezone: theirZone })} />
+            <Chip label={k.myTime} selected={c.timezone === mine} onPress={() => set({ timezone: mine })} />
           </View>
         )}
       </Section>
 
       <T v="caption" muted style={{ marginHorizontal: space.xs }}>
         {hub || system?.kind === 'hub'
-          ? 'Your Sightline Hub watches around the clock, even when your phone is off, and double-checks with the recorder before saying there’s been no activity.'
-          : `Without a Sightline Hub, iPhone decides when Sightline can check, so a check-in can arrive late.${c.byTime ? ` If Sightline couldn’t check by ${clockText(...parseHHMM(c.byTime))}, it reminds you to look.` : ''}`}
+          ? k.hubNote
+          : `${k.noHubNote}${c.byTime ? ` ${k.couldntCheck(hhmmText(c.byTime))}` : ''}`}
       </T>
 
       {existing && (
         <Section>
-          <ToggleRow label="Check-in is on" value={c.enabled} onChange={(enabled) => set({ enabled })} last />
+          <ToggleRow label={k.isOn} value={c.enabled} onChange={(enabled) => set({ enabled })} last />
         </Section>
       )}
-      <Button title="Save" onPress={onSave} />
+      <Button title={t.common.save} onPress={onSave} />
       {existing && (
         <Button
-          title="Delete check-in"
+          title={k.delete}
           kind="ghost"
           onPress={() =>
-            Alert.alert('Delete this check-in?', undefined, [
-              { text: 'Cancel', style: 'cancel' },
+            Alert.alert(k.deleteConfirm, undefined, [
+              { text: t.common.cancel, style: 'cancel' },
               {
-                text: 'Delete',
+                text: t.common.delete,
                 style: 'destructive',
                 onPress: () => {
                   remove(c.id);

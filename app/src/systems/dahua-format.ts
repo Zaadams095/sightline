@@ -1,4 +1,5 @@
 import type { PtzAction, RecordingSegment, ReviewItem, Severity } from '@/systems/types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Pure helpers for the Dahua / Amcrest / Lorex CGI API (no React Native imports, so they run
@@ -51,7 +52,7 @@ export function parseChannels(titles: Record<string, string>, remote?: Record<st
     .sort((a, b) => a - b)
     .map((i) => ({
       channel: i + 1,
-      name: names.get(i)?.trim() || `Camera ${i + 1}`,
+      name: names.get(i)?.trim() || tr().systems.common.cameraN(i + 1),
       enabled: enabled.get(i) ?? true,
     }));
 }
@@ -452,7 +453,7 @@ export function parsePresets(kv: Record<string, string>): { index: number; name:
     .map(([, e]) => e)
     .filter((e): e is { index: number; name?: string } => Number.isFinite(e.index) && (e.index ?? 0) > 0)
     .map((e) => {
-      let name = e.name?.trim() || `Preset ${e.index}`;
+      let name = e.name?.trim() || tr().systems.common.presetN(e.index);
       if (used.has(name)) name = `${name} (${e.index})`;
       used.add(name);
       return { index: e.index, name };
@@ -494,7 +495,7 @@ export function parseStorage(kv: Record<string, string>): { path: string; usedPc
   return [...parts.entries()]
     .filter(([, e]) => (e.total ?? 0) > 0)
     .map(([key, e]) => ({
-      path: e.path || `Disk ${Number(key.split('/')[0]) + 1}`,
+      path: e.path || tr().systems.common.diskN(Number(key.split('/')[0]) + 1),
       usedPct: Math.round(((e.used ?? 0) / e.total!) * 100),
       freeGb: Math.round(((e.total! - (e.used ?? 0)) / 1e9) * 10) / 10,
     }));
@@ -568,23 +569,23 @@ export function playbackPath(channel: number, start: number, end: number, clock:
  */
 export function dahuaNetworkMessage(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
-  if (msg.startsWith('No response')) return 'The recorder didn’t answer in time. Check that it’s on and reachable.';
-  return 'Couldn’t reach the recorder. Check the address and that your phone is on the same network.';
+  if (msg.startsWith('No response')) return tr().systems.dahua.noAnswer;
+  return tr().systems.dahua.cantReach;
 }
 
 export function dahuaHttpMessage(status: number, body = ''): string {
-  if (/locked/i.test(body)) return 'The recorder has locked this account after too many wrong passwords. Wait 30 minutes, or unlock it from the recorder’s screen.';
+  if (/locked/i.test(body)) return tr().systems.dahua.locked;
   switch (status) {
     case 401:
-      return 'The recorder didn’t accept that username and password. Check them and try again (they’re the ones you use on the recorder’s screen or in its app).';
+      return tr().systems.dahua.badLogin;
     case 403:
-      return 'This user isn’t allowed to do that on the recorder. Sign in with the admin account, or give this user more permissions on the recorder.';
+      return tr().systems.dahua.forbidden;
     case 404:
-      return 'The recorder doesn’t support this feature.';
+      return tr().systems.dahua.notSupported;
     case 502:
     case 504:
-      return 'Couldn’t reach the recorder. Check that it’s turned on and connected to your network.';
+      return tr().systems.dahua.unreachable;
     default:
-      return `The recorder answered with an error (HTTP ${status}). Try again in a moment.`;
+      return tr().systems.dahua.httpError(status);
   }
 }

@@ -64,8 +64,8 @@ enum FamiliarMatcher {
   /// "Person · Front Door" → "Dad is at Front Door"; other titles get the name in front.
   static func title(_ original: String, name: String) -> String {
     if let range = original.range(of: " · ", options: .backwards) {
-      let camera = original[range.upperBound...]
-      if !camera.isEmpty { return "\(name) is at \(camera)" }
+      let camera = String(original[range.upperBound...])
+      if !camera.isEmpty { return String(localized: "\(name) is at \(camera)") }
     }
     return original.isEmpty ? name : "\(name) · \(original)"
   }

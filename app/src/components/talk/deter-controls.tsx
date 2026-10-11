@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import type { CameraSystemAdapter, DeterAction } from '@/systems/types';
 import { deterButtons, sirenConfirmText } from '@/talk/talk-core';
 
@@ -16,6 +18,7 @@ const RED = '#FF453A';
  * Nothing renders for a camera without either. The siren always asks first.
  */
 export function DeterControls({ adapter, systemId, cameraId }: { adapter: CameraSystemAdapter; systemId: string; cameraId: string }) {
+  const t = useT();
   const supported = adapter.capabilities.deter && !!adapter.deterInfo && !!adapter.deter;
   const info = useQuery({
     queryKey: ['deter-info', systemId, cameraId],
@@ -43,15 +46,15 @@ export function DeterControls({ adapter, systemId, cameraId }: { adapter: Camera
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (action !== 'siren') setLightOn(action === 'light-on');
     },
-    onError: (e) => setError(e instanceof Error ? e.message : 'The camera didn’t respond. Try again.'),
+    onError: (e) => setError(e instanceof Error ? e.message : tr().viewing.talk.noResponse),
   });
 
   if (!buttons.light && !buttons.siren) return null;
 
   const confirmSiren = () =>
-    Alert.alert('Sound the siren?', sirenConfirmText(info.data!), [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sound siren', style: 'destructive', onPress: () => run.mutate('siren') },
+    Alert.alert(t.viewing.talk.sirenTitle, sirenConfirmText(info.data!), [
+      { text: t.common.cancel, style: 'cancel' },
+      { text: t.viewing.talk.soundSiren, style: 'destructive', onPress: () => run.mutate('siren') },
     ]);
 
   const busy = (a: DeterAction | 'light') =>
@@ -65,7 +68,7 @@ export function DeterControls({ adapter, systemId, cameraId }: { adapter: Camera
             onPress={() => run.mutate(lightOn ? 'light-off' : 'light-on')}
             disabled={run.isPending}
             accessibilityRole="switch"
-            accessibilityLabel="Spotlight"
+            accessibilityLabel={t.viewing.talk.spotlight}
             accessibilityState={{ checked: lightOn, busy: busy('light') }}
             style={[styles.btn, lightOn && { backgroundColor: 'rgba(255,214,10,0.28)' }]}>
             {busy('light') ? (
@@ -74,7 +77,7 @@ export function DeterControls({ adapter, systemId, cameraId }: { adapter: Camera
               <SymbolView name={lightOn ? 'lightbulb.max.fill' : 'lightbulb'} tintColor={lightOn ? AMBER : '#fff'} size={20} />
             )}
             <T v="caption" color="#fff">
-              {lightOn ? 'Spotlight on' : 'Spotlight'}
+              {lightOn ? t.viewing.talk.spotlightOn : t.viewing.talk.spotlight}
             </T>
           </Pressable>
         )}
@@ -83,12 +86,12 @@ export function DeterControls({ adapter, systemId, cameraId }: { adapter: Camera
             onPress={confirmSiren}
             disabled={run.isPending}
             accessibilityRole="button"
-            accessibilityLabel="Siren. Asks before sounding."
+            accessibilityLabel={t.viewing.talk.sirenA11y}
             accessibilityState={{ busy: busy('siren') }}
             style={styles.btn}>
             {busy('siren') ? <ActivityIndicator color="#fff" /> : <SymbolView name="light.beacon.max.fill" tintColor={RED} size={20} />}
             <T v="caption" color="#fff">
-              Siren
+              {t.viewing.talk.siren}
             </T>
           </Pressable>
         )}
@@ -103,7 +106,7 @@ export function DeterControls({ adapter, systemId, cameraId }: { adapter: Camera
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 10 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   btn: {
     flex: 1,
     alignItems: 'center',

@@ -1,6 +1,8 @@
 import type { AlertSettings, CameraAlertRule } from '@/state/store';
 import type { ReviewItem } from '@/systems/types';
 
+import { tr } from '../i18n/index.ts';
+
 /**
  * Decides whether a review item should notify. Kept pure (no RN imports) so the same
  * logic can be mirrored by the Instant Alerts bridge (bridge/engine.go).
@@ -127,7 +129,7 @@ export function isFreshRing(item: { objects: string[]; startTime: number }, nowS
 
 /** Notification title for an event; `label` is the usual "Person & Car" title. Mirrors bridge buildMessage. */
 export function notificationTitle(item: { objects: string[] }, camera: string, label: string): string {
-  if (isDoorbell(item)) return `Someone's at the door · ${camera}`;
+  if (isDoorbell(item)) return `${tr().alerts.ringHeadline} · ${camera}`;
   return `${label} · ${camera}`;
 }
 

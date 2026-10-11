@@ -3,6 +3,7 @@
  * (DST-safe), plain "9:15 PM" formatting, and day/night from the sun. Pure (no RN imports) and
  * mirrored by the Hub (bridge/clock.go), so both sides word and time things identically.
  */
+import { formatLocale, getLocale, tr } from '../i18n/index.ts';
 
 export interface ZonedParts {
   y: number;
@@ -94,25 +95,30 @@ export function parseHHMM(s: string): [number, number] {
   return [Math.min(23, Number(m[1])), Math.min(59, Number(m[2]))];
 }
 
-/** "9:15 PM". */
+/** "9:15 PM" (English); "21:15" and the like in other languages. */
 export function clockText(h: number, mi: number): string {
+  if (getLocale() !== 'en') {
+    try {
+      return new Date(Date.UTC(2000, 0, 1, h, mi)).toLocaleTimeString(formatLocale(), { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+    } catch {
+      return `${h}:${String(mi).padStart(2, '0')}`;
+    }
+  }
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
 /** "today at 9:15 AM" / "yesterday at 9:15 PM" / "on Monday at 9:15 PM" / "on Oct 3 at 9:15 PM". */
 export function whenText(ts: number, now: number, tz: string): string {
   const p = zoned(ts, tz);
-  const at = `at ${clockText(p.h, p.mi)}`;
+  const t = tr().alerts.checkins;
+  const time = clockText(p.h, p.mi);
   const today = zoned(now, tz);
   const days = Math.round((Date.UTC(today.y, today.m - 1, today.d) - Date.UTC(p.y, p.m - 1, p.d)) / 86_400_000);
-  if (days <= 0) return `today ${at}`;
-  if (days === 1) return `yesterday ${at}`;
-  if (days < 7) return `on ${DAY_NAMES[p.wd]} ${at}`;
-  return `on ${MONTHS[p.m - 1]} ${p.d} ${at}`;
+  if (days <= 0) return t.today(time);
+  if (days === 1) return t.yesterday(time);
+  if (days < 7) return t.onDay(t.dayNames[p.wd], time);
+  return t.onDate(t.months[p.m - 1], p.d, time);
 }
 
 export type Light = 'day' | 'night';

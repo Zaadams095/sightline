@@ -1,3 +1,4 @@
+import { tr } from '@/i18n';
 import type { SystemKind } from '@/systems/types';
 import type { AuthKind } from '@modules/wg-tunnel';
 
@@ -54,15 +55,18 @@ export interface SystemDescriptor {
   usesGateway?: boolean;
 }
 
+// Text is read in the current language each time a screen asks (getters below), never at load.
+const c = () => tr().onboarding.catalog;
+
 const ADDRESS = (placeholder: string, hint: string): SetupField => ({
   key: 'address',
-  label: 'Address',
+  label: c().address,
   placeholder,
   hint,
   keyboard: 'url',
 });
-const USER = (defaultValue = 'admin'): SetupField => ({ key: 'username', label: 'Username', defaultValue });
-const PASS: SetupField = { key: 'password', label: 'Password', secure: true };
+const USER = (defaultValue = 'admin'): SetupField => ({ key: 'username', label: c().username, defaultValue });
+const PASS = (): SetupField => ({ key: 'password', label: c().password, secure: true });
 
 const has = (s: string | undefined, needle: string) => !!s && s.toLowerCase().includes(needle.toLowerCase());
 
@@ -70,21 +74,30 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'hub',
     label: 'Sightline Hub',
-    blurb: 'Instant alerts, sharing and remote access for any system',
+    get blurb() {
+      return c().hub.blurb;
+    },
     category: 'hub',
     available: true,
     defaultPorts: [{ port: 8086, https: false }],
-    addressHint: 'Shown on the Hub’s setup page. Easiest: scan its QR code.',
-    fields: [
-      ADDRESS('192.168.1.20:8086', 'Or scan the QR code on the Hub setup page.'),
-      { key: 'code', label: 'Pairing code', placeholder: '6 digits', keyboard: 'number-pad', hint: 'Shown on the Hub’s setup page.' },
-    ],
+    get addressHint() {
+      return c().hub.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().hub;
+      return [
+        ADDRESS('192.168.1.20:8086', s.addressHelp),
+        { key: 'code', label: s.code, placeholder: s.codePlaceholder, keyboard: 'number-pad', hint: s.codeHint },
+      ];
+    },
     fingerprints: [{ port: 8086, https: false, path: '/v1/info', match: (r) => has(r.body, '"sightline":"hub"') || has(r.server, 'sightline') }],
   },
   {
     kind: 'frigate',
     label: 'Frigate',
-    blurb: 'AI-powered recorder for any camera',
+    get blurb() {
+      return c().frigate.blurb;
+    },
     category: 'software',
     available: true,
     defaultPorts: [
@@ -93,9 +106,13 @@ export const CATALOG: SystemDescriptor[] = [
       { port: 443, https: true },
       { port: 80, https: false },
     ],
-    addressHint: 'The address you open Frigate at in a browser, e.g. 192.168.1.10:8971.',
+    get addressHint() {
+      return c().frigate.addressHint;
+    },
     gatewayAuth: 'frigate',
-    fields: [ADDRESS('192.168.1.10:8971', 'Port is optional; Sightline finds it.'), { ...USER(''), optional: true }, { ...PASS, optional: true }],
+    get fields(): SetupField[] {
+      return [ADDRESS('192.168.1.10:8971', c().frigate.addressHelp), { ...USER(''), optional: true }, { ...PASS(), optional: true }];
+    },
     fingerprints: [
       { port: 8971, https: true, path: '/', match: (r) => has(r.body, 'frigate') },
       { port: 8971, https: false, path: '/', match: (r) => has(r.body, 'frigate') },
@@ -105,7 +122,9 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'reolink',
     label: 'Reolink',
-    blurb: 'Reolink recorders, Home Hub and cameras',
+    get blurb() {
+      return c().reolink.blurb;
+    },
     category: 'recorder',
     available: true,
     // Newer Reolink firmware ships with HTTPS on and plain HTTP off.
@@ -113,13 +132,13 @@ export const CATALOG: SystemDescriptor[] = [
       { port: 443, https: true },
       { port: 80, https: false },
     ],
-    addressHint:
-      'In the Reolink app, open the device’s settings and look for Network Information (or Device Info) to see its IP address. Use the recorder or Home Hub address if you have one.',
-    fields: [
-      ADDRESS('192.168.1.20', 'The recorder, Home Hub or single camera address.'),
-      USER(),
-      { ...PASS, hint: 'The password you use in the Reolink app for this device.' },
-    ],
+    get addressHint() {
+      return c().reolink.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().reolink;
+      return [ADDRESS('192.168.1.20', s.addressHelp), USER(), { ...PASS(), hint: s.passwordHint }];
+    },
     // Without a token the API still answers JSON naming the command ("please login first").
     fingerprints: [
       { port: 443, https: true, path: '/cgi-bin/api.cgi?cmd=GetDevInfo', match: (r) => has(r.body, '"cmd"') && has(r.body, 'GetDevInfo') },
@@ -129,20 +148,22 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'hikvision',
     label: 'Hikvision',
-    blurb: 'Hikvision recorders and cameras (also many rebranded ones)',
+    get blurb() {
+      return c().hikvision.blurb;
+    },
     category: 'recorder',
     available: true,
     defaultPorts: [
       { port: 80, https: false },
       { port: 443, https: true },
     ],
-    addressHint:
-      'On the recorder’s screen: Menu → Configuration → Network → General shows the IPv4 address. For a single camera, look for it in your router’s list of connected devices.',
-    fields: [
-      ADDRESS('192.168.1.64', 'The recorder (or camera) address.'),
-      USER(),
-      { ...PASS, hint: 'The password you sign in to the recorder with (not your Hik-Connect account).' },
-    ],
+    get addressHint() {
+      return c().hikvision.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().hikvision;
+      return [ADDRESS('192.168.1.64', s.addressHelp), USER(), { ...PASS(), hint: s.passwordHint }];
+    },
     // ISAPI answers a Digest challenge. Dahua-based devices also use Digest but with a
     // "Login to <serial>" realm, so those are left to the Dahua entry.
     fingerprints: [80, 443].map((port) => ({
@@ -156,20 +177,22 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'dahua',
     label: 'Dahua / Amcrest / Lorex',
-    blurb: 'Dahua, Amcrest and Lorex recorders and cameras',
+    get blurb() {
+      return c().dahua.blurb;
+    },
     category: 'recorder',
     available: true,
     defaultPorts: [
       { port: 80, https: false },
       { port: 443, https: true },
     ],
-    addressHint:
-      'On the recorder’s screen: Main Menu → Network shows the IP address. In the Amcrest or Lorex app, open the device’s settings → Device info.',
-    fields: [
-      ADDRESS('192.168.1.108', 'The recorder’s address (or a single camera’s).'),
-      { ...USER(), hint: 'The same sign-in you use on the recorder’s screen or in its app.' },
-      PASS,
-    ],
+    get addressHint() {
+      return c().dahua.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().dahua;
+      return [ADDRESS('192.168.1.108', s.addressHelp), { ...USER(), hint: s.usernameHint }, PASS()];
+    },
     // Dahua firmware answers with a Digest challenge whose realm is "Login to <serial>".
     fingerprints: [
       { port: 80, https: false, path: '/cgi-bin/magicBox.cgi?action=getDeviceType', match: (r) => has(r.auth, 'login to') || has(r.body, 'type=') },
@@ -179,23 +202,27 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'unifi-protect',
     label: 'UniFi Protect',
-    blurb: 'UniFi cameras on a Cloud Key, Dream Machine or UniFi recorder',
+    get blurb() {
+      return c().unifi.blurb;
+    },
     category: 'recorder',
     available: true,
     defaultPorts: [{ port: 443, https: true }],
-    addressHint:
-      'Your UniFi console’s address (often 192.168.1.1). Sign in with a local account: in UniFi OS open Admins & Users → add an admin, choose “Restrict to local access only”, and give it access to Protect.',
-    fields: [
-      ADDRESS('192.168.1.1', 'The address of your Cloud Key, Dream Machine or UniFi recorder.'),
-      { ...USER(''), hint: 'A local UniFi account, not your Ubiquiti cloud email.' },
-      PASS,
-    ],
+    get addressHint() {
+      return c().unifi.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().unifi;
+      return [ADDRESS('192.168.1.1', s.addressHelp), { ...USER(''), hint: s.usernameHint }, PASS()];
+    },
     fingerprints: [{ port: 443, https: true, path: '/', match: (r) => has(r.body, 'unifi') }],
   },
   {
     kind: 'blue-iris',
     label: 'Blue Iris',
-    blurb: 'Windows camera software',
+    get blurb() {
+      return c().blueIris.blurb;
+    },
     category: 'software',
     available: true,
     defaultPorts: [
@@ -203,12 +230,13 @@ export const CATALOG: SystemDescriptor[] = [
       { port: 80, https: false },
       { port: 443, https: true },
     ],
-    addressHint: 'On the Blue Iris computer: Settings → Web server shows the local address (often port 81). Sign in with a Blue Iris user from Settings → Users.',
-    fields: [
-      ADDRESS('192.168.1.30:81', 'Port is optional; Sightline tries 81 first.'),
-      { ...USER(''), hint: 'A Blue Iris user (Settings → Users). Leave empty if Blue Iris allows anonymous viewing.', optional: true },
-      { ...PASS, optional: true },
-    ],
+    get addressHint() {
+      return c().blueIris.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().blueIris;
+      return [ADDRESS('192.168.1.30:81', s.addressHelp), { ...USER(''), hint: s.usernameHint, optional: true }, { ...PASS(), optional: true }];
+    },
     fingerprints: [
       // The JSON login's first step answers with a session key even without a password.
       { port: 81, https: false, path: '/', match: (r) => has(r.body, 'blue iris') || has(r.server, 'blueserver') },
@@ -218,33 +246,41 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'scrypted',
     label: 'Scrypted',
-    blurb: 'Home video software (live view, added camera by camera)',
+    get blurb() {
+      return c().scrypted.blurb;
+    },
     category: 'software',
     available: true,
     defaultPorts: [
       { port: 10443, https: true },
       { port: 11080, https: false },
     ],
-    addressHint:
-      'The address you open Scrypted at (port 10443). Then, for each camera in Scrypted: open the camera → Rebroadcast → Streams, copy “RTSP Rebroadcast Url” and paste it below.',
-    fields: [
-      ADDRESS('192.168.1.40:10443', 'Used to fill in “localhost” in the links.'),
-      {
-        key: 'links',
-        label: 'Camera links',
-        placeholder: 'Porch=rtsp://localhost:34567/a1b2…',
-        hint: 'Paste each camera’s “RTSP Rebroadcast Url”, separated by spaces. To name a camera, put its name and = in front, like Porch=rtsp://….',
-        keyboard: 'url',
-      },
-      { ...USER(''), hint: 'Optional: your Scrypted sign-in, to check the address.', optional: true },
-      { ...PASS, optional: true },
-    ],
+    get addressHint() {
+      return c().scrypted.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().scrypted;
+      return [
+        ADDRESS('192.168.1.40:10443', s.addressHelp),
+        {
+          key: 'links',
+          label: s.links,
+          placeholder: s.linksPlaceholder,
+          hint: s.linksHint,
+          keyboard: 'url',
+        },
+        { ...USER(''), hint: s.usernameHint, optional: true },
+        { ...PASS(), optional: true },
+      ];
+    },
     fingerprints: [{ port: 10443, https: true, path: '/', match: (r) => has(r.body, 'scrypted') }],
   },
   {
     kind: 'zoneminder',
     label: 'ZoneMinder',
-    blurb: 'Open-source camera software',
+    get blurb() {
+      return c().zoneminder.blurb;
+    },
     category: 'software',
     available: true,
     defaultPorts: [
@@ -252,12 +288,13 @@ export const CATALOG: SystemDescriptor[] = [
       { port: 443, https: true },
       { port: 8443, https: true },
     ],
-    addressHint: 'The address you open ZoneMinder at, without “/zm” (e.g. 192.168.1.50). The user needs API access (Options → Users).',
-    fields: [
-      ADDRESS('192.168.1.50', 'Leave off /zm; Sightline finds it.'),
-      { ...USER(''), hint: 'Leave empty if ZoneMinder doesn’t ask you to sign in.', optional: true },
-      { ...PASS, optional: true },
-    ],
+    get addressHint() {
+      return c().zoneminder.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().zoneminder;
+      return [ADDRESS('192.168.1.50', s.addressHelp), { ...USER(''), hint: s.usernameHint, optional: true }, { ...PASS(), optional: true }];
+    },
     fingerprints: [
       { port: 80, https: false, path: '/zm/', match: (r) => has(r.body, 'zoneminder') },
       { port: 80, https: false, path: '/zm/api/host/getVersion.json', match: (r) => has(r.body, 'apiversion') },
@@ -267,46 +304,56 @@ export const CATALOG: SystemDescriptor[] = [
   {
     kind: 'shinobi',
     label: 'Shinobi',
-    blurb: 'Open-source camera software',
+    get blurb() {
+      return c().shinobi.blurb;
+    },
     category: 'software',
     available: true,
     defaultPorts: [
       { port: 8080, https: false },
       { port: 443, https: true },
     ],
-    addressHint: 'The address you open Shinobi at (port 8080). Sightline signs in with an API key instead of your password.',
-    fields: [
-      ADDRESS('192.168.1.50:8080', 'Port is optional; Sightline tries 8080 first.'),
-      {
-        // Stored in the keychain like a password.
-        key: 'password',
-        label: 'API key',
-        placeholder: 'Paste the API key',
-        hint: 'In Shinobi, open the menu (your name, top left) → API Keys. Tick the permissions. Under Allowed IPs, enter this phone’s address (iPhone Settings → Wi-Fi → tap ⓘ next to your network → IP Address). Tap Add, then copy the key.',
-        secure: true,
-      },
-      {
-        key: 'groupKey',
-        label: 'Group key',
-        placeholder: 'e.g. aBcD1234',
-        hint: 'In Shinobi, open the menu → Account Settings. The group key is shown at the top.',
-      },
-    ],
+    get addressHint() {
+      return c().shinobi.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().shinobi;
+      return [
+        ADDRESS('192.168.1.50:8080', s.addressHelp),
+        {
+          // Stored in the keychain like a password.
+          key: 'password',
+          label: s.apiKey,
+          placeholder: s.apiKeyPlaceholder,
+          hint: s.apiKeyHint,
+          secure: true,
+        },
+        {
+          key: 'groupKey',
+          label: s.groupKey,
+          placeholder: s.groupKeyPlaceholder,
+          hint: s.groupKeyHint,
+        },
+      ];
+    },
     fingerprints: [{ port: 8080, https: false, path: '/', match: (r) => has(r.body, 'shinobi') }],
   },
   {
     kind: 'agent-dvr',
     label: 'Agent DVR',
-    blurb: 'Camera software by iSpy',
+    get blurb() {
+      return c().agentDvr.blurb;
+    },
     category: 'software',
     available: true,
     defaultPorts: [{ port: 8090, https: false }],
-    addressHint: 'The address you open Agent DVR at (port 8090). For recordings to play on iPhone, set each camera’s recording format to MP4.',
-    fields: [
-      ADDRESS('192.168.1.50:8090', 'Port is optional; Sightline tries 8090 first.'),
-      { ...USER(''), hint: 'Only if “Protect API” is turned on in Agent’s server settings.', optional: true },
-      { ...PASS, optional: true },
-    ],
+    get addressHint() {
+      return c().agentDvr.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().agentDvr;
+      return [ADDRESS('192.168.1.50:8090', s.addressHelp), { ...USER(''), hint: s.usernameHint, optional: true }, { ...PASS(), optional: true }];
+    },
     fingerprints: [
       // getStatus answers JSON with version/unique/armed (agent-py); a 401 means "Protect API" is on.
       { port: 8090, https: false, path: '/command/getStatus', match: (r) => (has(r.body, '"unique"') && has(r.body, '"version"')) || (r.status === 401 && has(r.auth, 'basic')) },
@@ -315,8 +362,12 @@ export const CATALOG: SystemDescriptor[] = [
   },
   {
     kind: 'onvif',
-    label: 'Other network camera',
-    blurb: 'Most Wi-Fi and wired cameras: just the address and password',
+    get label() {
+      return c().onvif.label;
+    },
+    get blurb() {
+      return c().onvif.blurb;
+    },
     category: 'camera',
     available: true,
     defaultPorts: [
@@ -325,15 +376,13 @@ export const CATALOG: SystemDescriptor[] = [
       { port: 2020, https: false },
       { port: 8899, https: false },
     ],
-    addressHint: 'The camera’s address from your router’s device list or the camera’s app. Sign in with the same login you use in the camera’s app or web page.',
-    fields: [
-      ADDRESS(
-        '192.168.1.70',
-        'Just the address is usually enough. If it doesn’t connect, turn on “ONVIF” (the standard way apps talk to cameras) in the camera’s app, and add the port it shows, e.g. 192.168.1.70:8000.',
-      ),
-      { ...USER(), hint: 'Often “admin”. Some cameras need a separate camera account, made in their app.' },
-      { ...PASS, hint: 'The camera’s password (not your Wi-Fi password).' },
-    ],
+    get addressHint() {
+      return c().onvif.addressHint;
+    },
+    get fields(): SetupField[] {
+      const s = c().onvif;
+      return [ADDRESS('192.168.1.70', s.addressHelp), { ...USER(), hint: s.usernameHint }, { ...PASS(), hint: s.passwordHint }];
+    },
     fingerprints: [80, 8000, 2020, 8899].map((port) => ({
       port,
       https: false,
@@ -343,20 +392,30 @@ export const CATALOG: SystemDescriptor[] = [
   },
   {
     kind: 'rtsp',
-    label: 'Camera by stream link',
-    blurb: 'Paste a video link from the camera’s manual (advanced)',
+    get label() {
+      return c().rtsp.label;
+    },
+    get blurb() {
+      return c().rtsp.blurb;
+    },
     category: 'camera',
     available: true,
     defaultPorts: [],
-    addressHint: 'The video link (starts with rtsp://) from the camera’s manual, e.g. rtsp://user:pass@192.168.1.50:554/stream1.',
+    get addressHint() {
+      return c().rtsp.addressHint;
+    },
     usesGateway: false,
     fields: [],
     fingerprints: [],
   },
   {
     kind: 'demo',
-    label: 'Sample cameras',
-    blurb: 'Built-in sample video to explore the app',
+    get label() {
+      return c().demo.label;
+    },
+    get blurb() {
+      return c().demo.blurb;
+    },
     category: 'demo',
     available: true,
     defaultPorts: [],

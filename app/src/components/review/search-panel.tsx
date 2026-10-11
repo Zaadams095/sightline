@@ -4,15 +4,15 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Button, Chip, Field, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter, useAllCameras } from '@/systems/registry';
 import type { SearchHit } from '@/systems/types';
+import { useLargeText } from '@/theme/text-scale';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { formatRelative, labelFor } from '@/util/format';
-
-const EXAMPLES = ['person carrying a package', 'white pickup truck', 'dog in the yard', 'someone at the door at night'];
 
 /**
  * Smart search on systems that support it: "description" matches generated/AI descriptions,
@@ -20,6 +20,8 @@ const EXAMPLES = ['person carrying a package', 'white pickup truck', 'dog in the
  */
 export function SearchPanel() {
   const p = usePalette();
+  const t = useT();
+  const large = useLargeText();
   const { width } = useWindowDimensions();
   const systems = useApp((s) => s.systems);
   const links = useLinks((s) => s.links);
@@ -40,7 +42,7 @@ export function SearchPanel() {
     setError(null);
     try {
       const searchable = systems.map((s) => getAdapter(s, links[s.id])).filter((a) => a?.search);
-      if (!searchable.length) throw new Error('None of your systems support smart search.');
+      if (!searchable.length) throw new Error(t.home.search.unsupported);
       const results = await Promise.allSettled(searchable.map((a) => a!.search!({ query: q.trim(), type, limit: 60 })));
       const ok = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
       const firstErr = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
@@ -60,29 +62,29 @@ export function SearchPanel() {
   return (
     <View style={{ paddingHorizontal: space.lg, gap: space.md }}>
       <Field
-        label="Describe what you're looking for"
+        label={t.home.search.label}
         value={query}
         onChangeText={setQuery}
-        placeholder="person in a red jacket"
+        placeholder={t.home.search.placeholder}
         autoCapitalize="none"
         returnKeyType="search"
         onSubmitEditing={() => void run()}
       />
       <View style={styles.row}>
-        <Chip label="Looks like" selected={type === 'thumbnail'} onPress={() => setType('thumbnail')} />
-        <Chip label="Description" selected={type === 'description'} onPress={() => setType('description')} />
+        <Chip label={t.home.search.looksLike} selected={type === 'thumbnail'} onPress={() => setType('thumbnail')} />
+        <Chip label={t.home.search.description} selected={type === 'description'} onPress={() => setType('description')} />
       </View>
-      <Button title="Search" onPress={() => void run()} loading={busy} disabled={!query.trim()} />
+      <Button title={t.home.search.search} onPress={() => void run()} loading={busy} disabled={!query.trim()} />
 
       {error && <T color={p.danger}>{error}</T>}
 
       {!hits && !error && !busy && (
         <View style={{ gap: space.sm }}>
           <T v="caption" muted>
-            Try
+            {t.home.search.try}
           </T>
           <View style={styles.row}>
-            {EXAMPLES.map((ex) => (
+            {t.home.search.examples.map((ex) => (
               <Chip key={ex} label={ex} selected={false} onPress={() => void run(ex)} />
             ))}
           </View>
@@ -94,7 +96,7 @@ export function SearchPanel() {
       {hits && !busy && (
         <>
           <T v="caption" muted>
-            {hits.length ? `${hits.length} matches, best first` : 'No matches'}
+            {t.home.search.matches(hits.length)}
           </T>
           <View style={[styles.row, { gap: space.sm }]}>
             {hits.map((h) => (
@@ -110,10 +112,10 @@ export function SearchPanel() {
                 <View style={[styles.thumb, { height: tileW * 0.75, borderRadius: Math.min(radius, 12), backgroundColor: p.surface }]}>
                   <Image source={{ uri: h.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                 </View>
-                <T v="label" numberOfLines={1}>
+                <T v="label" numberOfLines={large ? 3 : 1}>
                   {h.subLabel ?? labelFor([h.label])}
                 </T>
-                <T v="caption" muted numberOfLines={1}>
+                <T v="caption" muted numberOfLines={large ? 3 : 1}>
                   {nameOf(h.systemId, h.cameraId)} · {formatRelative(h.startTime)}
                 </T>
               </Pressable>

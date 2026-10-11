@@ -78,7 +78,7 @@ private struct Elapsed: View {
 
 private struct WatchButton: View {
   let url: URL
-  let label: String
+  let label: LocalizedStringKey
 
   var body: some View {
     Link(destination: url) {
@@ -101,7 +101,11 @@ private struct LockScreenView: View {
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 4) {
           Image(systemName: context.symbol)
-          Text(context.isDoorbell ? "Doorbell" : "Camera")
+          if context.isDoorbell {
+            Text("Doorbell")
+          } else {
+            Text("Camera")
+          }
           Spacer(minLength: 4)
           Elapsed(start: context.start, over: context.isOver).foregroundStyle(Brand.muted)
         }

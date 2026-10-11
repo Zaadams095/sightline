@@ -5,6 +5,7 @@ import { AppState, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { checkPin } from '@/security/pin';
 import { useApp } from '@/state/store';
 import { space } from '@/theme/tokens';
@@ -55,6 +56,7 @@ function Cover() {
 /** The unlock screen (Face ID / passcode or PIN), also used to leave the wall display. */
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const p = usePalette();
+  const l = useT().settings.appLock;
   const insets = useSafeAreaInsets();
   const { method, biometricsWithPin } = useApp((s) => s.security);
   const [pin, setPin] = useState('');
@@ -62,13 +64,13 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
   const biometric = useCallback(async () => {
     const res = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock your cameras',
+      promptMessage: l.prompt,
       // In PIN mode the fallback is our own keypad, not the device passcode.
       disableDeviceFallback: method === 'pin',
-      fallbackLabel: method === 'pin' ? 'Use PIN' : undefined,
+      fallbackLabel: method === 'pin' ? l.usePin : undefined,
     });
     if (res.success) onUnlock();
-  }, [method, onUnlock]);
+  }, [method, onUnlock, l]);
 
   useEffect(() => {
     if (method === 'device' || biometricsWithPin) void biometric();
@@ -91,13 +93,13 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.root, { backgroundColor: p.bg, paddingTop: insets.top + 80 }]}>
-      <T v="title">Locked</T>
+      <T v="title">{l.locked}</T>
       {method === 'device' ? (
-        <Button title="Unlock" onPress={biometric} style={{ alignSelf: 'stretch', marginTop: space.xl }} />
+        <Button title={l.unlock} onPress={biometric} style={{ alignSelf: 'stretch', marginTop: space.xl }} />
       ) : (
         <>
           <T muted color={error ? p.danger : undefined}>
-            {error ? 'Wrong PIN' : 'Enter your PIN'}
+            {error ? l.wrongPin : l.enterPin}
           </T>
           <View style={styles.dots}>
             {Array.from({ length: PIN_LENGTH }, (_, i) => (
@@ -110,8 +112,12 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
                 key={i}
                 disabled={!d}
                 onPress={() => (d === 'FaceID' ? void biometric() : void press(d))}
+                accessibilityRole={d ? 'button' : undefined}
+                accessibilityLabel={d === '⌫' ? l.deleteDigit : undefined}
                 style={({ pressed }) => [styles.key, { backgroundColor: d && d !== '⌫' && d !== 'FaceID' ? (pressed ? p.surfaceRaised : p.surface) : 'transparent' }]}>
-                <T v={d === 'FaceID' ? 'caption' : 'heading'}>{d === 'FaceID' ? 'Face ID' : d}</T>
+                <T v={d === 'FaceID' ? 'caption' : 'heading'} overlay>
+                  {d === 'FaceID' ? 'Face ID' : d}
+                </T>
               </Pressable>
             ))}
           </View>

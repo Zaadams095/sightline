@@ -16,8 +16,16 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleLocalizations": ["en", "es", "fr", "de", "pt-BR"],
+        "CFBundleAllowMixedLocalizations": true
       }
+    },
+    "locales": {
+      "es": "./locales/es.json",
+      "fr": "./locales/fr.json",
+      "de": "./locales/de.json",
+      "pt-BR": "./locales/pt-BR.json"
     },
     "plugins": [
       [

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Chip, Disclosure, Field, Screen, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { connectSystem, hasTunnelConfig, useLinks } from '@/net/connection';
 import { describeStartup, useLiveStats } from '@/state/live-stats';
 import { useApp } from '@/state/store';
@@ -65,6 +66,8 @@ function targetOf(system: SystemConfig | undefined, address: string): { url: str
  */
 export default function Diagnostics() {
   const p = usePalette();
+  const t = useT();
+  const dg = t.settings.diagnostics;
   const params = useLocalSearchParams<{ id?: string; kind?: SystemKind; address?: string }>();
   const systems = useApp((s) => s.systems);
   const links = useLinks((s) => s.links);
@@ -79,7 +82,7 @@ export default function Diagnostics() {
 
   const system = pick === OTHER ? undefined : systems.find((s) => s.id === pick);
   const kind: SystemKind | undefined = system?.kind ?? params.kind;
-  const name = system?.name ?? (kind ? describe(kind)?.label : undefined) ?? 'the recorder';
+  const name = system?.name ?? (kind ? describe(kind)?.label : undefined) ?? dg.theRecorder;
   const typedAddress = system ? system.endpoint.lanUrl : address;
   const target = targetOf(system, typedAddress);
 
@@ -96,19 +99,19 @@ export default function Diagnostics() {
     // 1. Your phone's network: can the app use the network, and is away-from-home set up?
     {
       const tech = [`Address: ${target.url} (${target.hostport})`];
-      let detail = 'Ready.';
+      let detail = dg.ready;
       let state: State = 'ok';
       if (!WgTunnel) {
         state = 'skip';
-        detail = 'Some checks only work in the full app (not the preview).';
+        detail = dg.previewOnly;
         tech.push('Native networking module not available');
       } else {
         const vpn = await hasTunnelConfig();
         const st = parseStatus(WgTunnel.tunnelStatus());
         tech.push(`Own VPN: ${vpn ? (st.running ? `running, last handshake ${st.lastHandshake || 'never'}` : 'idle') : 'not set up'}`);
-        if (vpn && st.running) detail = 'Your own VPN is on (you seem to be away from home).';
+        if (vpn && st.running) detail = dg.vpnOn;
       }
-      push({ name: 'Your phone’s network', state, detail, tech });
+      push({ name: dg.stepNetwork, state, detail, tech });
     }
 
     // 2. Reaching the recorder: a plain connection, then an HTTP answer from its usual page.
@@ -148,17 +151,17 @@ export default function Diagnostics() {
         }
       }
       push({
-        name: 'Reaching the recorder',
+        name: dg.stepReach,
         state: reached ? 'ok' : 'fail',
-        detail: reached ? `Found ${name} on the network.` : friendlyNetError(raw || 'no response', name),
+        detail: reached ? dg.found(name) : friendlyNetError(raw || 'no response', name),
         tech,
       });
     }
 
     // 3. Signing in, and 4. Video: only for a saved system (it holds the sign-in).
     if (!system) {
-      push({ name: 'Signing in', state: 'skip', detail: 'Add it in Sightline first, then check again.', tech: [] });
-      push({ name: 'Video', state: 'skip', detail: 'Checked after signing in works.', tech: [] });
+      push({ name: dg.stepSignIn, state: 'skip', detail: dg.addFirst, tech: [] });
+      push({ name: dg.stepVideo, state: 'skip', detail: dg.checkedAfterSignIn, tech: [] });
     } else {
       let signedIn = false;
       let firstCamera: string | undefined;
@@ -176,9 +179,9 @@ export default function Diagnostics() {
         adapterTech.push(`Cameras: ${cams.length}`);
         signedIn = true;
         push({
-          name: 'Signing in',
+          name: dg.stepSignIn,
           state: 'ok',
-          detail: `Signed in. Found ${cams.length} camera${cams.length === 1 ? '' : 's'}.`,
+          detail: dg.signedIn(cams.length),
           tech: adapterTech,
         });
       } catch (e) {
@@ -186,27 +189,27 @@ export default function Diagnostics() {
         const m = msg(e).toLowerCase();
         const auth = /401|403|unauthori|forbidden|password|login|credential|sign in/.test(m);
         push({
-          name: 'Signing in',
+          name: dg.stepSignIn,
           state: 'fail',
           detail: auth
-            ? `${name} turned down the username or password. Check them in Settings → ${system.name}.`
+            ? dg.refused(name, system.name)
             : reached
-              ? `Reached ${name}, but couldn’t sign in. ${friendlyNetError(msg(e), name)}`
-              : 'Skipped: Sightline couldn’t reach it.',
+              ? dg.reachedNoSignIn(name, friendlyNetError(msg(e), name))
+              : dg.skippedUnreachable,
           tech: adapterTech,
         });
       }
 
       if (!signedIn || !adapter) {
-        push({ name: 'Video', state: 'skip', detail: 'Checked after signing in works.', tech: [] });
+        push({ name: dg.stepVideo, state: 'skip', detail: dg.checkedAfterSignIn, tech: [] });
       } else if (!firstCamera) {
-        push({ name: 'Video', state: 'fail', detail: `${name} didn’t list any cameras.`, tech: [] });
+        push({ name: dg.stepVideo, state: 'fail', detail: dg.noCameras(name), tech: [] });
       } else {
         try {
           const src = await adapter.liveStream(firstCamera, { quality: 'sub' });
-          push({ name: 'Video', state: 'ok', detail: 'Live video is available.', tech: [`Live source: ${src.kind}`] });
+          push({ name: dg.stepVideo, state: 'ok', detail: dg.videoOk, tech: [`Live source: ${src.kind}`] });
         } catch (e) {
-          push({ name: 'Video', state: 'fail', detail: 'Signed in, but live video couldn’t be started.', tech: [msg(e)] });
+          push({ name: dg.stepVideo, state: 'fail', detail: dg.videoFail, tech: [msg(e)] });
         }
       }
     }
@@ -223,31 +226,31 @@ export default function Diagnostics() {
 
   return (
     <Screen>
-      <T muted>Checks each step of reaching your recorder or camera and says what’s wrong in plain words.</T>
+      <T muted>{dg.intro}</T>
 
       <View style={{ gap: space.sm }}>
         <T v="label" muted>
-          What to check
+          {dg.whatToCheck}
         </T>
         <View style={styles.chips}>
           {systems.map((s) => (
             <Chip key={s.id} label={s.name} selected={pick === s.id} onPress={() => setPick(s.id)} />
           ))}
-          <Chip label="Another address" selected={pick === OTHER} onPress={() => setPick(OTHER)} />
+          <Chip label={dg.anotherAddress} selected={pick === OTHER} onPress={() => setPick(OTHER)} />
         </View>
       </View>
       {pick === OTHER && (
         <Field
-          label="Address"
+          label={dg.address}
           value={address}
           onChangeText={setAddress}
           placeholder="192.168.1.20"
           keyboardType="url"
-          hint="The address of the recorder or camera, as you'd type it in Sightline."
+          hint={dg.addressHint}
         />
       )}
 
-      <Button title={running ? 'Checking…' : 'Start check'} onPress={run} loading={running} disabled={!target} />
+      <Button title={running ? dg.checking : dg.start} onPress={run} loading={running} disabled={!target} />
 
       {steps.length > 0 && (
         <Card style={{ padding: space.md, gap: space.md }}>
@@ -257,7 +260,7 @@ export default function Diagnostics() {
                 name={s.state === 'ok' ? 'checkmark.circle.fill' : s.state === 'fail' ? 'xmark.circle.fill' : 'minus.circle'}
                 tintColor={s.state === 'ok' ? p.success : s.state === 'fail' ? p.danger : p.textMuted}
                 size={20}
-                accessibilityLabel={s.state === 'ok' ? 'Passed' : s.state === 'fail' ? 'Problem' : 'Skipped'}
+                accessibilityLabel={s.state === 'ok' ? dg.passed : s.state === 'fail' ? dg.problem : dg.skipped}
               />
               <View style={{ flex: 1, gap: 2 }}>
                 <T v="label">{s.name}</T>
@@ -269,13 +272,13 @@ export default function Diagnostics() {
       )}
 
       {(steps.length > 0 || lastLive) && !running && (
-        <Disclosure title="Technical details">
+        <Disclosure title={dg.techDetails}>
           <Card style={{ padding: space.md }}>
             <Text selectable style={[styles.detail, { color: p.textMuted }]}>
               {report}
             </Text>
           </Card>
-          <Button title="Copy for support" kind="secondary" onPress={() => Clipboard.setStringAsync(report)} />
+          <Button title={dg.copy} kind="secondary" onPress={() => Clipboard.setStringAsync(report)} />
         </Disclosure>
       )}
     </Screen>

@@ -1,5 +1,255 @@
 import type en from '../en/systems.ts';
 
-const systems: typeof en = {};
+const systems: typeof en = {
+  common: {
+    cameraN: (n: number | string) => `Kamera ${n}`,
+    camera: 'Kamera',
+    presetN: (n: number | string) => `Position ${n}`,
+    presetHome: 'Ausgangsposition',
+    diskN: (n: number) => `Festplatte ${n}`,
+    recordingDrive: 'Aufnahmespeicher',
+    cameraNotFound: 'Kamera nicht gefunden',
+    noRecording: 'Zu dieser Zeit gibt es keine Aufnahme.',
+    noRecordingThere: 'Zu dieser Zeit gibt es keine Aufnahme.',
+    noRecordingYet: 'Für diese Zeit gibt es noch keine Aufnahme.',
+    presetGone: 'Diese Position gibt es auf der Kamera nicht mehr.',
+    cameraLacksThat: 'Diese Kamera hat das nicht.',
+    notSupported: (kind: string) => `${kind} wird noch nicht unterstützt`,
+    needsFullApp: 'Für das Live-Bild dieser Kamera brauchst du die vollständige App (nicht Expo Go).',
+    notReachableHere: 'Diese Kamera ist aus diesem Netzwerk nicht erreichbar.',
+  },
+  http: {
+    stillConnecting: (label: string) => `Verbindung zu ${label} wird noch aufgebaut. Versuch es gleich noch mal.`,
+    noAnswer: (label: string) => `${label} hat nicht rechtzeitig geantwortet. Prüfe, ob es eingeschaltet und erreichbar ist.`,
+    cantReach: (label: string) => `${label} ist nicht erreichbar. Prüfe die Adresse und ob dein Handy im selben Netzwerk ist.`,
+    unexpectedReply: (label: string) => `${label} hat eine unerwartete Antwort gesendet. Prüfe, ob die Adresse zu ${label} führt.`,
+    unexpectedReplyShort: (label: string) => `${label} hat eine unerwartete Antwort gesendet.`,
+    badLogin: (label: string) => `${label} hat Benutzername oder Passwort nicht akzeptiert. Prüfe beides und versuch es noch mal.`,
+    badLoginShort: (label: string) => `${label} hat Benutzername oder Passwort nicht akzeptiert.`,
+    forbidden: (label: string) => `Dieses ${label}-Konto darf das nicht. Bitte den Besitzer, ihm mehr Zugriff zu geben.`,
+    notFound: (label: string) => `${label} hat die Anfrage nicht erkannt. Prüfe die Adresse (auch den Port).`,
+    unreachable: (label: string) => `${label} ist nicht erreichbar. Prüfe, ob es eingeschaltet und im selben Netzwerk ist.`,
+    serverProblem: (label: string, status: number) => `${label} hatte ein Problem (Fehler ${status}). Versuch es gleich noch mal.`,
+    httpError: (label: string, status: number) => `${label} hat Fehler ${status} gemeldet.`,
+    notThisSystem: (label: string, port: string) =>
+      `Unter dieser Adresse hat etwas geantwortet, aber es sieht nicht nach ${label} aus. Prüfe Adresse und Port (meist ${port}).`,
+    notThisSystemShort: (label: string) => `Unter dieser Adresse hat etwas geantwortet, aber es sieht nicht nach ${label} aus.`,
+    couldntDo: (label: string, detail: string) => `${label} konnte das nicht ausführen (${detail}).`,
+    said: (label: string, reason: string) => `${label} meldet: ${reason}`,
+  },
+  device: {
+    stillConnecting: (brand: string) => `Verbindung zum ${brand}-Gerät wird noch aufgebaut…`,
+    cantReach: (brand: string) => `Das ${brand}-Gerät ist nicht erreichbar. Prüfe, ob es eingeschaltet und mit deinem Netzwerk verbunden ist.`,
+    rejectedLogin: (brand: string) => `Das ${brand}-Gerät hat Benutzername oder Passwort abgelehnt.`,
+    notSupported: (brand: string) => `Dieses ${brand}-Gerät unterstützt das nicht.`,
+    couldntDo: (brand: string) => `Das ${brand}-Gerät konnte das nicht ausführen.`,
+    couldntDoDetail: (brand: string, detail: string) => `Das ${brand}-Gerät konnte das nicht ausführen (${detail}).`,
+    notThisBrand: (brand: string) => `Diese Adresse scheint kein ${brand}-Gerät zu sein. Prüfe die Adresse und versuch es noch mal.`,
+    cameraNotFound: (brand: string) => `Kamera auf diesem ${brand}-Gerät nicht gefunden.`,
+  },
+  reolink: {
+    locked: 'Das Reolink-Gerät hat dieses Konto nach zu vielen falschen Passwörtern gesperrt. Warte ein paar Minuten und versuch es dann noch mal.',
+    tooManySessions:
+      'Zu viele Apps sind beim Reolink-Gerät angemeldet. Schließe die Reolink-App oder Webseite auf anderen Geräten und versuch es dann noch mal.',
+    signedOut: 'Das Reolink-Gerät hat uns abgemeldet. Versuch es noch mal.',
+    unexpectedReply: 'Das Reolink-Gerät hat eine unerwartete Antwort gesendet.',
+    unexpectedLogin: 'Das Reolink-Gerät hat eine unerwartete Antwort auf die Anmeldung gesendet.',
+    httpsOnly: 'Dieses Reolink-Gerät akzeptiert nur sichere Verbindungen. Füge es erneut hinzu und schreib https:// vor die Adresse.',
+    motionAreaNotKept: 'Die Kamera hat den neuen Bewegungsbereich nicht übernommen. Versuch es noch mal oder stell ihn in der Reolink-App ein.',
+    zonesRefused: 'Diese Kamera hat Sightline ihren Erkennungsbereich nicht ändern lassen. Du kannst ihn stattdessen in der Reolink-App zeichnen.',
+    zonesSaved: (list: string) => `Auf der Kamera gespeichert. Für die Erkennung von ${list} beobachtet sie jetzt nur noch den markierten Bereich.`,
+    zonesCleared: (list: string) => `Auf der Kamera gespeichert. Für die Erkennung von ${list} beobachtet sie wieder das ganze Bild.`,
+    zoneKinds: {
+      motion: 'Bewegung',
+      person: 'Personen',
+      vehicle: 'Fahrzeugen',
+      animal: 'Tieren',
+    } as Record<string, string>,
+    rtspOff:
+      'Das Live-Bild ist auf diesem Reolink-Gerät ausgeschaltet. Öffne in der Reolink-App die Geräteeinstellungen → Netzwerk → Erweitert → Port-Einstellungen und schalte RTSP ein.',
+    vodPrepFailed: 'Der Reolink-Rekorder konnte diese Aufnahme nicht zur Wiedergabe vorbereiten.',
+    vodUnnamed: 'Das Reolink-Gerät hat dieser Aufnahme keinen Namen gegeben, deshalb kann sie nicht abgespielt werden.',
+  },
+  hikvision: {
+    locked: 'Das Hikvision-Gerät hat dieses Konto nach zu vielen falschen Passwörtern gesperrt. Warte etwa 30 Minuten und versuch es dann noch mal.',
+    forbidden: 'Dieses Konto darf das nicht. Melde dich mit dem Admin-Konto des Rekorders an.',
+    busy: 'Das Hikvision-Gerät ist beschäftigt. Versuch es gleich noch mal.',
+    reportedError: 'Das Hikvision-Gerät hat einen Fehler gemeldet. Versuch es gleich noch mal.',
+    cantMove: 'Diese Kamera lässt sich nicht bewegen.',
+  },
+  dahua: {
+    noAnswer: 'Der Rekorder hat nicht rechtzeitig geantwortet. Prüfe, ob er eingeschaltet und erreichbar ist.',
+    cantReach: 'Der Rekorder ist nicht erreichbar. Prüfe die Adresse und ob dein Handy im selben Netzwerk ist.',
+    locked: 'Der Rekorder hat dieses Konto nach zu vielen falschen Passwörtern gesperrt. Warte 30 Minuten oder entsperre es am Bildschirm des Rekorders.',
+    badLogin:
+      'Der Rekorder hat diesen Benutzernamen und dieses Passwort nicht akzeptiert. Prüfe beides und versuch es noch mal (es sind die, die du am Bildschirm des Rekorders oder in seiner App verwendest).',
+    forbidden:
+      'Dieser Benutzer darf das auf dem Rekorder nicht. Melde dich mit dem Admin-Konto an oder gib diesem Benutzer auf dem Rekorder mehr Rechte.',
+    notSupported: 'Der Rekorder unterstützt diese Funktion nicht.',
+    unreachable: 'Der Rekorder ist nicht erreichbar. Prüfe, ob er eingeschaltet und mit deinem Netzwerk verbunden ist.',
+    httpError: (status: number) => `Der Rekorder hat mit einem Fehler geantwortet (HTTP ${status}). Versuch es gleich noch mal.`,
+    notDahua: 'Das sieht nicht nach einem Dahua-, Amcrest- oder Lorex-Gerät aus. Prüfe die Adresse.',
+    searchFailed: 'Der Rekorder konnte keine Suche starten. Versuch es gleich noch mal.',
+    cameraRefused: 'Die Kamera hat das nicht angenommen. Versuch es gleich noch mal.',
+  },
+  frigate: {
+    badLogin: 'Frigate hat die Anmeldung abgelehnt. Prüfe Benutzername und Passwort.',
+    forbidden: 'Dieser Frigate-Benutzer hat darauf keinen Zugriff.',
+    semanticOff: 'Für die intelligente Suche muss Semantic Search in Frigate eingeschaltet sein (semantic_search: enabled: true).',
+    searchFailed: 'Frigate konnte diese Suche nicht ausführen. Probier andere Wörter.',
+    ptzFailed: 'Keine Verbindung zu Frigate, um die Kamera zu bewegen. Prüfe, ob es erreichbar ist, und versuch es dann noch mal.',
+  },
+  blueIris: {
+    badLogin: 'Blue Iris hat Benutzername oder Passwort nicht akzeptiert. Prüfe sie in Blue Iris → Settings → Users.',
+    refused: 'Blue Iris hat die Anfrage abgelehnt.',
+    refusedLogin: 'Blue Iris hat die Anmeldung abgelehnt. Versuch es noch mal.',
+    sessionEnded: 'Blue Iris hat die Sitzung beendet. Versuch es noch mal.',
+    notBlueIris:
+      'Unter dieser Adresse hat etwas geantwortet, aber es sieht nicht nach dem Blue-Iris-Webserver aus. Prüfe Adresse und Port (oft 81).',
+  },
+  scrypted: {
+    notALink: (text: string) =>
+      `„${text}“ ist kein Kamera-Link. Füge die Links ein, die mit rtsp:// beginnen (aus den Rebroadcast-Einstellungen jeder Kamera in Scrypted).`,
+    noLinks: 'Füge mindestens einen Kamera-Link ein. Öffne in Scrypted eine Kamera → Rebroadcast → Streams und kopiere „RTSP Rebroadcast Url“.',
+    linkRemoved: 'Der Link dieser Kamera wurde entfernt. Bearbeite das Scrypted-System, um ihn wieder hinzuzufügen.',
+  },
+  shinobi: {
+    needsKeys: 'Shinobi braucht einen API-Schlüssel und einen Gruppenschlüssel. Bearbeite dieses System und füge beide hinzu.',
+    badKeys:
+      'Shinobi hat API-Schlüssel und Gruppenschlüssel nicht akzeptiert. Prüfe beide und ob die „Allowed IPs“ des Schlüssels die Adresse dieses Handys enthalten.',
+    cameraNotFound: 'Kamera in Shinobi nicht gefunden.',
+    streamType: (type: string) =>
+      `Diese Kamera streamt als „${type}“, das das iPhone nicht abspielen kann. Öffne in Shinobi die Kameraeinstellungen → Stream → Stream Type, wähle HLS und speichere.`,
+    webm: 'Diese Aufnahme ist als WebM gespeichert, das das iPhone nicht abspielen kann. Stell in Shinobi bei der Kamera Recording → Video Codec auf copy oder H.264 (MP4).',
+  },
+  zoneminder: {
+    badLogin:
+      'ZoneMinder hat Benutzername oder Passwort nicht akzeptiert. Prüfe auch, ob für diesen Benutzer der „API“-Zugriff eingeschaltet ist (Options → Users).',
+    needsLogin: 'ZoneMinder braucht einen Benutzernamen und ein Passwort. Bearbeite dieses System und füge sie hinzu.',
+    notFound:
+      'ZoneMinder wurde unter dieser Adresse nicht gefunden. Verwende die Adresse, unter der du ZoneMinder öffnest, ohne den /zm-Teil, und prüfe, ob die API eingeschaltet ist (Options → System → OPT_USE_API).',
+  },
+  onvif: {
+    notConnected: 'Noch nicht mit der Kamera verbunden.',
+    noAnswer: 'Die Kamera hat nicht rechtzeitig geantwortet. Prüfe, ob sie eingeschaltet ist und das Handy im selben Netzwerk ist.',
+    cantReach: 'Die Kamera ist nicht erreichbar. Ist das Handy im selben Netzwerk?',
+    httpError: (status: number) => `Die Kamera hat einen Fehler gemeldet (HTTP ${status}).`,
+    noStreams: 'Auf der Kamera sind keine Videostreams eingerichtet. Prüfe ihre Videoeinstellungen.',
+    cameraGone: 'Diese Kamera ist nicht mehr verfügbar. Entferne sie und füge sie erneut hinzu.',
+    noVideoLink: 'Die Kamera hat keinen Video-Link geliefert.',
+    cantPtz: 'Diese Kamera kann weder schwenken noch zoomen.',
+    presetMissing: (name: string) => `Die Position „${name}“ wurde auf der Kamera nicht gefunden.`,
+    badLogin:
+      'Falscher Benutzername oder falsches Passwort. Verwende die Anmeldedaten der Kamera selbst; manche Kameras brauchen einen eigenen ONVIF-Benutzer, den du in den Kameraeinstellungen anlegst.',
+    notFound:
+      'Unter dieser Adresse hat keine ONVIF-Kamera geantwortet. Schalte ONVIF in den Kameraeinstellungen ein oder ergänze den ONVIF-Port in der Adresse (oft 8000, 2020 oder 8899, z. B. 192.168.1.70:2020).',
+    wrongLogin: 'Falscher Benutzername oder falsches Passwort.',
+    notSupported: 'Die Kamera unterstützt diese Funktion nicht.',
+    refused: 'Die Kamera hat die Anfrage abgelehnt.',
+    refusedReason: (reason: string) => `Die Kamera hat die Anfrage abgelehnt: ${reason}`,
+  },
+  unifi: {
+    tooManyAttempts: 'Zu viele Anmeldeversuche. Warte ein paar Minuten und versuch es dann noch mal.',
+    twoStep:
+      'Dieses Konto verwendet die Bestätigung in zwei Schritten. Lege auf deiner UniFi-Konsole ein lokales Konto an (UniFi OS → Admins & Users → Admin mit „Restrict to local access only“ hinzufügen) und verwende es hier.',
+    badLogin:
+      'Falscher Benutzername oder falsches Passwort. Verwende ein lokales UniFi-Konto (mit „Restrict to local access only“), nicht deine Ubiquiti-Cloud-Anmeldung.',
+    notConsole: 'Das sieht nicht nach einer UniFi-OS-Konsole aus. Gib die Adresse deines Cloud Key, deiner Dream Machine oder deines NVR ein.',
+    signedOut: 'UniFi Protect hat uns abgemeldet. Zum Aktualisieren nach unten ziehen; wenn das öfter passiert, prüfe Benutzername und Passwort.',
+    forbidden:
+      'Dieses UniFi-Konto darf das nicht. Gib ihm in Protect die Rolle „View only“ oder höher (oder Full Management, um Kameras zu steuern).',
+    notRunning: 'UniFi Protect läuft nicht auf dieser Konsole, oder diese Kamera gibt es nicht mehr.',
+    unreachable: 'UniFi Protect ist nicht erreichbar. Prüfe, ob die Konsole eingeschaltet ist und Protect fertig gestartet hat.',
+    httpError: (status: number) => `UniFi Protect hat mit einem Fehler geantwortet (HTTP ${status}). Versuch es gleich noch mal.`,
+    noAnswer: 'UniFi Protect hat nicht rechtzeitig geantwortet. Prüfe, ob die Konsole eingeschaltet und erreichbar ist.',
+    cantReach: 'Die UniFi-Konsole ist nicht erreichbar. Prüfe die Adresse und ob dein Handy im selben Netzwerk ist.',
+    unexpectedReply: 'Die UniFi-Konsole hat eine unerwartete Antwort gesendet. Prüfe, ob die Adresse zu deiner UniFi-Konsole führt.',
+    cameraGone: 'Diese Kamera ist nicht mehr in UniFi Protect.',
+    notInstalled: 'Angemeldet, aber UniFi Protect ist auf dieser Konsole nicht installiert oder läuft nicht.',
+    rtspOff:
+      'Für das Live-Bild muss der RTSP-Stream dieser Kamera eingeschaltet sein. Öffne in UniFi Protect die Kamera → Settings → Advanced und schalte einen RTSP-Stream ein (beliebige Qualität). Oder melde dich hier mit einem Admin-Konto an, dann schaltet Sightline ihn für dich ein.',
+  },
+  hub: {
+    theHub: 'den Hub',
+    revoked: (hub: string) => `Dein Zugriff auf ${hub} wurde entfernt.`,
+    expired: (hub: string) => `Dein Zugriff auf ${hub} ist abgelaufen.`,
+    unpaired: (hub: string) => `Dieses Handy ist nicht mehr mit ${hub} gekoppelt. Entferne es und kopple es erneut.`,
+    httpError: (status: number) => `Der Hub hat HTTP ${status} gemeldet`,
+    notAHub: 'Diese Adresse ist kein Sightline Hub.',
+    notPaired: 'Dieses Handy ist nicht mit dem Hub gekoppelt.',
+    cantReachBoth: (home: string, away: string) => `Der Hub ist weder zu Hause (${home}) noch unterwegs (${away}) erreichbar.`,
+    cantReachAt: (address: string) =>
+      `Der Hub ist unter ${address} nicht erreichbar. Unterwegs braucht der Hub eingeschalteten Fernzugriff (auf seiner Einrichtungsseite).`,
+    cantReachWifi: (address: string) => `Der Hub ist unter ${address} nicht erreichbar. Achte darauf, dass dieses Handy im selben WLAN wie der Hub ist.`,
+    cantReach: (detail: string) => `Der Hub ist nicht erreichbar. ${detail}`.trim(),
+    unsupportedPlayback: 'Der Hub hat eine Aufnahme gesendet, die diese Sightline-Version nicht abspielen kann. Aktualisiere die App.',
+    owner: 'Besitzer',
+    roles: {
+      full: {
+        label: 'Voller Zugriff',
+        description: 'Alles, was du auch kannst, auch mit anderen teilen. Für Partner oder dein eigenes zweites Handy.',
+      },
+      household: {
+        label: 'Haushalt',
+        description: 'Live-Bild, Aufnahmen und Hinweise für die Kameras, die du auswählst. Für Familie, die bei dir wohnt.',
+      },
+      temporary: {
+        label: 'Vorübergehend',
+        description: 'Live-Bild und Aufnahmen für eine feste Zeit, danach endet der Zugriff von selbst. Für Tier- oder Haussitter.',
+      },
+      live: {
+        label: 'Nur live',
+        description: 'Nur Live-Video, keine Aufnahmen. Für Nachbarn, die ein Auge auf alles haben.',
+      },
+    } as Record<string, { label: string; description: string }>,
+    ends: (date: string) => `endet am ${date}`,
+    ended: (date: string) => `endete am ${date}`,
+    sharedBy: (hub: string) => `Geteilt von ${hub}`,
+    sharedByEnds: (hub: string, ends: string) => `Geteilt von ${hub} · ${ends}`,
+    allCameras: 'Alle Kameras',
+    noCameras: 'Keine Kameras',
+    twoCameras: (a: string, b: string) => `${a} und ${b}`,
+    liveOnly: 'nur live',
+    recordingsRange: (from: string, to: string) => `Aufnahmen ${from} – ${to}`,
+    inviteNotUsed: 'Einladung noch nicht genutzt',
+    notJoined: 'nicht beigetreten',
+    inviteLive: (hub: string) => `Ich teile meinen Zugang, damit du meine Kameras live ansehen kannst (${hub}), in der Sightline-App.`,
+    inviteSee: (hub: string) => `Ich teile meinen Zugang, damit du meine Kameras sehen kannst (${hub}), in der Sightline-App.`,
+    inviteWeb: (link: string) => `Öffne das auf deinem iPhone: ${link}`,
+    inviteApp: (link: string) => `Wenn du Sightline schon hast: ${link}`,
+  },
+  demo: {
+    systemName: 'Beispielkameras',
+    cameras: {
+      'front-door': 'Haustür',
+      driveway: 'Einfahrt',
+      backyard: 'Garten',
+      garage: 'Garage',
+      'living-room': 'Wohnzimmer',
+    } as Record<string, string>,
+    zones: {
+      Porch: 'Veranda',
+      Walkway: 'Gehweg',
+      Driveway: 'Einfahrt',
+      Street: 'Straße',
+      Lawn: 'Rasen',
+      Patio: 'Terrasse',
+      'Side door': 'Seitentür',
+    } as Record<string, string>,
+    familyCar: 'Familienauto',
+    groups: {
+      Outside: 'Draußen',
+      Inside: 'Drinnen',
+    } as Record<string, string>,
+    recordings: 'Aufnahmen',
+    presets: {
+      'Whole view': 'Gesamtansicht',
+      Driveway: 'Einfahrt',
+      Street: 'Straße',
+      'Front lawn': 'Vorgarten',
+    } as Record<string, string>,
+    sampleAlertBody: 'Beispiel-Hinweis. So sehen die Hinweise deiner eigenen Kameras aus. Tippe, um die Aufnahme anzusehen.',
+  },
+};
 
 export default systems;

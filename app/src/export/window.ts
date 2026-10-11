@@ -3,6 +3,8 @@
  * Native imports) so it's unit-tested; all times are unix seconds.
  */
 
+import { fmtDate, fmtNumber, tr } from '../i18n/index.ts';
+
 export type WindowPreset = 'last30' | 'last2h' | 'lastNight' | 'custom';
 
 export interface TimeWindow {
@@ -11,9 +13,24 @@ export interface TimeWindow {
 }
 
 export const PRESETS: { id: Exclude<WindowPreset, 'custom'>; label: string }[] = [
-  { id: 'last30', label: 'Last 30 minutes' },
-  { id: 'last2h', label: 'Last 2 hours' },
-  { id: 'lastNight', label: 'Last night (8 PM – 7 AM)' },
+  {
+    id: 'last30',
+    get label() {
+      return tr().exporting.window.last30;
+    },
+  },
+  {
+    id: 'last2h',
+    get label() {
+      return tr().exporting.window.last2h;
+    },
+  },
+  {
+    id: 'lastNight',
+    get label() {
+      return tr().exporting.window.lastNight;
+    },
+  },
 ];
 
 /** Longest window one export may cover. Longer ones get huge; split them instead. */
@@ -59,19 +76,19 @@ export function customWindow(daysAgo: number, startHHMM: string, endHHMM: string
 
 /** "Today", "Yesterday", "Thu, Oct 8" for the day picker. */
 export function dayLabel(daysAgo: number, now: Date): string {
-  if (daysAgo === 0) return 'Today';
-  if (daysAgo === 1) return 'Yesterday';
+  if (daysAgo === 0) return tr().common.today;
+  if (daysAgo === 1) return tr().common.yesterday;
   const d = new Date(now);
   d.setDate(d.getDate() - daysAgo);
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return `${days[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  return fmtDate(d, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 /** A plain-language problem with a window, or null when it's fine. */
 export function windowProblem(w: TimeWindow, nowSec: number): string | null {
-  if (!(w.end > w.start)) return 'The end time must be after the start time.';
-  if (w.start >= nowSec) return 'That time hasn’t happened yet.';
-  if (w.end - w.start > MAX_WINDOW_SEC) return 'Pick 24 hours or less. For longer, make a few exports.';
+  const t = tr().exporting.window;
+  if (!(w.end > w.start)) return t.endBeforeStart;
+  if (w.start >= nowSec) return t.notYet;
+  if (w.end - w.start > MAX_WINDOW_SEC) return t.tooLong;
   return null;
 }
 
@@ -98,15 +115,21 @@ export function isoWithOffset(unixSec: number, offsetMin: number): string {
   );
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** "Oct 10, 2026, 8:05:09 PM" in the given offset (no Intl, so it's the same everywhere). */
+/** "Oct 10, 2026, 8:05:09 PM" in the given offset, in the app's language. */
 export function friendlyTime(unixSec: number, offsetMin: number, seconds = true): string {
+  // Shifted by the offset and formatted as UTC, so it's the export's local time, not the device's.
   const d = new Date((unixSec + offsetMin * 60) * 1000);
-  const h = d.getUTCHours();
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  const clock = `${h12}:${pad(d.getUTCMinutes())}${seconds ? `:${pad(d.getUTCSeconds())}` : ''} ${h < 12 ? 'AM' : 'PM'}`;
-  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}, ${clock}`;
+  const text = fmtDate(d, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    ...(seconds ? { second: '2-digit' } : {}),
+    timeZone: 'UTC',
+  });
+  // Some Intl versions put a narrow no-break space before AM/PM.
+  return text.replace(/ /g, ' ');
 }
 
 export interface ZoneInfo {
@@ -124,12 +147,13 @@ export function describeWindow(w: TimeWindow, zone: ZoneInfo): string {
 
 /** "12 minutes", "2 hours 5 minutes". */
 export function durationText(sec: number): string {
+  const c = tr().common;
   const m = Math.round(sec / 60);
-  if (m < 1) return `${Math.max(1, Math.round(sec))} seconds`;
-  if (m < 60) return `${m} minute${m === 1 ? '' : 's'}`;
+  if (m < 1) return c.seconds(Math.max(1, Math.round(sec)));
+  if (m < 60) return c.minutesCount(m);
   const h = Math.floor(m / 60);
   const r = m % 60;
-  return `${h} hour${h === 1 ? '' : 's'}${r ? ` ${r} minute${r === 1 ? '' : 's'}` : ''}`;
+  return `${c.hours(h)}${r ? ` ${c.minutesCount(r)}` : ''}`;
 }
 
 export interface CameraCandidate {
@@ -172,15 +196,15 @@ export function estimateBytes(w: TimeWindow, videoCameras: number): number {
 
 /** "About 1.2 GB" */
 export function sizeText(bytes: number): string {
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${Math.max(1, Math.round(bytes / 1e6))} MB`;
-  return `${Math.max(1, Math.round(bytes / 1e3))} KB`;
+  if (bytes >= 1e9) return `${fmtNumber(bytes / 1e9, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} GB`;
+  if (bytes >= 1e6) return `${fmtNumber(Math.max(1, Math.round(bytes / 1e6)))} MB`;
+  return `${fmtNumber(Math.max(1, Math.round(bytes / 1e3)))} KB`;
 }
 
 /** Warning for big exports (null when it's fine). */
 export function sizeWarning(bytes: number): string | null {
   if (bytes < LARGE_EXPORT_BYTES) return null;
-  return `This could be about ${sizeText(bytes)}. That’s a lot to send by Mail or Messages. AirDrop or Save to Files works best, or pick a shorter time or fewer cameras.`;
+  return tr().exporting.window.sizeWarning(sizeText(bytes));
 }
 
 /** Replays play in real time, so recording them takes as long as the window. */
@@ -188,5 +212,5 @@ export function replayWarning(w: TimeWindow, replayCameras: number): string | nu
   if (replayCameras === 0) return null;
   const sec = w.end - w.start;
   if (sec < 5 * 60) return null;
-  return `Some of your cameras can only play back recordings at normal speed, so copying their video takes about ${durationText(sec)}. Keep Sightline open until it finishes.`;
+  return tr().exporting.window.replayWarning(durationText(sec));
 }

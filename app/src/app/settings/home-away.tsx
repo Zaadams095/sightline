@@ -1,7 +1,9 @@
+import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { Button, Row, Screen, Section, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { disableHomeAway, overrideAtHome, setHomeHere } from '@/presence/geofence';
 import { useApp } from '@/state/store';
 import { useAllCameras } from '@/systems/registry';
@@ -9,6 +11,8 @@ import { usePalette } from '@/theme/use-palette';
 
 export default function HomeAwaySettings() {
   const p = usePalette();
+  const t = useT();
+  const ha = t.alertSettings.homeAway;
   const presence = useApp((s) => s.alerts.presence);
   const setAlerts = useApp((s) => s.setAlerts);
   const { entries } = useAllCameras({ includeHidden: true });
@@ -33,32 +37,30 @@ export default function HomeAwaySettings() {
 
   return (
     <Screen>
-      <T muted>
-        When you&apos;re home, Sightline quiets alerts except from the cameras you choose below (like the doorbell). Your
-        location stays on your phone; only &quot;home&quot; or &quot;away&quot; is shared with your Instant Alerts bridge.
-      </T>
+      <Stack.Screen options={{ title: ha.title }} />
+      <T muted>{ha.intro}</T>
 
       {!presence.enabled || !presence.home ? (
-        <Button title={busy ? 'Getting location…' : 'I’m home now: set this as home'} onPress={setHome} loading={busy} />
+        <Button title={busy ? ha.gettingLocation : ha.setHome} onPress={setHome} loading={busy} />
       ) : (
-        <Section title="Status">
+        <Section title={ha.status}>
           <Row
-            label={presence.atHome ? 'You’re home' : 'You’re away'}
-            detail={presence.atHome ? 'Only selected cameras alert' : 'All cameras alert normally'}
-            right={<T color={presence.atHome ? p.success : p.accent}>{presence.atHome ? 'Home' : 'Away'}</T>}
+            label={presence.atHome ? ha.youreHome : ha.youreAway}
+            detail={presence.atHome ? ha.onlySelected : ha.allNormal}
+            right={<T color={presence.atHome ? p.success : p.accent}>{presence.atHome ? ha.home : ha.away}</T>}
           />
           <Row
-            label={presence.atHome ? 'Switch to Away for now' : 'Switch to Home for now'}
-            detail="Changes back automatically the next time you arrive or leave."
+            label={presence.atHome ? ha.switchAway : ha.switchHome}
+            detail={ha.switchDetail}
             onPress={() => void overrideAtHome(!presence.atHome)}
           />
-          <Row label="Move home to my current location" onPress={setHome} />
-          <Row label="Turn off Home/Away" destructive onPress={() => void disableHomeAway()} last />
+          <Row label={ha.moveHome} onPress={setHome} />
+          <Row label={ha.turnOff} destructive onPress={() => void disableHomeAway()} last />
         </Section>
       )}
       {msg && <T color={p.danger}>{msg}</T>}
 
-      <Section title="Keep alerting while I'm home" footer="Cameras not checked stay quiet while you’re home.">
+      <Section title={ha.keepAlerting} footer={ha.keepFooter}>
         {entries.map((e, i) => (
           <Row
             key={e.camera.key}
@@ -75,7 +77,7 @@ export default function HomeAwaySettings() {
         ))}
         {entries.length === 0 && (
           <View style={{ padding: 16 }}>
-            <T muted>No cameras yet</T>
+            <T muted>{ha.noCameras}</T>
           </View>
         )}
       </Section>

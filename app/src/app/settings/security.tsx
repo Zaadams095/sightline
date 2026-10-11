@@ -3,20 +3,23 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button, Chip, Field, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { clearPin, hasPin, setPin } from '@/security/pin';
 import { useApp } from '@/state/store';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
 const RELOCK = [
-  { v: 0, label: 'Immediately' },
-  { v: 60, label: '1 min' },
-  { v: 300, label: '5 min' },
-  { v: 900, label: '15 min' },
+  { v: 0, get label() { return tr().settings.security.immediately; } },
+  { v: 60, get label() { return tr().settings.security.minutes(1); } },
+  { v: 300, get label() { return tr().settings.security.minutes(5); } },
+  { v: 900, get label() { return tr().settings.security.minutes(15); } },
 ];
 
 export default function SecuritySettings() {
   const p = usePalette();
+  const st = useT().settings.security;
   const security = useApp((s) => s.security);
   const set = useApp((s) => s.setSecurity);
   const [biometricName, setBiometricName] = useState('Face ID');
@@ -34,27 +37,27 @@ export default function SecuritySettings() {
   const enable = async (on: boolean) => {
     if (!on) return set({ lockEnabled: false });
     // Confirm the user can actually unlock before turning the lock on.
-    const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Turn on app lock' });
+    const res = await LocalAuthentication.authenticateAsync({ promptMessage: st.turnOnPrompt });
     if (res.success) set({ lockEnabled: true });
   };
 
   const savePin = async () => {
-    if (!/^\d{6}$/.test(newPin)) return setMsg('PIN must be 6 digits.');
+    if (!/^\d{6}$/.test(newPin)) return setMsg(st.pinDigits);
     await setPin(newPin);
     setPinSet(true);
     setNewPin('');
     set({ method: 'pin' });
-    setMsg('PIN saved.');
+    setMsg(st.pinSaved);
   };
 
   return (
     <Screen>
-      <Section footer={`Require ${biometricName} or a PIN to open the app. Useful if others use your phone.`}>
-        <ToggleRow label="App lock" value={security.lockEnabled} onChange={enable} last={!security.lockEnabled} />
+      <Section footer={st.footer(biometricName)}>
+        <ToggleRow label={st.appLock} value={security.lockEnabled} onChange={enable} last={!security.lockEnabled} />
         {security.lockEnabled && (
           <ToggleRow
-            label="Hide in app switcher"
-            detail="Covers your cameras when you swipe between apps."
+            label={st.hideSwitcher}
+            detail={st.hideSwitcherDetail}
             value={security.hideAppSwitcherPreview}
             onChange={(v) => set({ hideAppSwitcherPreview: v })}
             last
@@ -65,21 +68,21 @@ export default function SecuritySettings() {
       {security.lockEnabled && (
         <>
           <T v="caption" muted style={styles.label}>
-            Unlock with
+            {st.unlockWith}
           </T>
           <View style={styles.chips}>
-            <Chip label={`${biometricName} & iPhone passcode`} selected={security.method === 'device'} onPress={() => set({ method: 'device' })} />
-            <Chip label="App PIN" selected={security.method === 'pin'} onPress={() => (pinSet ? set({ method: 'pin' }) : setMsg('Set a PIN below first.'))} />
+            <Chip label={st.bioAndPasscode(biometricName)} selected={security.method === 'device'} onPress={() => set({ method: 'device' })} />
+            <Chip label={st.appPin} selected={security.method === 'pin'} onPress={() => (pinSet ? set({ method: 'pin' }) : setMsg(st.setPinFirst))} />
           </View>
 
           {security.method === 'pin' && (
             <Section>
-              <ToggleRow label={`Also allow ${biometricName}`} value={security.biometricsWithPin} onChange={(v) => set({ biometricsWithPin: v })} last />
+              <ToggleRow label={st.alsoAllow(biometricName)} value={security.biometricsWithPin} onChange={(v) => set({ biometricsWithPin: v })} last />
             </Section>
           )}
 
           <T v="caption" muted style={styles.label}>
-            Lock again after
+            {st.lockAgainAfter}
           </T>
           <View style={styles.chips}>
             {RELOCK.map((r) => (
@@ -89,18 +92,18 @@ export default function SecuritySettings() {
 
           <View style={{ gap: space.sm }}>
             <Field
-              label={pinSet ? 'Change app PIN' : 'Set app PIN'}
+              label={pinSet ? st.changePin : st.setPin}
               value={newPin}
               onChangeText={(t) => setNewPin(t.replace(/\D/g, '').slice(0, 6))}
               keyboardType="number-pad"
               secureTextEntry
-              placeholder="6 digits"
-              hint="A PIN separate from your iPhone passcode, so people who know your passcode still can't open your cameras."
+              placeholder={st.sixDigits}
+              hint={st.pinHint}
             />
-            <Button title="Save PIN" kind="secondary" onPress={savePin} disabled={newPin.length !== 6} />
+            <Button title={st.savePin} kind="secondary" onPress={savePin} disabled={newPin.length !== 6} />
             {pinSet && (
               <Button
-                title="Remove PIN"
+                title={st.removePin}
                 kind="ghost"
                 onPress={async () => {
                   await clearPin();

@@ -1,4 +1,5 @@
 import type { RecordingSegment, ReviewItem, Severity } from './types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Pure helpers for Hikvision ISAPI (XML over HTTP, Digest auth handled by the gateway). No app
@@ -74,22 +75,22 @@ export function errorFor(status: number, body: string): HikvisionError {
   const statusCode = Number(xmlText(body, 'statusCode') ?? 0);
   if (status === 401) {
     if (/lock/.test(sub) || /lock/i.test(body)) {
-      return new HikvisionError('The Hikvision device has locked this account after too many wrong passwords. Wait about 30 minutes, then try again.', status);
+      return new HikvisionError(tr().systems.hikvision.locked, status);
     }
-    return new HikvisionError('The Hikvision device rejected the username or password.', status);
+    return new HikvisionError(tr().systems.device.rejectedLogin('Hikvision'), status);
   }
   if (status === 403 || sub === 'nopermission' || sub === 'lowprivilege') {
-    return new HikvisionError('This account isn’t allowed to do that. Sign in with the recorder’s admin account.', status);
+    return new HikvisionError(tr().systems.hikvision.forbidden, status);
   }
   if (status === 404 || sub === 'notsupport' || sub === 'invalidoperation' || statusCode === 4) {
-    return new HikvisionError('This Hikvision device doesn’t support that.', status, true);
+    return new HikvisionError(tr().systems.device.notSupported('Hikvision'), status, true);
   }
   if (status === 502 || status === 504) {
-    return new HikvisionError('Couldn’t reach the Hikvision device. Check that it’s on and connected to your network.', status);
+    return new HikvisionError(tr().systems.device.cantReach('Hikvision'), status);
   }
-  if (sub === 'devicebusy' || statusCode === 2) return new HikvisionError('The Hikvision device is busy. Try again in a moment.', status);
-  if (statusCode === 3) return new HikvisionError('The Hikvision device reported an error. Try again in a moment.', status);
-  return new HikvisionError(`The Hikvision device couldn’t do that${sub ? ` (${sub})` : ''}.`, status);
+  if (sub === 'devicebusy' || statusCode === 2) return new HikvisionError(tr().systems.hikvision.busy, status);
+  if (statusCode === 3) return new HikvisionError(tr().systems.hikvision.reportedError, status);
+  return new HikvisionError(sub ? tr().systems.device.couldntDoDetail('Hikvision', sub) : tr().systems.device.couldntDo('Hikvision'), status);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -212,7 +213,7 @@ export interface DeviceInfo {
 }
 
 export function parseDeviceInfo(xml: string): DeviceInfo {
-  if (!/<(?:\w+:)?DeviceInfo[\s>]/.test(xml)) throw new HikvisionError('This address doesn’t seem to be a Hikvision device. Check the address and try again.');
+  if (!/<(?:\w+:)?DeviceInfo[\s>]/.test(xml)) throw new HikvisionError(tr().systems.device.notThisBrand('Hikvision'));
   const model = xmlText(xml, 'model') ?? '';
   return {
     name: xmlText(xml, 'deviceName') || model || 'Hikvision',
@@ -304,11 +305,11 @@ export function buildChannels(o: {
     return { width: s?.width, height: s?.height };
   };
   for (const c of o.proxy) {
-    byId.set(c.id, { id: c.id, name: c.name || `Camera ${c.id}`, online: o.proxyStatus.get(c.id) ?? true, proxied: true, ...size(c.id) });
+    byId.set(c.id, { id: c.id, name: c.name || tr().systems.common.cameraN(c.id), online: o.proxyStatus.get(c.id) ?? true, proxied: true, ...size(c.id) });
   }
   for (const c of o.inputs) {
     if (byId.has(c.id) || c.noVideo) continue;
-    byId.set(c.id, { id: c.id, name: c.name || `Camera ${c.id}`, online: c.enabled, proxied: false, ...size(c.id) });
+    byId.set(c.id, { id: c.id, name: c.name || tr().systems.common.cameraN(c.id), online: c.enabled, proxied: false, ...size(c.id) });
   }
   if (!byId.size) {
     for (const s of o.streams) {
@@ -525,7 +526,7 @@ export function parsePtzPresets(xml: string): Map<string, number> {
     if ((xmlText(b, 'enabled') ?? 'true') === 'false') continue;
     const id = Number(xmlText(b, 'id'));
     if (!Number.isInteger(id)) continue;
-    const name = xmlText(b, 'presetName') || `Preset ${id}`;
+    const name = xmlText(b, 'presetName') || tr().systems.common.presetN(id);
     if (!out.has(name)) out.set(name, id);
   }
   return out;

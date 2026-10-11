@@ -237,6 +237,7 @@ func api(cfg config, store *store, engine *engine, h *hub) http.Handler {
 		}
 		d.ID = r.PathValue("id")
 		d.GrantID = "" // legacy pairing: owner-equivalent
+		d.Lang = normLang(d.Lang)
 		d.UpdatedAt = time.Now().Unix()
 		if err := store.put(d); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -294,8 +295,8 @@ func api(cfg config, store *store, engine *engine, h *hub) http.Handler {
 func sendTestPush(ctx context.Context, p pusher, d device) error {
 	return p.send(ctx, []pushMessage{{
 		To:    d.PushToken,
-		Title: "Instant Alerts are working",
-		Body:  "You'll get notifications here the moment a camera sees something.",
+		Title: tr(d.Lang, "test.title"),
+		Body:  tr(d.Lang, "test.body"),
 		Sound: "default",
 	}})
 }

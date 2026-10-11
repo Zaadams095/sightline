@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
 import { syncBridge } from '@/alerts/bridge';
+import { tr } from '@/i18n';
 import { useApp } from '@/state/store';
 
 /**
@@ -33,9 +34,9 @@ async function setAtHome(atHome: boolean) {
 /** Saves the current location as home and starts watching it. Returns an error message or null. */
 export async function setHomeHere(): Promise<string | null> {
   const fg = await Location.requestForegroundPermissionsAsync();
-  if (!fg.granted) return 'Location access is needed to set your home.';
+  if (!fg.granted) return tr().alerts.presence.needLocation;
   const bg = await Location.requestBackgroundPermissionsAsync();
-  if (!bg.granted) return 'Choose "Always Allow" for location so Sightline can notice when you get home.';
+  if (!bg.granted) return tr().alerts.presence.needAlways;
 
   const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   const home = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, radius: DEFAULT_RADIUS_M };

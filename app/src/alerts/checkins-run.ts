@@ -6,6 +6,7 @@ import { checkinOkOnHub } from '@/alerts/bridge';
 import { clockText, parseHHMM } from '@/alerts/clock';
 import { dueCheckIn, nextByTime, newState, observe, okLabel, placeName, markOk, type CheckIn } from '@/alerts/checkins';
 import { inQuietHours } from '@/alerts/rules';
+import { tr, subscribeLocale } from '@/i18n';
 import { connectSystem } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { useSmart } from '@/state/smart';
@@ -36,15 +37,15 @@ export function runsOnHub(c: Pick<CheckIn, 'systemId'>): boolean {
   return s.kind === 'frigate' && alerts.mode === 'instant' && !!alerts.bridge;
 }
 
-const camName = (c: CheckIn, id?: string) => (id && c.cameraNames?.[id]) || id || 'camera';
+const camName = (c: CheckIn, id?: string) => (id && c.cameraNames?.[id]) || id || tr().alerts.checkins.camera;
 
 /** One notification category per check-in: "Watch Kitchen" / "Call Mom" / "Mom's fine". */
 export async function registerCheckinCategories() {
   for (const c of useSmart.getState().checkins) {
     const actions: Notifications.NotificationAction[] = [
-      { identifier: ACTION_WATCH, buttonTitle: `Watch ${camName(c, c.cameras[0])}`, options: { opensAppToForeground: true } },
+      { identifier: ACTION_WATCH, buttonTitle: tr().alerts.checkins.watchCamera(camName(c, c.cameras[0])), options: { opensAppToForeground: true } },
     ];
-    if (c.phone?.trim()) actions.push({ identifier: ACTION_CALL, buttonTitle: `Call ${c.who.trim() || placeName(c)}`, options: { opensAppToForeground: true } });
+    if (c.phone?.trim()) actions.push({ identifier: ACTION_CALL, buttonTitle: tr().alerts.checkins.call(c.who.trim() || placeName(c)), options: { opensAppToForeground: true } });
     actions.push({ identifier: ACTION_OK, buttonTitle: okLabel(c), options: { opensAppToForeground: false } });
     await Notifications.setNotificationCategoryAsync(`${CHECKIN_CATEGORY_PREFIX}${c.id}`, actions).catch(() => {});
   }
@@ -53,9 +54,15 @@ export async function registerCheckinCategories() {
 /** Re-registers buttons whenever check-ins change (names, phone numbers). */
 export function watchCheckinCategories(): () => void {
   void registerCheckinCategories();
-  return useSmart.subscribe((s, prev) => {
+  // Button titles are in the app's language: re-register when it changes.
+  const unsubLocale = subscribeLocale(() => void registerCheckinCategories().then(() => rearmAll()));
+  const unsub = useSmart.subscribe((s, prev) => {
     if (s.checkins !== prev.checkins) void registerCheckinCategories().then(() => rearmAll());
   });
+  return () => {
+    unsub();
+    unsubLocale();
+  };
 }
 
 /** Check-in notification taps and buttons. Returns true when handled. */
@@ -152,8 +159,8 @@ async function rearm(c: CheckIn) {
   await Notifications.scheduleNotificationAsync({
     identifier: id,
     content: {
-      title: `Couldn’t confirm activity at ${place} yet`,
-      body: `Sightline couldn’t reach the cameras at ${place} to check by ${clockText(...parseHHMM(c.byTime))}. Tap to look. Without a Sightline Hub, check-ins can be late.`,
+      title: tr().alerts.checkins.unconfirmedTitle(place),
+      body: tr().alerts.checkins.unconfirmedBody(place, clockText(...parseHHMM(c.byTime))),
       data: { kind: 'checkin', checkinId: c.id, systemId: c.systemId, cameraId: c.cameras[0] ?? '', notice: 'unconfirmed' },
       categoryIdentifier: `${CHECKIN_CATEGORY_PREFIX}${c.id}`,
     },

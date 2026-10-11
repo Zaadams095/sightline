@@ -1,5 +1,156 @@
 import type en from '../en/ask.ts';
+import { plural } from '../plural.ts';
 
-const ask: typeof en = {};
+const p = plural('es');
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+/** "a la 1:05" / "a las 15:42". */
+const a = (time: string) => (/^0?1\D/.test(time) ? `a la ${time}` : `a las ${time}`);
+
+const ask: typeof en = {
+  screen: {
+    title: 'Pregunta a tus cámaras',
+    listening: 'Escuchando…',
+    questionLabel: 'Tu pregunta',
+    stopListening: 'Dejar de escuchar',
+    speak: 'Haz tu pregunta en voz alta',
+    privacy: 'Se responde en tu iPhone. Nada sale de tu teléfono.',
+    noSystems: 'Primero añade tus cámaras y luego pregunta por lo que vieron.',
+    liveOnly:
+      'Por ahora tus cámaras solo están conectadas para ver en directo. Para preguntar qué pasó, Sightline necesita un grabador o una cámara que guarde eventos, y conexión con él.',
+    loadingIndex: 'Cargando tus grabaciones…',
+    searching: 'Buscando en tus grabaciones…',
+    failed: (systems) => `No se pudieron cargar los eventos de ${systems}, así que las respuestas no los incluyen.`,
+    usedModel: 'Entendido con Apple Intelligence, en este iPhone.',
+    usedLocal: 'Entendido en este iPhone.',
+    countNote: ' Cada grabación cuenta una vez, así que una misma visita puede contar varias veces.',
+    recordings: (n) => p(n, { one: `${n} grabación`, other: `${n} grabaciones` }),
+    showingLatest: (n) => ` (se muestran las ${n} más recientes)`,
+    tryAsking: 'Prueba a preguntar',
+    examples: {
+      package: '¿Llegó un paquete hoy?',
+      backyard: '¿Hubo alguien en el patio anoche?',
+      kids: '¿A qué hora llegaron los niños?',
+      cars: '¿Cuántos coches pasaron esta semana?',
+      delivery: 'Muéstrame al repartidor',
+      door: '¿Quién vino a la puerta hoy?',
+    },
+    rowLabel: (subject, camera, when) => `${subject} en ${camera}, ${when}. Reproducir.`,
+  },
+  bar: {
+    label: 'Haz una pregunta a tus cámaras',
+    hint: 'Pregunta a tus cámaras…',
+    speak: 'Preguntar en voz alta',
+  },
+  simple: {
+    disabled:
+      'Activa Apple Intelligence en Ajustes para obtener respuestas más inteligentes. Mientras tanto, Sightline entiende preguntas sencillas en inglés y las preguntas de ejemplo.',
+    notReady:
+      'Apple Intelligence aún se está preparando en este iPhone. Mientras tanto, Sightline entiende preguntas sencillas en inglés y las preguntas de ejemplo.',
+    language:
+      'Apple Intelligence aún no está disponible en el idioma de tu iPhone, así que Sightline entiende preguntas sencillas en inglés y las preguntas de ejemplo.',
+    other:
+      'En este iPhone, Sightline entiende preguntas sencillas en inglés y las preguntas de ejemplo. Con Apple Intelligence (iOS 26 en un iPhone más reciente) entiende mucho más.',
+  },
+  answer: {
+    or: 'o',
+    one: {
+      person: 'alguien',
+      vehicle: 'un coche',
+      package: 'un paquete',
+      delivery: 'una entrega',
+      animal: 'un animal',
+      bicycle: 'una bici',
+      doorbell: 'alguien tocando el timbre',
+    },
+    many: {
+      person: 'personas',
+      vehicle: 'coches',
+      package: 'paquetes',
+      delivery: 'entregas',
+      animal: 'animales',
+      bicycle: 'bicis',
+      doorbell: 'toques de timbre',
+    },
+    none: {
+      person: 'a nadie',
+      vehicle: 'ningún coche',
+      package: 'ningún paquete',
+      delivery: 'ninguna entrega',
+      animal: 'ningún animal',
+      bicycle: 'ninguna bici',
+      doorbell: 'ningún toque de timbre',
+    },
+    noneNames: (names) => `a ${names}`,
+    nothing: 'nada',
+    manyNames: (names) => `a ${names}`,
+    events: 'actividad',
+    labels: {
+      person: 'alguien',
+      face: 'alguien',
+      car: 'un coche',
+      truck: 'un camión',
+      vehicle: 'un vehículo',
+      motorcycle: 'una moto',
+      bus: 'un autobús',
+      package: 'un paquete',
+      dog: 'un perro',
+      cat: 'un gato',
+      bird: 'un pájaro',
+      bicycle: 'una bici',
+      doorbell: 'alguien tocando el timbre',
+    },
+    something: (label) => `algo (${label.toLowerCase()})`,
+    motion: 'movimiento',
+    someoneUnknown: 'alguien que no reconozco',
+    inZones: (zones) => ` en la zona ${zones}`,
+    inZonesOn: (zones, cameras) => ` en la zona ${zones} de ${cameras}`,
+    onCameras: (cameras) => ` en ${cameras}`,
+    times: {
+      'in the last few minutes': 'en los últimos minutos',
+      'in the last hour': 'en la última hora',
+      today: 'hoy',
+      'this morning': 'esta mañana',
+      'this afternoon': 'esta tarde',
+      'this evening': 'esta noche',
+      'last night': 'anoche',
+      yesterday: 'ayer',
+      'in the last 24 hours': 'en las últimas 24 horas',
+      'this weekend': 'este fin de semana',
+      'this week': 'esta semana',
+      'last week': 'la semana pasada',
+      'in the past week': 'en la última semana',
+    },
+    onDay: (day) => `el ${day}`,
+    lastMinutes: (n) => p(n, { one: 'en el último minuto', other: `en los últimos ${n} minutos` }),
+    lastHours: (n) => p(n, { one: 'en la última hora', other: `en las últimas ${n} horas` }),
+    lastDays: (n) => p(n, { one: 'en el último día', other: `en los últimos ${n} días` }),
+    parts: {
+      morning: ' por la mañana',
+      afternoon: ' por la tarde',
+      evening: ' por la noche',
+      night: ' de madrugada',
+    },
+    at: (time) => a(time),
+    yesterdayAt: (time) => `ayer ${a(time)}`,
+    onDayAt: (day, time) => `el ${day} ${a(time)}`,
+    describe: (subject, camera, time) => `${subject} en ${camera} ${time}`,
+    yesNoNone: (what, where, when) => `No, no vi ${what}${where} ${when}.`,
+    yesNoNothing: (where, when) => `No, no se grabó nada${where} ${when}.`,
+    yesOne: (subject, camera, time) => `Sí. Apareció ${subject} en ${camera} ${time}.`,
+    yesMany: (n, when, latest) => `Sí, ${n} veces ${when}. La última: ${latest}.`,
+    countNone: (what, where, when) => `Ninguna vez. No vi ${what}${where} ${when}.`,
+    countSeen: (what, where, n, when, latest) =>
+      `Vi ${what}${where} ${p(n, { one: 'una vez', other: `${n} veces` })} ${when}. La última: ${latest}.`,
+    whenNone: (what, where, when) => `No vi ${what}${where} ${when}.`,
+    whenSeen: (subject, time, camera) => `${cap(subject)} apareció ${time} en ${camera}.`,
+    whenBefore: (times) => ` Antes: ${times}.`,
+    whoNone: (where, when) => `No apareció nadie${where} ${when}.`,
+    whoOne: (who, where, when) => `${cap(who)} apareció${where} ${when}.`,
+    whoMany: (who, where, when) => `${cap(who)} aparecieron${where} ${when}.`,
+    whoLatest: (latest) => ` La última vez: ${latest}.`,
+    listNone: (what, where, when) => `No encontré ${what}${where} ${when}.`,
+    listFound: (n, when, latest) => `${p(n, { one: 'Un resultado', other: `${n} resultados` })} ${when}. El más reciente: ${latest}.`,
+  },
+};
 
 export default ask;

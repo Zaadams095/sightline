@@ -1,3 +1,295 @@
-const alertSettings = {};
+import { plural } from '../plural.ts';
+
+const p = plural('en');
+
+/** Settings → Alerts and everything under it: zones, Instant Alerts, Home & Away, check-ins, learning. */
+const alertSettings = {
+  // Settings → Alerts (app/settings/alerts.tsx)
+  alerts: {
+    title: 'Alerts',
+    delivery: 'Delivery',
+    deliveryNoHub:
+      'Built-in alerts are checked in the background when iOS allows, so they can arrive several minutes late. Instant Alerts arrive within a second, but need a Sightline Hub at home.',
+    deliveryBuiltIn: 'iOS schedules background checks, so alerts may arrive several minutes late. Instant Alerts deliver within a second.',
+    deliveryInstant: 'Alerts come through your Sightline Hub within a second.',
+    builtIn: 'Built-in',
+    instant: 'Instant Alerts',
+    instantNeedsHub: 'Instant Alerts, needs a Sightline Hub',
+    setUpHub: 'Set up a Sightline Hub',
+    setUpHubDetail: 'Free. Also lets you share cameras and watch away from home.',
+    quietHours: 'Quiet hours',
+    quietHoursDetail: 'No notifications during this time. Everything is still recorded.',
+    from: 'From',
+    until: 'Until',
+    cooldown: 'Cooldown per camera',
+    secShort: (n: number) => `${n}s`,
+    minShort: (n: number) => `${n} min`,
+    cameras: 'Cameras',
+    checkNow: 'Check for alerts now',
+    sent: (n: number) => p(n, { one: `Sent ${n} notification.`, other: `Sent ${n} notifications.` }),
+    nothingNew: 'Nothing new matched your rules.',
+    important: 'Important (people, cars…)',
+    otherMotion: 'Other motion',
+    notifyForCamera: 'Notify for this camera',
+    notifyMeFor: 'Notify me for',
+    what: 'What',
+    whatAnything: 'What (anything)',
+    where: 'Where',
+    whereAnywhere: 'Where (anywhere)',
+    noZones:
+      'This recorder can’t tell Sightline where things happened in the picture, so alert zones can’t work for this camera. To ignore part of its view (like the street), set a motion area in the camera’s or recorder’s own app.',
+    useDefault: 'Use default rule',
+    zonesCount: (n: number) => `Alert zones (${n})`,
+    zonesNone: 'Alert zones: only part of the picture',
+    notificationsOff: 'Notifications off',
+    anything: 'anything',
+    /** Camera row summary: "Person, Car in driveway" */
+    whatWhere: (what: string, where: string) => `${what} in ${where}`,
+  },
+
+  // Settings → Instant Alerts (app/settings/bridge.tsx)
+  bridge: {
+    title: 'Instant Alerts',
+    allowNotifications: 'Allow notifications for Sightline in the iPhone’s Settings app first.',
+    allowNotificationsLegacy: 'Allow notifications for this app in iOS Settings first.',
+    turnedOn: 'Instant Alerts are on.',
+    onHeading: 'Instant Alerts are on',
+    ready: 'Ready to turn on',
+    explainOne: (hub: string) =>
+      `${hub} watches your cameras and sends a short notification (for example, “Person · Front Door”) within a second. Pictures and video stay at home; the app loads them when you tap the notification.`,
+    explainMany:
+      'Your Sightline Hubs watch your cameras and send a short notification (for example, “Person · Front Door”) within a second. Pictures and video stay at home; the app loads them when you tap the notification.',
+    turnOn: 'Turn on Instant Alerts',
+    chooseWhat: 'Choose what alerts me',
+    needHub: 'Instant Alerts need a Sightline Hub',
+    hubExplain:
+      'A Sightline Hub is a small free app for a computer that’s always on at home. It works with any camera brand and sends alerts within a second. It also lets you watch away from home and share cameras with family.',
+    whereInstall: 'Where to install it',
+    homeAssistantDetail: 'Add the Sightline Hub add-on. The easiest option.',
+    nas: 'Synology, Unraid or another NAS',
+    nasDetail: 'Add the Sightline Hub app (container).',
+    computer: 'An always-on computer',
+    computerDetail: 'Windows, Mac or Linux.',
+    setUpHub: 'Set up a Sightline Hub',
+    haveHub: 'I have a Hub: connect it',
+    technical: 'Technical details',
+    legacyIntro:
+      'For Frigate users who run the older stand-alone alerts container instead of a Hub. A Hub does the same and more, so most people don’t need this.',
+    step1: '1. Add to your docker-compose.yml',
+    copied: 'Copied',
+    copy: 'Copy snippet',
+    step1Help: 'Put it under services:, set MQTT_URL to the broker in your Frigate config, then run docker compose up -d.',
+    step2: '2. Pair this phone',
+    address: 'Container address',
+    paired: 'Paired! A test notification is on its way.',
+    repair: 'Re-pair & send test',
+    pair: 'Pair & send test',
+  },
+
+  // Add or edit one family check-in (app/settings/checkin.tsx)
+  checkin: {
+    title: 'Check-in',
+    pickCamera: 'Pick at least one camera',
+    pickCameraBody: 'Choose the cameras that show everyday life, like the kitchen or hallway.',
+    chooseWhen: 'Choose when to hear from Sightline',
+    chooseWhenBody: 'Turn on at least one: no activity by a time, a long quiet stretch, or the daily summary.',
+    who: 'Who',
+    whoFooter: (place: string, ok: string) => `Notifications say “${place}”, with buttons like “${ok}”.`,
+    whoExample: 'For example “Mom” or “Grandpa”.',
+    whoLabel: 'Who lives there?',
+    whoPlaceholder: 'Mom',
+    phone: 'Phone number (optional)',
+    phoneHint: (name: string) => `Adds a “Call ${name}” button to the notification.`,
+    them: 'them',
+    phonePlaceholder: '(555) 123-4567',
+    home: 'Home',
+    camerasTitle: 'Cameras that show everyday life',
+    camerasFooter: 'Only cameras you’re allowed to see are listed. Pick rooms they pass through every day.',
+    noCameras: 'No cameras from this system are connected right now.',
+    onlyCount: (camera: string) => `${camera}: only count`,
+    onlyCountWhole: (camera: string) => `${camera}: only count (the whole picture)`,
+    peopleOnly: 'Only count people',
+    peopleOnlyDetail: 'Otherwise any movement counts, which could include a pet.',
+    letMeKnow: 'Let me know if',
+    noActivityBy: 'There’s no activity by',
+    time: 'Time',
+    quietLong: 'It’s quiet for a long time during the day',
+    dayStarts: 'Day starts',
+    dayEnds: 'Day ends',
+    /** `title` is the notification title, e.g. "All normal at Mom’s". */
+    summaryExample: (title: string, time: string) => `For example: “${title}: first activity ${time} · 23 moments today.”`,
+    summary: 'Daily “All normal” summary',
+    sendAt: 'Send at',
+    ignoresFooter: 'Check-ins ignore Home & Away and snoozed cameras: they’re about their home, not yours.',
+    duringQuiet: 'Come through during my quiet hours',
+    duringQuietOn: 'With normal sound, even when Focus is on.',
+    duringQuietOff: 'Waits until your quiet hours end.',
+    theirTime: (zone: string) => `Their time (${zone})`,
+    myTime: 'My time',
+    hubNote:
+      'Your Sightline Hub watches around the clock, even when your phone is off, and double-checks with the recorder before saying there’s been no activity.',
+    noHubNote: 'Without a Sightline Hub, iPhone decides when Sightline can check, so a check-in can arrive late.',
+    couldntCheck: (time: string) => `If Sightline couldn’t check by ${time}, it reminds you to look.`,
+    isOn: 'Check-in is on',
+    delete: 'Delete check-in',
+    deleteConfirm: 'Delete this check-in?',
+  },
+
+  // Settings → Alerts → Family check-ins (app/settings/checkins.tsx)
+  checkins: {
+    title: 'Family check-ins',
+    emptyTitle: 'Know they’re OK',
+    emptyBody:
+      'Pick the cameras that show everyday life at a loved one’s home, like the kitchen or hallway. Sightline lets you know gently if there’s no activity by a time you choose, or for a long stretch during the day, and can send a daily “All normal” note.',
+    footer: 'Check-ins use only cameras you’re allowed to see.',
+    off: (place: string) => `${place} (off)`,
+    add: 'Add a check-in',
+  },
+
+  // Settings → Alerts → What Sightline learned (app/settings/learned.tsx)
+  learned: {
+    title: 'What Sightline learned',
+    forgetTitle: 'Forget this?',
+    forgetBody: 'Sightline will alert for these again, and forget the feedback behind it.',
+    forget: 'Forget',
+    emptyTitle: 'Nothing learned yet',
+    emptyBody:
+      'When an alert isn’t worth your attention, long-press it and choose “Not important”, or tap the thumbs-down in Recordings. After a few of the same kind on the same camera, Sightline stops alerting for them, and lists it here so you can undo it any time.',
+    waiting: 'Waiting for you',
+    waitingFooter: 'Sightline never stops alerting for people on its own.',
+    stop: 'Stop alerting',
+    keep: 'Keep alerting',
+    quiet: 'No longer alerting for',
+    quietFooter: 'Anything that looks different (another time of day, another area, someone recognized, or staying longer) still alerts.',
+    always: 'Always tell me about',
+    forgetThis: 'Forget this',
+  },
+
+  // Settings → Home & Away (app/settings/home-away.tsx)
+  homeAway: {
+    title: 'Home & Away',
+    intro:
+      'When you’re home, Sightline quiets alerts except from the cameras you choose below (like the doorbell). Your location stays on your phone; only “home” or “away” is shared with your Instant Alerts bridge.',
+    gettingLocation: 'Getting location…',
+    setHome: 'I’m home now: set this as home',
+    status: 'Status',
+    youreHome: 'You’re home',
+    youreAway: 'You’re away',
+    onlySelected: 'Only selected cameras alert',
+    allNormal: 'All cameras alert normally',
+    home: 'Home',
+    away: 'Away',
+    switchAway: 'Switch to Away for now',
+    switchHome: 'Switch to Home for now',
+    switchDetail: 'Changes back automatically the next time you arrive or leave.',
+    moveHome: 'Move home to my current location',
+    turnOff: 'Turn off Home/Away',
+    keepAlerting: 'Keep alerting while I’m home',
+    keepFooter: 'Cameras not checked stay quiet while you’re home.',
+    noCameras: 'No cameras yet',
+  },
+
+  // Alert zones editor (app/settings/zones.tsx)
+  zones: {
+    title: 'Alert zones',
+    /** Suggested zone names, in order. */
+    names: ['Driveway', 'Porch', 'Yard', 'Walkway', 'Street', 'Sidewalk'],
+    zoneN: (n: number) => `Zone ${n}`,
+    zone: 'Zone',
+    savedZones: 'Saved. Alerts follow these zones from now on.',
+    savedWhole: 'Saved. This camera alerts about its whole picture again.',
+    saveFailed: 'Couldn’t save the zones.',
+    pictureLabel: 'Camera picture. Tap to add corners of a zone.',
+    pictureHint: 'Drag the round handles to adjust the selected zone.',
+    cantTitle: 'Zones can’t work for this camera',
+    cantBody1:
+      'This recorder can’t tell Sightline where things happened in the picture, and Sightline can’t change its detection area, so zones would only pretend to work. Alerts still come from the whole picture.',
+    cantBody2:
+      'To limit alerts to part of the view, set a motion or detection area in the camera’s or recorder’s own app. Zones work on cameras whose system reports where objects are (like Frigate, directly or through a Sightline Hub) and on cameras whose detection area Sightline can set (like Reolink).',
+    drawZone: 'Draw a zone',
+    undo: 'Undo',
+    hintFirst: 'Tap the picture at each corner of the area. Three corners or more.',
+    hintMore: 'Keep tapping to add corners, or tap the first corner (or Done) to finish. Drag a handle to move it.',
+    hintSelected: 'Drag the round handles to adjust. Tap another zone to pick it.',
+    hintPick: 'Tap a zone to change it, or draw another.',
+    hintEmpty: 'Draw the area you care about, like the driveway, or pick a quick shape below.',
+    quickShapesFor: (name: string) => `Quick shapes for “${name}”`,
+    quickShapes: 'Quick shapes',
+    deviceNote:
+      'This camera does the detecting itself, so Sightline sets its own detection area: each zone covers all motion and smart detection, and it also decides when the camera records on motion.',
+    preciseNote: 'Sightline checks where each person, vehicle or animal walked or drove. Recording isn’t affected, and doorbell rings always come through.',
+    saveToCamera: 'Save to camera',
+    namePlaceholder: 'Name, like Driveway',
+    nameLabel: 'Zone name',
+    onlyHere: 'Alert only here',
+    ignoreHere: 'Ignore here',
+    alertMeAbout: 'Alert me about',
+    ignore: 'Ignore',
+    anyMotion: 'Any motion',
+    everything: 'Everything',
+    redraw: 'Redraw',
+    deleteZone: 'Delete zone',
+  },
+
+  // Sections on the Alerts screen (components/alerts/alert-extras.tsx)
+  extras: {
+    lockFooter: 'If nothing shows, check that Live Activities are allowed for Sightline in the iPhone Settings app.',
+    lockLabel: 'Show on Lock Screen',
+    lockDetail: 'When the doorbell rings or a camera sees something, show it on your Lock Screen for a few minutes, with the latest picture.',
+    knownTitle: 'Known people & cars',
+    knownFooterSome: 'Selected names never trigger alerts. Anyone your system doesn’t recognize still alerts.',
+    knownFooterNone:
+      'If your system recognizes faces or license plates, or you name people in Settings → People & vehicles, their names appear here so family and your own cars don’t set off alerts.',
+    noNames: 'No recognized names yet',
+    alwaysTitle: 'Always tell me when they arrive',
+    alwaysFooter: 'Selected names always alert, even on cameras set to alert only for other things.',
+    snoozed: 'Snoozed',
+    mutedUntil: (time: string) => `Muted until ${time}`,
+    resume: 'Resume',
+    doorbellTitle: 'Doorbell & packages',
+    doorbellFooter:
+      'Works with cameras and recorders that report doorbell presses or detect packages. A doorbell ring always notifies, even when other alerts for that camera are filtered.',
+    fullScreen: 'Doorbell rings open full screen',
+    fullScreenDetail: 'Like a phone call, with live video and a big Answer button.',
+    packages: 'Package alerts',
+    packagesDetail: 'Tells you when a package is delivered, and when it may have been picked up.',
+    reminder: 'Evening reminder',
+    reminderDetail: 'If a package is still outside.',
+    healthTitle: 'System health',
+    healthFooter: 'Alerts once when a camera goes offline, storage runs low, or the recorder stops answering, and again only after it recovers.',
+    healthLabel: 'Health alerts',
+    warnWhen: 'Warn when storage is',
+    pctFull: (pct: number) => `${pct}% full`,
+  },
+
+  // Thumbs on an event in Recordings (components/alerts/feedback-buttons.tsx)
+  feedback: {
+    stopTitle: 'Stop alerting for these?',
+    keep: 'Keep alerting',
+    stop: 'Stop alerting',
+    learnedTitle: 'Sightline learned something',
+    undo: 'Undo',
+    markedNotImportant: 'Marked not important',
+    notImportant: 'Not important',
+    alwaysTold: 'You’ll always be told about this',
+    alwaysTell: 'Always tell me about this',
+  },
+
+  // "Fewer false alarms" section (components/alerts/smart-section.tsx)
+  smart: {
+    title: 'Fewer false alarms',
+    footer:
+      'Long-press an alert and choose “Not important” (or use the thumbs in Recordings). After a few of the same kind, Sightline stops alerting for them. Doorbell rings always come through, and people are only quieted if you say so.',
+    ignoreWeather: 'Ignore likely rain, wind and headlights',
+    ignoreWeatherDetail: 'Motion with nothing detected that hits several cameras at once, or blinks by at night. People, cars and animals still alert.',
+    learned: 'What Sightline learned',
+    nothingYet: 'Nothing yet',
+    items: (n: number) => p(n, { one: `${n} item`, other: `${n} items` }),
+    itemsWaiting: (n: number, waiting: number) => `${p(n, { one: `${n} item`, other: `${n} items` })} · ${waiting} waiting for you`,
+    checkins: 'Family check-ins',
+    checkinCount: (n: number) => p(n, { one: `${n} check-in`, other: `${n} check-ins` }),
+    checkinEmpty: 'Hear if there’s no activity at a loved one’s home',
+  },
+};
 
 export default alertSettings;

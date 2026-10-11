@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
+import { tr } from '@/i18n';
 import type { CameraSystemAdapter } from '@/systems/types';
 
 const clipsDir = () => {
@@ -22,7 +23,7 @@ export async function fetchToFile(uri: string, dest: File): Promise<File> {
 
 /** Downloads a clip through the gateway and opens the iOS share sheet. */
 export async function shareClip(adapter: CameraSystemAdapter, cameraId: string, cameraName: string, start: number, end: number) {
-  if (!adapter.clip) throw new Error('This system cannot export clips.');
+  if (!adapter.clip) throw new Error(tr().alerts.errors.cannotExport);
   const stamp = new Date(start * 1000).toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const name = `${cameraName.replace(/[^\w-]+/g, '_')}_${stamp}.mp4`;
   const dest = new File(clipsDir(), name);
@@ -50,7 +51,7 @@ export async function downloadClipForOffline(
   adapter: CameraSystemAdapter,
   clip: { id: string; cameraId: string; start: number; end: number },
 ): Promise<string> {
-  if (!adapter.clip) throw new Error('This system cannot export clips.');
+  if (!adapter.clip) throw new Error(tr().alerts.errors.cannotExport);
   const dest = new File(libraryDir(), `${clip.id}.mp4`);
   const file = await fetchToFile(adapter.clip(clip.cameraId, clip.start, clip.end).uri, dest);
   return file.uri;

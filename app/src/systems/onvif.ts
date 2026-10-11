@@ -41,6 +41,7 @@ import type {
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 import { WgTunnel } from '@modules/wg-tunnel';
+import { tr } from '@/i18n';
 
 /**
  * Any ONVIF (Profile S/T) IP camera or recorder, set up with just its address and login.
@@ -124,7 +125,7 @@ export class OnvifAdapter implements CameraSystemAdapter {
 
   /** One SOAP call. Returns the response XML or throws a plain-language OnvifError. */
   private async call(path: string, request: string, opts: { auth?: boolean; timeoutMs?: number } = {}): Promise<string> {
-    if (!this.baseUrl) throw new OnvifError('Not connected to the camera yet.', 'network');
+    if (!this.baseUrl) throw new OnvifError(tr().systems.onvif.notConnected, 'network');
     const username = this.config.username ?? '';
     const wsse = (opts.auth ?? true) && this.useWsse && !!username;
     const header = wsse
@@ -153,8 +154,8 @@ export class OnvifAdapter implements CameraSystemAdapter {
       const timedOut = e instanceof Error && e.message.startsWith('No response');
       throw new OnvifError(
         timedOut
-          ? 'The camera didn’t answer in time. Check that it’s on and that the phone is on the same network.'
-          : 'Couldn’t reach the camera. Is the phone on the same network?',
+          ? tr().systems.onvif.noAnswer
+          : tr().systems.onvif.cantReach,
         'network',
       );
     }
@@ -178,9 +179,9 @@ export class OnvifAdapter implements CameraSystemAdapter {
     if (res.status === 401 || res.status === 403) throw new OnvifError(authMessage(), 'auth');
     if (res.status === 404) throw new OnvifError(notFoundMessage(), 'notfound');
     if (res.status === 502 || res.status === 504) {
-      throw new OnvifError('Couldn’t reach the camera. Is the phone on the same network?', 'network');
+      throw new OnvifError(tr().systems.onvif.cantReach, 'network');
     }
-    if (!res.ok) throw new OnvifError(`The camera returned an error (HTTP ${res.status}).`, 'other');
+    if (!res.ok) throw new OnvifError(tr().systems.onvif.httpError(res.status), 'other');
     if (!/<(?:[\w.-]+:)?Envelope[\s>]/.test(xml)) throw new OnvifError(notFoundMessage(), 'notfound');
     return xml;
   }
@@ -245,7 +246,7 @@ export class OnvifAdapter implements CameraSystemAdapter {
     const mediaPath = xaddrPath(media2 ? addrs.media2 : addrs.media, media2 ? '/onvif/media2_service' : '/onvif/media_service');
     const profiles = parseProfiles(await this.call(mediaPath, body.getProfiles(media2)));
     const cameras = camerasFromProfiles(profiles);
-    if (!cameras.length) throw new OnvifError('The camera has no video streams set up. Check its video settings.', 'other');
+    if (!cameras.length) throw new OnvifError(tr().systems.onvif.noStreams, 'other');
 
     // 5. Snapshot links (optional; tiles fall back to a small live view without one).
     const snapshots = new Map<string, string>();
@@ -269,7 +270,7 @@ export class OnvifAdapter implements CameraSystemAdapter {
   private async camera(cameraId: string): Promise<{ s: State; cam: OnvifCamera }> {
     const s = await this.load();
     const cam = s.cameras.find((c) => c.id === cameraId);
-    if (!cam) throw new Error('This camera is no longer available. Try removing and adding it again.');
+    if (!cam) throw new Error(tr().systems.onvif.cameraGone);
     return { s, cam };
   }
 
@@ -307,7 +308,7 @@ export class OnvifAdapter implements CameraSystemAdapter {
     let url = this.streams.get(profile.token);
     if (!url) {
       const uri = parseUri(await this.call(s.mediaPath, body.getStreamUri(profile.token, s.media2)));
-      if (!uri) throw new Error('The camera didn’t provide a video link.');
+      if (!uri) throw new Error(tr().systems.onvif.noVideoLink);
       url = streamUrl(uri, this.host, this.config.username ?? '', await this.password());
       this.streams.set(profile.token, url);
     }
@@ -344,14 +345,14 @@ export class OnvifAdapter implements CameraSystemAdapter {
 
   async ptz(cameraId: string, action: PtzAction | `preset_${string}`): Promise<void> {
     const { s, cam } = await this.camera(cameraId);
-    if (!s.ptzPath || !cam.ptzProfile) throw new Error('This camera can’t pan or zoom.');
+    if (!s.ptzPath || !cam.ptzProfile) throw new Error(tr().systems.onvif.cantPtz);
     const profile = cam.ptzProfile.token;
 
     if (action.startsWith('preset_')) {
       const name = action.slice('preset_'.length);
       const list = this.presets.get(profile) ?? (await this.loadPresets(s.ptzPath, profile));
       const preset = list.find((p) => p.name === name) ?? list.find((p) => p.token === name);
-      if (!preset) throw new Error(`Preset “${name}” wasn’t found on the camera.`);
+      if (!preset) throw new Error(tr().systems.onvif.presetMissing(name));
       await this.call(s.ptzPath, body.gotoPreset(profile, preset.token));
       return;
     }
@@ -386,9 +387,9 @@ export class OnvifAdapter implements CameraSystemAdapter {
 }
 
 function authMessage() {
-  return 'Wrong username or password. Use the camera’s own login; some cameras need a separate ONVIF user, added in the camera’s settings.';
+  return tr().systems.onvif.badLogin;
 }
 
 function notFoundMessage() {
-  return 'No ONVIF camera answered at this address. Turn on ONVIF in the camera’s settings, or add its ONVIF port to the address (often 8000, 2020 or 8899, e.g. 192.168.1.70:2020).';
+  return tr().systems.onvif.notFound;
 }

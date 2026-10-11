@@ -5,12 +5,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { formatClock, formatDay } from '@/util/format';
 import { shareLocalFile } from '@/util/share';
 
 /** Plays a downloaded clip from the phone's storage; works with no connection to home. */
 export default function OfflineClip() {
+  const t = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const clip = useApp((s) => s.savedClips.find((c) => c.id === id));
   const insets = useSafeAreaInsets();
@@ -20,15 +22,15 @@ export default function OfflineClip() {
     <View style={styles.root}>
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls allowsPictureInPicture />
       <View style={[styles.top, { top: insets.top + 6 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={styles.round}>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t.common.close} style={styles.round}>
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <T v="label" color="#fff" numberOfLines={1}>
-            {clip?.title ?? 'Clip'}
+          <T v="label" color="#fff" numberOfLines={1} overlay>
+            {clip?.title ?? t.viewing.clip.clip}
           </T>
           {clip && (
-            <T v="caption" color="rgba(255,255,255,0.7)">
+            <T v="caption" color="rgba(255,255,255,0.7)" overlay>
               {clip.cameraName} · {formatDay(clip.start)} {formatClock(clip.start)}
             </T>
           )}
@@ -38,7 +40,7 @@ export default function OfflineClip() {
             onPress={() => shareLocalFile(clip.localUri!, clip.cameraName)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Share video"
+            accessibilityLabel={t.viewing.clip.shareVideo}
             style={styles.round}>
             <SymbolView name="square.and.arrow.up" tintColor="#fff" size={17} />
           </Pressable>

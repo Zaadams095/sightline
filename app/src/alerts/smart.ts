@@ -14,6 +14,7 @@ import {
   type Verdict,
 } from '@/alerts/learning';
 import { splitAlertTitle } from '@/alerts/live-activity-format';
+import { tr } from '@/i18n';
 import { useApp } from '@/state/store';
 import { useSmart } from '@/state/smart';
 import type { ReviewItem } from '@/systems/types';
@@ -31,17 +32,29 @@ const ACTION_LEARNED_CONFIRM = 'learned-confirm';
 
 /** Long-press actions added to the camera alert category (Instant Alerts use it too). */
 export const FEEDBACK_ACTIONS: Notifications.NotificationAction[] = [
-  { identifier: ACTION_NOT_IMPORTANT, buttonTitle: 'Not important', options: { opensAppToForeground: false } },
-  { identifier: ACTION_ALWAYS, buttonTitle: 'Always tell me about this', options: { opensAppToForeground: false } },
+  {
+    identifier: ACTION_NOT_IMPORTANT,
+    get buttonTitle() {
+      return tr().alerts.learned.notImportant;
+    },
+    options: { opensAppToForeground: false },
+  },
+  {
+    identifier: ACTION_ALWAYS,
+    get buttonTitle() {
+      return tr().alerts.learned.alwaysTell;
+    },
+    options: { opensAppToForeground: false },
+  },
 ];
 
 export function registerLearnedCategory() {
   void Notifications.setNotificationCategoryAsync(LEARNED_CATEGORY, [
-    { identifier: ACTION_LEARNED_UNDO, buttonTitle: 'Undo', options: { opensAppToForeground: false, isDestructive: true } },
+    { identifier: ACTION_LEARNED_UNDO, buttonTitle: tr().alerts.learned.undo, options: { opensAppToForeground: false, isDestructive: true } },
   ]).catch(() => {});
   void Notifications.setNotificationCategoryAsync(`${LEARNED_CATEGORY}-confirm`, [
-    { identifier: ACTION_LEARNED_CONFIRM, buttonTitle: 'Stop alerting for these', options: { opensAppToForeground: false } },
-    { identifier: ACTION_LEARNED_UNDO, buttonTitle: 'Keep alerting', options: { opensAppToForeground: false } },
+    { identifier: ACTION_LEARNED_CONFIRM, buttonTitle: tr().alerts.learned.stopAlerting, options: { opensAppToForeground: false } },
+    { identifier: ACTION_LEARNED_UNDO, buttonTitle: tr().alerts.learned.keepAlerting, options: { opensAppToForeground: false } },
   ]).catch(() => {});
 }
 
@@ -134,7 +147,7 @@ const list = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
 export async function announceLearned(rule: LearnedRule, cameraName: string) {
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: rule.needsConfirm ? 'Stop alerting for these?' : 'Sightline learned something',
+      title: rule.needsConfirm ? tr().alerts.learned.askTitle : tr().alerts.learned.learnedTitle,
       body: ruleExplanation(rule, cameraName),
       data: { kind: 'learned', ruleKey: rule.key },
       categoryIdentifier: rule.needsConfirm ? `${LEARNED_CATEGORY}-confirm` : LEARNED_CATEGORY,

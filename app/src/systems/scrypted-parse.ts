@@ -1,3 +1,5 @@
+import { tr } from '../i18n/index.ts';
+
 /**
  * Pure parsing for Scrypted camera links. Scrypted's Rebroadcast extension shows, per camera
  * stream, an "RTSP Rebroadcast Url" like `rtsp://localhost:34567/a1b2c3d4e5f6a7b8`
@@ -39,18 +41,18 @@ export function parseLinks(text: string, serverHost: string): { links: ScryptedL
     const n = links.length + 1;
     let id = token || `cam${n}`;
     while (links.some((l) => l.id === id)) id = `${id}-${n}`;
-    links.push({ id, name: m[1]?.trim() || `Camera ${n}`, url: fixed });
+    links.push({ id, name: m[1]?.trim() || tr().systems.common.cameraN(n), url: fixed });
   }
   return { links, bad };
 }
 
 /** `POST /login` answers 200 even on failure, with `{error}` (server/src/scrypted-server-main.ts). */
 export function loginError(body: { error?: string; authorization?: string } | null): string | null {
-  if (!body) return 'Scrypted sent an unexpected reply.';
+  if (!body) return tr().systems.http.unexpectedReplyShort('Scrypted');
   if (body.error) {
     return /password|user/i.test(body.error)
-      ? 'Scrypted didn’t accept the username or password.'
-      : `Scrypted said: ${body.error}`;
+      ? tr().systems.http.badLoginShort('Scrypted')
+      : tr().systems.http.said('Scrypted', body.error);
   }
   return null;
 }

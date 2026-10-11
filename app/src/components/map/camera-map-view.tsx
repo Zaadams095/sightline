@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Defs, Line, Path, Pattern, Rect } from 'react-native-svg';
 
 import { T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import type { CameraMap, MapPlacement } from '@/state/store';
 import { usePalette } from '@/theme/use-palette';
 
@@ -34,6 +35,7 @@ function conePath(p: MapPlacement, w: number, h: number) {
 /** The property map: background, field-of-view cones, walking links, and camera pins. */
 export function CameraMapView({ map, width, names, active, selected, editable, onPressCamera, onMoveCamera }: Props) {
   const p = usePalette();
+  const t = useT();
   const height = width / map.aspect;
   const entries = Object.entries(map.placements);
 
@@ -91,7 +93,7 @@ export function CameraMapView({ map, width, names, active, selected, editable, o
           placement={pl}
           width={width}
           height={height}
-          name={names.get(key) ?? 'Camera'}
+          name={names.get(key) ?? t.home.map.camera}
           editable={!!editable}
           onPress={onPressCamera}
           onMove={onMoveCamera}
@@ -135,7 +137,8 @@ function CameraPin({
     <GestureDetector gesture={Gesture.Exclusive(pan, tap)}>
       <View style={[styles.hit, { left: placement.x * width - 22, top: placement.y * height - 22 }]}>
         <View style={[styles.label, { backgroundColor: p.scrim }]}>
-          <T v="caption" color="#fff" numberOfLines={1}>
+          {/* A small label on the map picture: grows only a little with the text size. */}
+          <T v="caption" color="#fff" numberOfLines={1} overlay>
             {name}
           </T>
         </View>

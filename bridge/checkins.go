@@ -147,50 +147,53 @@ func checkinCamName(c checkin, id string) string {
 	return id
 }
 
-func checkinLastText(c checkin, st checkinState, now int64, loc *time.Location) string {
+// checkinPlaceAt is "at Mom’s" / "en casa de Mom" / "chez Mom" / "bei Mom" / "na casa de Mom".
+func checkinPlaceAt(lang string, c checkin) string {
+	if who := strings.TrimSpace(c.Who); who != "" {
+		if lang == "en" {
+			who = checkinPlace(c) // the English possessive
+		}
+		return tr(lang, "checkin.at.who", who)
+	}
+	if p := strings.TrimSpace(c.Place); p != "" {
+		return tr(lang, "checkin.at.place", p)
+	}
+	return tr(lang, "checkin.at.home")
+}
+
+func checkinLastText(lang string, c checkin, st checkinState, now int64, loc *time.Location) string {
 	if st.LastActivity != 0 {
-		return checkinCamName(c, st.LastCamera) + " was last active " + whenText(st.LastActivity, now, loc) + "."
+		return tr(lang, "checkin.lastActive", checkinCamName(c, st.LastCamera), whenText(lang, st.LastActivity, now, loc))
 	}
 	names := make([]string, len(c.Cameras))
 	for i, id := range c.Cameras {
 		names[i] = checkinCamName(c, id)
 	}
-	list := "the cameras"
-	switch {
-	case len(names) == 1:
-		list = names[0]
-	case len(names) > 1:
-		list = strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]
+	if len(names) == 0 {
+		return tr(lang, "checkin.notSeenAny")
 	}
-	return "Sightline hasn’t seen anyone on " + list + " since it started watching."
+	return tr(lang, "checkin.notSeen", joinOr(lang, names))
 }
 
-func plural1(n float64, word string) string {
-	s := fmt.Sprintf("%g %s", n, word)
-	if n != 1 {
-		s += "s"
-	}
-	return s
-}
-
-// dueCheckin is what's due at now, and the state after sending it. quietNow: the user's
-// quiet hours are on (check-ins wait unless DuringQuietHours).
-func dueCheckin(c checkin, st checkinState, now int64, quietNow bool, loc *time.Location) ([]checkinNotice, checkinState) {
+// dueCheckin is what's due at now, and the state after sending it, worded in lang. quietNow:
+// the user's quiet hours are on (check-ins wait unless DuringQuietHours).
+func dueCheckin(lang string, c checkin, st checkinState, now int64, quietNow bool, loc *time.Location) ([]checkinNotice, checkinState) {
+	lang = normLang(lang)
 	st = rollDay(st, now, loc)
 	var out []checkinNotice
 	if !c.Enabled || len(c.Cameras) == 0 || (quietNow && !c.DuringQuietHours) {
 		return out, st
 	}
 	today := st.Day
-	place := checkinPlace(c)
+	place := checkinPlaceAt(lang, c)
 	midnight := atTimeOfDay(now, "00:00", loc)
 	okToday := st.OKAt != 0 && dayKey(st.OKAt, loc) == today
 
 	if c.ByTime != "" && st.FiredByTime != today {
 		due := atTimeOfDay(now, c.ByTime, loc)
 		if now >= due && st.FirstToday == 0 && !okToday && st.WatchingSince <= midnight {
-			out = append(out, checkinNotice{Kind: "by-time", Title: "No activity at " + place + " yet today",
-				Body: "It’s " + clockAt(now, loc) + ". " + checkinLastText(c, st, now, loc)})
+			out = append(out, checkinNotice{Kind: "by-time", Title: tr(lang, "checkin.byTime.title", place),
+				Body: tr(lang, "checkin.byTime.body", clockAt(lang, now, loc), checkinLastText(lang, c, st, now, loc))})
 			st.FiredByTime = today
 		}
 	}
@@ -201,8 +204,9 @@ func dueCheckin(c checkin, st checkinState, now int64, quietNow bool, loc *time.
 		if now >= from && now < until {
 			since := max(st.LastActivity, st.OKAt, from, st.WatchingSince)
 			if float64(now-since) >= c.QuietLimitHours*3600 && st.FiredQuietFor != since {
-				out = append(out, checkinNotice{Kind: "quiet", Title: "No activity at " + place + " for " + plural1(c.QuietLimitHours, "hour"),
-					Body: checkinLastText(c, st, now, loc)})
+				hours := trCount(lang, "checkin.hours", c.QuietLimitHours, decimalText(lang, c.QuietLimitHours, -1))
+				out = append(out, checkinNotice{Kind: "quiet", Title: tr(lang, "checkin.quiet.title", place, hours),
+					Body: checkinLastText(lang, c, st, now, loc)})
 				st.FiredQuietFor = since
 			}
 		}
@@ -210,14 +214,12 @@ func dueCheckin(c checkin, st checkinState, now int64, quietNow bool, loc *time.
 
 	if c.SummaryTime != "" && st.SummarySent != today && now >= atTimeOfDay(now, c.SummaryTime, loc) {
 		if st.FirstToday != 0 {
-			moments := fmt.Sprintf("%d moment", st.MomentsToday)
-			if st.MomentsToday != 1 {
-				moments += "s"
-			}
-			out = append(out, checkinNotice{Kind: "summary", Title: "All normal at " + place,
-				Body: "First activity " + clockAt(st.FirstToday, loc) + " · " + moments + " today."})
+			moments := trCount(lang, "checkin.moments", float64(st.MomentsToday), st.MomentsToday)
+			out = append(out, checkinNotice{Kind: "summary", Title: tr(lang, "checkin.normal.title", place),
+				Body: tr(lang, "checkin.normal.body", clockAt(lang, st.FirstToday, loc), moments)})
 		} else {
-			out = append(out, checkinNotice{Kind: "summary", Title: "No activity at " + place + " today", Body: checkinLastText(c, st, now, loc)})
+			out = append(out, checkinNotice{Kind: "summary", Title: tr(lang, "checkin.none.title", place),
+				Body: checkinLastText(lang, c, st, now, loc)})
 		}
 		st.SummarySent = today
 	}
@@ -385,7 +387,7 @@ func (r *checkinRunner) tick(ctx context.Context) {
 				}
 			}
 			// Before saying "no activity", ask the recorder (events can be missed by the stream).
-			notices, _ := dueCheckin(c, r.apply(c, st, fetched, now, loc, backfilled), now, quiet, loc)
+			notices, _ := dueCheckin(d.Lang, c, r.apply(c, st, fetched, now, loc, backfilled), now, quiet, loc)
 			verifyNote := ""
 			if needsVerify(notices) && r.recent != nil {
 				after := float64(atTimeOfDay(now, "00:00", loc))
@@ -395,13 +397,13 @@ func (r *checkinRunner) tick(ctx context.Context) {
 				if evs, err := r.recent(ctx, c.Cameras, after); err == nil {
 					fetched = append(fetched, evs...)
 				} else {
-					verifyNote = " Sightline couldn’t reach the recorder to double-check."
+					verifyNote = tr(d.Lang, "checkin.verifyFailed")
 				}
 			}
 
 			r.mu.Lock()
 			st = r.apply(c, r.stateLocked(k, now, loc), fetched, now, loc, backfilled)
-			notices, st = dueCheckin(c, st, now, quiet, loc)
+			notices, st = dueCheckin(d.Lang, c, st, now, quiet, loc)
 			if !equalState(st, r.states[k]) {
 				r.states[k] = st
 				r.dirty = true

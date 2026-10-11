@@ -28,6 +28,7 @@ import type {
   Severity,
   SystemCapabilities,
 } from '@/systems/types';
+import { tr } from '@/i18n';
 
 /**
  * Shinobi through its API-key REST API (https://docs.shinobi.video/api): every route is
@@ -60,7 +61,7 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
   private async key(): Promise<string> {
     if (!this.apiKey) this.apiKey = ((await secrets.get(this.config.id, SECRET.password)) ?? '').trim();
     if (!this.apiKey || !this.group) {
-      throw new Error('Shinobi needs both an API key and a group key. Edit this system and add them.');
+      throw new Error(tr().systems.shinobi.needsKeys);
     }
     return this.apiKey;
   }
@@ -76,8 +77,8 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
     if (fail) {
       throw new Error(
         /authori/i.test(fail)
-          ? 'Shinobi didn’t accept the API key and group key. Check both, and that the key’s “Allowed IPs” includes this phone’s address.'
-          : `Shinobi couldn’t do that (${fail}).`,
+          ? tr().systems.shinobi.badKeys
+          : tr().systems.http.couldntDo('Shinobi', fail),
       );
     }
     return body;
@@ -86,7 +87,7 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
   async connect(): Promise<void> {
     this.apiKey = '';
     const list = await this.api<ShinobiMonitor[] | unknown>('monitor');
-    if (!Array.isArray(list)) throw new Error('That address answered, but it doesn’t look like Shinobi. Check the address and port (usually 8080).');
+    if (!Array.isArray(list)) throw new Error(tr().systems.http.notThisSystem('Shinobi', '8080'));
     this.cams = parseMonitors(list);
   }
 
@@ -124,11 +125,11 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
   async liveStream(cameraId: string): Promise<LiveSource> {
     const key = await this.key();
     const cam = (await this.cameras()).find((c) => c.id === cameraId);
-    if (!cam) throw new Error('Camera not found in Shinobi.');
+    if (!cam) throw new Error(tr().systems.shinobi.cameraNotFound);
     const live = livePath(key, this.group, cameraId, cam.streamType);
     if (!live) {
       throw new Error(
-        `This camera streams as “${cam.streamType.toUpperCase()}”, which iPhone can’t play. In Shinobi, open the camera’s settings → Stream → Stream Type, choose HLS, and save.`,
+        tr().systems.shinobi.streamType(cam.streamType.toUpperCase()),
       );
     }
     return live.kind === 'hls' ? { kind: 'hls', uri: this.url(live.path) } : { kind: 'mjpeg', uri: this.url(live.path) };
@@ -191,9 +192,9 @@ export class ShinobiAdapter extends HttpSystem implements CameraSystemAdapter {
 
   async playback(cameraId: string, start: number, end: number): Promise<PlaybackSource> {
     const v = fileAt(await this.videos(cameraId, start - 3600, end), start, end);
-    if (!v) throw new Error('No recording at this time.');
+    if (!v) throw new Error(tr().systems.common.noRecording);
     if (v.ext === 'webm') {
-      throw new Error('This recording is saved as WebM, which iPhone can’t play. In Shinobi, set the camera’s Recording → Video Codec to copy or H.264 (MP4).');
+      throw new Error(tr().systems.shinobi.webm);
     }
     return { kind: 'stream', source: { kind: 'file', uri: this.url(v.href.replace(/^https?:\/\/[^/]+/, '')), startTime: v.start } };
   }

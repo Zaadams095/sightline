@@ -3,11 +3,14 @@ import { useMemo } from 'react';
 
 import { learnRules } from '@/alerts/learning';
 import { Row, Section, ToggleRow } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useSmart } from '@/state/smart';
 import { nowSec } from '@/util/format';
 
 /** Settings → Alerts: rain/wind/headlights, what Sightline learned, and family check-ins. */
 export function SmartAlertsSection() {
+  const t = useT();
+  const k = t.alertSettings.smart;
   const conditions = useSmart((s) => s.conditions);
   const setConditions = useSmart((s) => s.setConditions);
   const learning = useSmart((s) => s.learning);
@@ -16,29 +19,27 @@ export function SmartAlertsSection() {
   const waiting = rules.filter((r) => r.needsConfirm && !r.confirmed).length;
 
   return (
-    <Section
-      title="Fewer false alarms"
-      footer="Long-press an alert and choose “Not important” (or use the thumbs in Recordings). After a few of the same kind, Sightline stops alerting for them. Doorbell rings always come through, and people are only quieted if you say so.">
+    <Section title={k.title} footer={k.footer}>
       <ToggleRow
-        label="Ignore likely rain, wind and headlights"
-        detail="Motion with nothing detected that hits several cameras at once, or blinks by at night. People, cars and animals still alert."
+        label={k.ignoreWeather}
+        detail={k.ignoreWeatherDetail}
         value={conditions}
         onChange={setConditions}
       />
       <Row
-        label="What Sightline learned"
+        label={k.learned}
         detail={
           rules.length === 0
-            ? 'Nothing yet'
+            ? k.nothingYet
             : waiting
-              ? `${rules.length} item${rules.length === 1 ? '' : 's'} · ${waiting} waiting for you`
-              : `${rules.length} item${rules.length === 1 ? '' : 's'}`
+              ? k.itemsWaiting(rules.length, waiting)
+              : k.items(rules.length)
         }
         onPress={() => router.push('/settings/learned')}
       />
       <Row
-        label="Family check-ins"
-        detail={checkins.length ? `${checkins.length} check-in${checkins.length === 1 ? '' : 's'}` : 'Hear if there’s no activity at a loved one’s home'}
+        label={k.checkins}
+        detail={checkins.length ? k.checkinCount(checkins.length) : k.checkinEmpty}
         onPress={() => router.push('/settings/checkins')}
         last
       />

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 
 import type { MotionPoint, RecordingSegment, ReviewItem } from '@/systems/types';
+import { OVERLAY_MAX_SCALE } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { formatClock } from '@/util/format';
 
@@ -82,7 +83,12 @@ export function Timeline({ width, start, end, time, segments, events, motion, mo
           {ticks.map((t) => (
             <View key={t} style={[styles.tick, { left: x(t) }]}>
               <View style={[styles.tickLine, { backgroundColor: p.border, height: t % labelEvery === 0 ? 12 : 6 }]} />
-              {t % labelEvery === 0 && <Text style={[styles.tickLabel, { color: p.textMuted }]}>{formatClock(t)}</Text>}
+              {t % labelEvery === 0 && (
+                // The scrubber has a fixed height, so its time marks grow only a little.
+                <Text style={[styles.tickLabel, { color: p.textMuted }]} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+                  {formatClock(t)}
+                </Text>
+              )}
             </View>
           ))}
           {segments.map((s) => (

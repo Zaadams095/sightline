@@ -8,12 +8,13 @@ import {
   ENDED_LINGER_SEC,
   EVENT_MAX_SEC,
   eventKey,
-  RING_HEADLINE,
+  ringHeadline,
   RING_MAX_SEC,
   ringKey,
   safeName,
   splitAlertTitle,
 } from '@/alerts/live-activity-format';
+import { tr } from '@/i18n';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter } from '@/systems/registry';
@@ -94,7 +95,7 @@ export async function showRing(ring: Ring, opts: { camera?: string; adapter?: Ca
       key,
       camera,
       url: doorbellUrl(ring),
-      state: { headline: RING_HEADLINE, image, since: Number(ring.at) || Math.floor(Date.now() / 1000), ended: false },
+      state: { headline: ringHeadline(), image, since: Number(ring.at) || Math.floor(Date.now() / 1000), ended: false },
       maxSeconds: RING_MAX_SEC,
     });
   } catch {
@@ -209,7 +210,7 @@ export function showFromNotification(content: Notifications.NotificationContent,
   // Camera alerts only; health, package and reminder notifications aren't "ongoing".
   if (data.kind || !data.reviewId) return;
   const since = data.start ? Number(data.start) + 5 : Math.floor(Date.now() / 1000);
-  void showEvent({ systemId: data.systemId, cameraId: data.cameraId, reviewId: data.reviewId, headline: headline || 'Activity', camera: camera || undefined, since });
+  void showEvent({ systemId: data.systemId, cameraId: data.cameraId, reviewId: data.reviewId, headline: headline || tr().alerts.activity, camera: camera || undefined, since });
 }
 
 /** Tidies up activities whose time ran out while the app was suspended, and honors the toggle. */

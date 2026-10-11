@@ -8,6 +8,8 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { LiveView } from '@/components/live/live-view';
 import { TimelapseScrubber } from '@/components/playback/timelapse-scrubber';
 import { T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { releaseLiveUrl, resolveLive, type ResolvedLive } from '@/systems/live';
 import type { CameraSystemAdapter, RecordingSegment, ReviewItem } from '@/systems/types';
 import { formatClock } from '@/util/format';
@@ -40,6 +42,7 @@ const STEP_DWELL_MS = 4500;
  * burst every few minutes of recorded time. Long windows load in CHUNK_SEC playlists.
  */
 export function VodTimelapse({ adapter, cameraId, start, end, events, videoHeight }: Props) {
+  const tt = useT().viewing.timelapse;
   const segQ = useQuery({
     queryKey: ['timelapse-segments', adapter.config.id, cameraId, start, end],
     queryFn: async (): Promise<RecordingSegment[]> =>
@@ -123,8 +126,8 @@ export function VodTimelapse({ adapter, cameraId, start, end, events, videoHeigh
   const caption = !plan
     ? ''
     : plan.mode === 'rate'
-      ? `Playing ${plan.rate}× faster · about ${Math.max(1, Math.round(plan.durationSec / 60))} min`
-      : `A moment from every ${everyLabel(plan.samples)} of recording · about ${Math.round(plan.durationSec)} s`;
+      ? tt.playingFaster(plan.rate, Math.max(1, Math.round(plan.durationSec / 60)))
+      : tt.momentEvery(everyLabel(plan.samples), Math.round(plan.durationSec));
 
   return (
     <Frame
@@ -133,9 +136,9 @@ export function VodTimelapse({ adapter, cameraId, start, end, events, videoHeigh
       loading={!empty && (!ready || segQ.isLoading)}
       message={
         empty
-          ? 'No recordings in this period'
+          ? tt.noRecordings
           : segQ.isError || src.isError || (src.isSuccess && !uri)
-            ? 'Couldn’t load the recording'
+            ? tt.loadFailed
             : null
       }
       wall={wall}
@@ -154,9 +157,10 @@ export function VodTimelapse({ adapter, cameraId, start, end, events, videoHeigh
 
 function everyLabel(samples: { player: number }[]): string {
   const every = samples.length > 1 ? samples[1].player - samples[0].player : 0;
-  if (every < 90) return `${Math.max(1, Math.round(every))} seconds`;
-  if (every < 5400) return `${Math.round(every / 60)} minutes`;
-  return `${Math.round(every / 3600)} hours`;
+  const c = tr().common;
+  if (every < 90) return c.seconds(Math.max(1, Math.round(every)));
+  if (every < 5400) return c.minutesCount(Math.round(every / 60));
+  return c.hours(Math.round(every / 3600));
 }
 
 type StepSource = { kind: 'live'; live: ResolvedLive; rtspUrl?: string } | { kind: 'file'; uri: string };
@@ -166,6 +170,7 @@ type StepSource = { kind: 'live'; live: ResolvedLive; rtspUrl?: string } | { kin
  * the start of each step (every 15 min for short windows, every hour for a day).
  */
 export function StreamTimelapse({ adapter, cameraId, start, end, events, videoHeight }: Props) {
+  const tt = useT().viewing.timelapse;
   const steps = useMemo(() => streamSteps(start, end), [start, end]);
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -229,7 +234,7 @@ export function StreamTimelapse({ adapter, cameraId, start, end, events, videoHe
         ) : null
       }
       loading={!finished && !settled}
-      message={src.isError ? `No video at ${formatClock(step.start)}` : null}
+      message={src.isError ? tt.noVideoAt(formatClock(step.start)) : null}
       wall={finished ? end : step.start}
       start={start}
       end={end}
@@ -237,7 +242,7 @@ export function StreamTimelapse({ adapter, cameraId, start, end, events, videoHe
       events={events}
       playing={playing && !finished}
       finished={finished}
-      caption={`A few seconds from every ${stepMin >= 60 ? 'hour' : `${stepMin} minutes`} · this recorder can’t fast-forward`}
+      caption={stepMin >= 60 ? tt.streamEveryHour : tt.streamEveryMinutes(stepMin)}
       onSeek={seek}
       onToggle={toggle}
     />
@@ -283,21 +288,32 @@ function Frame({
   onSeek: (t: number) => void;
   onToggle: () => void;
 }) {
+  const t = useT();
   return (
     <View style={{ gap: 14 }}>
       <View style={{ height: videoHeight, backgroundColor: '#000' }}>
         {video}
         {(loading || message) && (
           <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
-            {message ? <T color="#fff">{message}</T> : <ActivityIndicator color="#fff" />}
+            {message ? (
+              <T color="#fff" overlay style={{ textAlign: 'center', paddingHorizontal: 24 }}>
+                {message}
+              </T>
+            ) : (
+              <ActivityIndicator color="#fff" />
+            )}
           </View>
         )}
       </View>
       <View style={styles.clockRow}>
-        <T v="title" color="#fff">
+        <T v="title" color="#fff" style={{ flexShrink: 1 }}>
           {formatClock(wall)}
         </T>
-        <Pressable onPress={onToggle} hitSlop={8} style={styles.play} accessibilityLabel={finished ? 'Play again' : playing ? 'Pause' : 'Play'}>
+        <Pressable
+          onPress={onToggle}
+          hitSlop={8}
+          style={styles.play}
+          accessibilityLabel={finished ? t.viewing.timelapse.playAgain : playing ? t.viewing.playback.pause : t.viewing.playback.play}>
           <SymbolView name={finished ? 'arrow.counterclockwise' : playing ? 'pause.fill' : 'play.fill'} tintColor="#fff" size={24} />
         </Pressable>
       </View>
@@ -313,6 +329,6 @@ function Frame({
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
-  clockRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
+  clockRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 20 },
   play: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
 });

@@ -7,6 +7,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { StreamPlayback } from '@/components/playback/stream-playback';
 import { T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import type { CameraSystemAdapter } from '@/systems/types';
 import { seekPlayer } from '@/util/player';
 import { clipSegments, playerToWall, wallToPlayer } from '@/util/vod-time';
@@ -35,6 +36,7 @@ interface Props {
  */
 export function StepPlayer(props: Props) {
   const { adapter, cameraId, from, to } = props;
+  const t = useT();
   // A stable callback for children whose effects depend on it.
   const doneRef = useRef(false);
   const onDoneRef = useRef(props.onDone);
@@ -72,7 +74,7 @@ export function StepPlayer(props: Props) {
   });
 
   if (!adapter?.playback || source.isError) {
-    return <Still {...props} onDone={handlers.done} message={!adapter ? 'Can’t reach this recorder right now' : 'This recording can’t be played here'} />;
+    return <Still {...props} onDone={handlers.done} message={!adapter ? t.viewing.story.cantReach : t.viewing.story.cantPlay} />;
   }
   if (!source.data) {
     return (
@@ -110,6 +112,7 @@ function VodStep({
   onWall: (t: number) => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const winStart = from - PAD;
   const winEnd = to + PAD;
   const segQuery = useQuery({
@@ -158,7 +161,9 @@ function VodStep({
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} />
       {empty && (
         <View style={[StyleSheet.absoluteFill, styles.center]}>
-          <T color="#fff">No recording from this camera at that time</T>
+          <T color="#fff" overlay style={{ textAlign: 'center' }}>
+            {t.viewing.story.noRecording}
+          </T>
         </View>
       )}
     </>
@@ -175,7 +180,7 @@ function Still({ thumbnailUrl, playing, onDone, message }: Props & { message: st
     <View style={[StyleSheet.absoluteFill, styles.center]}>
       {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="contain" /> : null}
       <View style={styles.badge}>
-        <T v="caption" color="#fff">
+        <T v="caption" color="#fff" overlay>
           {message}
         </T>
       </View>
@@ -185,5 +190,5 @@ function Still({ thumbnailUrl, playing, onDone, message }: Props & { message: st
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', padding: 16 },
-  badge: { position: 'absolute', bottom: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.55)' },
+  badge: { position: 'absolute', bottom: 10, maxWidth: '90%', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.55)' },
 });

@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card, Field, Screen, T, ToggleRow } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { connectSystem, disconnectSystem } from '@/net/connection';
 import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
@@ -27,6 +28,8 @@ export default function ConnectSystem() {
   const params = useLocalSearchParams<{ kind: SystemKind; address?: string; username?: string; name?: string }>();
   const d = describe(params.kind);
   const p = usePalette();
+  const t = useT();
+  const c = t.onboarding.connect;
   const insets = useSafeAreaInsets();
   const upsert = useApp((s) => s.upsertSystem);
 
@@ -56,7 +59,7 @@ export default function ConnectSystem() {
     try {
       const url = normalizeHubAddress(values.address ?? '');
       const r = await joinAndSaveHub({ kind: 'pair', url, code: values.code ?? '' }, name);
-      setResult({ ok: true, msg: `Connected to ${r.hubName}. Found ${r.cameras} camera${r.cameras === 1 ? '' : 's'}.` });
+      setResult({ ok: true, msg: t.onboarding.connectedToHub(r.hubName, r.cameras) });
     } catch (e) {
       setResult({ ok: false, msg: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -89,18 +92,18 @@ export default function ConnectSystem() {
         disconnectSystem(id);
         dropAdapter(id);
         setUnreachable(system);
-        setResult({ ok: false, msg: `${link.error ?? `Couldn’t reach ${label}.`} (tried ${lanUrl})` });
+        setResult({ ok: false, msg: c.tried(link.error ?? c.couldntReach(label), lanUrl) });
         return;
       }
       if (d.kind === 'frigate' && link.port != null && username && WgTunnel) {
         const err = await WgTunnel.login(link.port);
-        if (err) throw new Error(/401|unauthori[sz]ed|password|credential/i.test(err) ? `${label} didn’t accept the username or password. Check them and try again.` : err);
+        if (err) throw new Error(/401|unauthori[sz]ed|password|credential/i.test(err) ? c.badLogin(label) : err);
       }
       const adapter = getAdapter(system, link)!;
       await adapter.connect();
       const cams = await adapter.listCameras();
       upsert(system);
-      setResult({ ok: true, msg: `Connected. Found ${cams.length} camera${cams.length === 1 ? '' : 's'}.` });
+      setResult({ ok: true, msg: c.connected(cams.length) });
     } catch (e) {
       disconnectSystem(id);
       dropAdapter(id);
@@ -114,21 +117,21 @@ export default function ConnectSystem() {
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
       <View style={{ gap: space.xs }}>
-        <T v="title">Connect {params.name ?? d.label}</T>
+        <T v="title">{c.title(params.name ?? d.label)}</T>
         <T muted>{d.addressHint}</T>
       </View>
 
       <Field
-        label={d.category === 'hub' ? 'Name (optional)' : 'Name'}
+        label={d.category === 'hub' ? c.nameOptional : c.name}
         value={name}
         onChangeText={setName}
-        placeholder={d.category === 'hub' ? 'Uses the Hub’s name' : d.label}
+        placeholder={d.category === 'hub' ? c.hubNamePlaceholder : d.label}
         autoCapitalize="words"
       />
       {d.fields.map((f) => (
         <Field
           key={f.key}
-          label={f.optional ? `${f.label} (if you use one)` : f.label}
+          label={f.optional ? c.ifYouUseOne(f.label) : f.label}
           value={values[f.key] ?? ''}
           onChangeText={(v) => set(f.key, v)}
           placeholder={f.placeholder}
@@ -142,8 +145,8 @@ export default function ConnectSystem() {
       {d.category !== 'hub' && (
         <Card>
           <ToggleRow
-            label="Reach it when I’m away"
-            detail="Uses your own VPN, if you set one up (Settings → Away from home). Not needed with a Sightline Hub."
+            label={c.reachAway}
+            detail={c.reachAwayDetail}
             value={useTunnel}
             onChange={setUseTunnel}
             last
@@ -156,12 +159,12 @@ export default function ConnectSystem() {
       {unreachable && (
         <>
           <Button
-            title="Check the connection step by step"
+            title={c.checkStepByStep}
             kind="ghost"
             onPress={() => router.push({ pathname: '/settings/diagnostics', params: { kind: d.kind, address: unreachable.endpoint.lanUrl } })}
           />
           <Button
-            title="Save anyway and set up away-from-home access"
+            title={c.saveAnyway}
             kind="secondary"
             onPress={() => {
               upsert(unreachable);
@@ -172,16 +175,16 @@ export default function ConnectSystem() {
       )}
 
       {d.kind === 'hub' && !result?.ok && (
-        <Button title="Scan the Hub’s QR code instead" kind="secondary" onPress={() => router.push('/onboarding/invite')} />
+        <Button title={c.scanHubQr} kind="secondary" onPress={() => router.push('/onboarding/invite')} />
       )}
 
       {result?.ok ? (
         <Button
-          title="Continue"
+          title={t.common.continue}
           onPress={() => (d.kind === 'hub' ? void finishHubJoin() : router.push('/onboarding/vpn'))}
         />
       ) : (
-        <Button title="Connect" onPress={test} loading={busy} disabled={missing} />
+        <Button title={c.connect} onPress={test} loading={busy} disabled={missing} />
       )}
     </Screen>
   );

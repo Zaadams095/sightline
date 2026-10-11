@@ -1,3 +1,363 @@
-const settings = {};
+import { plural } from '../plural.ts';
+
+const p = plural('en');
+
+/** Settings screens: backup, camera order, help/diagnostics, layouts, groups, security, sharing, systems, away from home. */
+const settings = {
+  moveUp: (name: string) => `Move ${name} up`,
+  moveDown: (name: string) => `Move ${name} down`,
+
+  // Settings → Backup & new phone (app/settings/backup.tsx)
+  backup: {
+    needsUpdate: 'Needs the latest version of Sightline.',
+    signInICloud: 'Sign in to iCloud in the Settings app to back up.',
+    backedUp: (when: string) => `Backed up ${when}`,
+    backingUpSoon: 'Backing up soon',
+    deleteTitle: 'Delete your iCloud backup?',
+    deleteBody:
+      'This removes your Sightline settings and camera passwords from iCloud and turns backup off. Everything stays on this phone.',
+    icloudFooter:
+      'Your recorders, camera order, groups, layouts and alert settings are saved in your own iCloud, and camera passwords in iCloud Keychain. A new iPhone signed in to your Apple Account sets itself up from them. Videos are never uploaded, and Sightline has no servers of its own.',
+    backUpToICloud: 'Back up to iCloud',
+    backUpNow: 'Back up now',
+    deleteBackup: 'Delete iCloud backup',
+    movingTitle: 'Moving to a new phone',
+    movingFooter:
+      'No iCloud? Move everything straight to the new phone over your home Wi-Fi, or save an encrypted backup file to AirDrop or keep in Files.',
+    transfer: 'Transfer to another phone',
+    transferDetail: 'Show a code for the new phone to scan',
+    exportFile: 'Export backup file',
+    exportDetail: 'Protected with a passcode you choose',
+    needsUpdateLong: 'This needs the latest version of Sightline. Update from TestFlight or the App Store.',
+    transferDone: 'Done! Your cameras are on the new phone.',
+    keepUsing: 'You can keep using this phone too.',
+    onNewPhone: 'On the new phone',
+    newPhoneSteps: 'Open Sightline, tap “Moving from another phone?”, then “Scan the code”. Keep both phones on the same Wi-Fi.',
+    transferCode: 'Transfer code',
+    worksOnce: (time: string) =>
+      `Works once, for ${time} more. It includes your camera passwords, so only show it to your own phone.`,
+    codeRanOut: 'That code ran out.',
+    makeNewCode: 'Make a new code',
+    preparing: 'Preparing…',
+    exportIntro: (n: number) =>
+      `Choose a passcode for the file (at least ${n} letters or numbers). You’ll type it on the new phone. Write it down: without it the file can’t be opened, not even by us.`,
+    passcode: 'Passcode',
+    typeAgain: 'Type it again',
+    noMatch: 'The two don’t match yet.',
+    exportButton: 'Export',
+  },
+
+  // Messages from the backup code (backup/*.ts), shown in the app
+  backupMsg: {
+    systems: (n: number) => p(n, { one: `${n} system`, other: `${n} systems` }),
+    checkins: (n: number) => p(n, { one: `${n} check-in`, other: `${n} check-ins` }),
+    tooBig: 'Your settings are too big to back up to iCloud in full. Use “Export backup file” to keep a complete copy.',
+    refusedTooBig: 'iCloud refused the backup because it’s too big. Use “Export backup file” instead.',
+    notBackup: 'This isn’t a Sightline backup.',
+    notBackupFile: 'This file isn’t a Sightline backup.',
+    newerVersion: 'This backup was made by a newer version of Sightline. Update the app and try again.',
+    passcodeMismatch: 'That passcode doesn’t match this backup file.',
+    codeFailed: 'This code didn’t work. Make a new one on the other phone.',
+    atLeast: (n: number) => `Use at least ${n} letters or numbers.`,
+    updateForFiles: 'Update Sightline to use backup files.',
+    passcodeFailed: 'Couldn’t use that passcode.',
+    updateBoth: 'This needs the latest version of Sightline on both phones. Update from TestFlight or the App Store and try again.',
+    startFailed: 'Couldn’t start the transfer.',
+    startFailedWhy: (why: string) => `Couldn’t start the transfer. ${why}`,
+    notTransferCode:
+      'That isn’t a Sightline transfer code. On your old phone, open Settings → Backup & new phone → Transfer to another phone.',
+    codeUsed: 'That code was already used or has run out. On the old phone, tap “Make a new code” and scan again.',
+    cantReachOld: 'Couldn’t reach your old phone. Make sure both phones are on the same Wi-Fi with Sightline open, then try again.',
+    fileName: (day: string) => `Sightline backup ${day}`,
+    saveDialog: 'Save your Sightline backup',
+    needsPassword: (names: string) =>
+      `Passwords for ${names} haven’t arrived from iCloud Keychain yet. They usually do within a few minutes. If not, open Settings, tap the system and type its password again.`,
+  },
+
+  // First-run "Welcome back" card (components/backup/welcome-back.tsx)
+  welcomeBack: {
+    almostThere: 'Almost there',
+    couldntRestore: 'Couldn’t restore',
+    title: 'Welcome back. Restore your cameras from iCloud?',
+    from: (device: string) => `from ${device}`,
+    restore: 'Restore',
+    startFresh: 'Not now, start fresh',
+    moving: 'Moving from another phone?',
+  },
+
+  // Settings → Camera order (app/settings/cameras.tsx)
+  cameras: {
+    footer: 'Hidden cameras still record and can still send alerts.',
+    showOnLive: (name: string) => `Show ${name} on the Live tab`,
+  },
+
+  // Settings → Crash data (app/settings/crash-data.tsx)
+  crashData: {
+    title: 'Crash data',
+    intro:
+      'If Sightline ever closes by itself, iOS writes a short crash report. You can let iOS pass these reports to the developer so problems get fixed, even ones you never report.',
+    turnOnTitle: 'Turn it on in iOS Settings',
+    step1: '1. Open the Settings app.',
+    step2: '2. Tap Privacy & Security.',
+    step3: '3. Tap Analytics & Improvements.',
+    step4: '4. Turn on Share With App Developers.',
+    openSettings: 'Open the Settings app',
+    opensNote: 'This opens Sightline’s page in Settings. Go back to the main Settings list to find Privacy & Security.',
+    whatsInTitle: 'What’s in a crash report',
+    whatsInBody:
+      'Which part of the app stopped, your iPhone model and iOS version. No camera video, pictures, names, addresses or passwords. Apple delivers the reports, and Sightline has no server of its own.',
+    keptBody:
+      'Sightline also keeps the crash reports iOS gives it on your phone, and only includes them when you choose Settings → Report a problem and tap Send.',
+  },
+
+  // Settings → Connection check (app/settings/diagnostics.tsx)
+  diagnostics: {
+    theRecorder: 'the recorder',
+    ready: 'Ready.',
+    previewOnly: 'Some checks only work in the full app (not the preview).',
+    vpnOn: 'Your own VPN is on (you seem to be away from home).',
+    stepNetwork: 'Your phone’s network',
+    stepReach: 'Reaching the recorder',
+    stepSignIn: 'Signing in',
+    stepVideo: 'Video',
+    found: (name: string) => `Found ${name} on the network.`,
+    addFirst: 'Add it in Sightline first, then check again.',
+    checkedAfterSignIn: 'Checked after signing in works.',
+    signedIn: (n: number) => p(n, { one: `Signed in. Found ${n} camera.`, other: `Signed in. Found ${n} cameras.` }),
+    refused: (name: string, system: string) => `${name} turned down the username or password. Check them in Settings → ${system}.`,
+    reachedNoSignIn: (name: string, why: string) => `Reached ${name}, but couldn’t sign in. ${why}`,
+    skippedUnreachable: 'Skipped: Sightline couldn’t reach it.',
+    noCameras: (name: string) => `${name} didn’t list any cameras.`,
+    videoOk: 'Live video is available.',
+    videoFail: 'Signed in, but live video couldn’t be started.',
+    intro: 'Checks each step of reaching your recorder or camera and says what’s wrong in plain words.',
+    whatToCheck: 'What to check',
+    anotherAddress: 'Another address',
+    address: 'Address',
+    addressHint: 'The address of the recorder or camera, as you’d type it in Sightline.',
+    checking: 'Checking…',
+    start: 'Start check',
+    passed: 'Passed',
+    problem: 'Problem',
+    skipped: 'Skipped',
+    techDetails: 'Technical details',
+    copy: 'Copy for support',
+  },
+
+  // Settings → iPad layouts (app/settings/grid.tsx)
+  grid: {
+    intro: 'Build camera walls for iPad. Make important cameras bigger, and switch between views from the Live tab.',
+    wide: 'Wide',
+    newLayout: 'New layout',
+    layoutN: (n: number) => `Layout ${n}`,
+    layoutName: 'Layout name',
+    tapHint: 'Tap a camera to select it, drag to move it, and pick a size below.',
+    camera: 'Camera',
+    addCamera: 'Add camera',
+    saveLayout: 'Save layout',
+  },
+
+  // Settings → Camera groups (app/settings/groups.tsx)
+  groups: {
+    imported: (n: number) => p(n, { one: `Imported ${n} group.`, other: `Imported ${n} groups.` }),
+    noneFound: 'No camera groups found on your recorder.',
+    groupName: 'Group name',
+    placeholder: 'Front Yard',
+    camerasN: (n: number) => `Cameras (${n})`,
+    saveGroup: 'Save group',
+    intro: 'Groups appear as buttons at the top of the Live tab so you can jump straight to Front Yard, Back Yard or Indoors.',
+    editHint: 'Edit this group',
+    fromRecorder: 'from your recorder',
+    deleteName: (name: string) => `Delete ${name}`,
+    newGroup: 'New group',
+    importGroups: 'Import groups from my recorder',
+  },
+
+  // Settings → Report a problem (app/settings/report.tsx)
+  report: {
+    title: 'Report a problem',
+    gatherFailed: 'Couldn’t gather diagnostics.',
+    mailOpened: 'Mail opened. Check the message, then tap Send.',
+    noMail: 'Mail isn’t set up on this phone. Use “Share as file” instead.',
+    openFailed: 'Couldn’t open the report. Try again in a moment.',
+    intro: 'Tell us what went wrong. You can read the whole report below before it’s sent, and nothing leaves your phone until you tap Send.',
+    whatHappened: 'What happened?',
+    placeholder: 'For example: the driveway camera won’t play when I’m away',
+    hint: 'Please don’t type passwords. Addresses and camera names are removed automatically.',
+    footer:
+      'Recent connection problems by brand, plus crash reports from iOS and your Hub. Never camera names, addresses, passwords, pictures or video.',
+    include: 'Include diagnostics automatically when I report a problem',
+    email: 'Email report',
+    noSupportEmail: 'This version doesn’t have a support email address yet, so use “Share as file” and send it however you like.',
+    shareFile: 'Share as file',
+    seeWhat: 'See what will be sent',
+    fileExtra: '“Share as file” also adds iOS’s technical crash data (app code locations, no personal information).',
+    sentTo: (email: string) => `Sent to ${email}.`,
+    clearRecent: 'Clear recent problems',
+  },
+
+  // "Something went wrong" screen (diagnostics/error-screen.tsx)
+  errorScreen: {
+    title: 'Something went wrong',
+    body: 'Sightline ran into a problem it didn’t expect. Your cameras and settings are safe.',
+    send: 'Send report',
+    makeFailed: 'Couldn’t make the report. Try again in a moment.',
+    footnote:
+      '“Send report” opens a message you can read before sending. It says what went wrong and which brands had trouble connecting, never camera names, addresses, passwords or video.',
+  },
+
+  // Settings → App lock (app/settings/security.tsx)
+  security: {
+    immediately: 'Immediately',
+    minutes: (n: number) => `${n} min`,
+    turnOnPrompt: 'Turn on app lock',
+    pinDigits: 'PIN must be 6 digits.',
+    pinSaved: 'PIN saved.',
+    footer: (bio: string) => `Require ${bio} or a PIN to open the app. Useful if others use your phone.`,
+    appLock: 'App lock',
+    hideSwitcher: 'Hide in app switcher',
+    hideSwitcherDetail: 'Covers your cameras when you swipe between apps.',
+    unlockWith: 'Unlock with',
+    bioAndPasscode: (bio: string) => `${bio} & iPhone passcode`,
+    appPin: 'App PIN',
+    setPinFirst: 'Set a PIN below first.',
+    alsoAllow: (bio: string) => `Also allow ${bio}`,
+    lockAgainAfter: 'Lock again after',
+    changePin: 'Change app PIN',
+    setPin: 'Set app PIN',
+    sixDigits: '6 digits',
+    pinHint: 'A PIN separate from your iPhone passcode, so people who know your passcode still can’t open your cameras.',
+    savePin: 'Save PIN',
+    removePin: 'Remove PIN',
+  },
+
+  // The lock screen (security/app-lock.tsx)
+  appLock: {
+    prompt: 'Unlock your cameras',
+    usePin: 'Use PIN',
+    locked: 'Locked',
+    unlock: 'Unlock',
+    wrongPin: 'Wrong PIN',
+    enterPin: 'Enter your PIN',
+    deleteDigit: 'Delete',
+  },
+
+  // Settings → Sharing (app/settings/sharing.tsx)
+  sharing: {
+    needsHub: 'Sharing needs a Sightline Hub',
+    hubAbout:
+      'A Sightline Hub is a small free app that runs on a computer that’s always on at home. It lets you share cameras with family and friends, and you decide which cameras and for how long. It also sends instant alerts and lets you watch away from home without a VPN.',
+    whereTitle: 'Where to install it',
+    haDetail: 'Add the Sightline Hub add-on. The easiest option.',
+    nas: 'Synology, Unraid or another NAS',
+    nasDetail: 'Add the sightline-hub container.',
+    docker: 'Any computer with Docker',
+    dockerDetail: 'One line next to your recorder.',
+    howToInstall: 'How to install',
+    haveHub: 'I have a Hub',
+    sharedIntro: 'These cameras were shared with you. Only the person who shared them can share them with others.',
+    sharedWithYou: 'Shared with you',
+    connecting: 'Connecting to the Hub…',
+    stopTitle: (name: string) => `Stop sharing with ${name}?`,
+    stopBody: 'They lose access right away, on every phone they use.',
+    revoke: 'Revoke',
+    couldntRevoke: 'Couldn’t revoke',
+    sendNewInvite: 'Send a new invite',
+    couldntInvite: 'Couldn’t make an invite',
+    revokeAccess: 'Revoke access',
+    intro: 'Give family, a neighbor or a sitter access to the cameras you pick. You can take it back at any time.',
+    shareAccess: 'Share access',
+    people: 'People',
+    noneYetFooter: 'You haven’t shared with anyone yet.',
+    nobodyYet: 'Nobody yet',
+    ownerPhones: 'Owner phones',
+    ownerFooter: 'To add another of your own phones, share Full access with yourself.',
+    thisPhone: (name: string) => `${name} (this phone)`,
+    paired: (day: string) => `Paired ${day}`,
+    needName: 'Add a name so you know who this is for.',
+    pickCamera: 'Pick at least one camera.',
+    dateFormat: 'Use dates like 2026-10-12 or 2026-10-12 18:30.',
+    endAfterStart: 'The end has to be after the start.',
+    endPassed: 'The end date has already passed.',
+    needsEnd: 'Temporary access needs an end date.',
+    whatCanTheyDo: (hub: string) => `What should they be able to do on ${hub}?`,
+    whoFor: 'Who is this for?',
+    whoPlaceholder: 'Mom, Pet sitter…',
+    cameras: 'Cameras',
+    allCameras: 'All cameras',
+    when: 'When',
+    ends: 'Ends',
+    starts: 'Starts',
+    noEnd: 'No end date',
+    thisWeek: 'This week',
+    custom: 'Custom',
+    until: (day: string) => `Until ${day}.`,
+    recordingsOnly: 'They can see recordings from this time only.',
+    createInvite: 'Create invite',
+    inviteTitle: (name: string) => `Invite ${name}`,
+    inviteBody:
+      'On their iPhone, they install Sightline, tap “Someone shared cameras with me” and scan this code. Or send them the invite.',
+    sendInvite: 'Send invite',
+    codeLine: (code: string, day: string) => `Code ${code} · works once · expires ${day}`,
+    remoteOff:
+      'Remote access is off on the Hub, so they can only join and watch while on your Wi-Fi. Turn it on from the Hub’s setup page.',
+  },
+
+  // Settings → a recorder or camera (app/settings/systems.tsx)
+  system: {
+    removed: 'This recorder or camera was removed.',
+    savedNoConnect: (why: string) => `Saved, but couldn’t connect. ${why}`,
+    checkAddress: 'Check the address and that it’s turned on.',
+    savedConnected: 'Saved and connected.',
+    couldntSave: (why: string) => `Couldn’t save. ${why}`,
+    removeTitle: (name: string) => `Remove ${name}?`,
+    removeBody:
+      'Its cameras will disappear from this app. Nothing on the recorder or cameras is changed, and you can add it again later.',
+    demo: 'Built-in sample video, not a real camera',
+    connectedHome: 'Connected at home',
+    connectedAway: 'Connected away from home',
+    notConnected: 'Not connected',
+    name: 'Name',
+    unchanged: 'Unchanged',
+    hubAwayOn: 'Away from home: on (through your Hub).',
+    hubAwayOff: 'Away from home: off. Turn on remote access on the Hub’s setup page.',
+    reachAway: 'Reach it when I’m away',
+    saveReconnect: 'Save & reconnect',
+    removeFrom: 'Remove from Sightline',
+    removingNote: 'Removing a system only removes it from this app. Nothing on your recorder or cameras is changed.',
+  },
+
+  // Settings → Away from home (app/settings/vpn.tsx)
+  vpn: {
+    intro:
+      'At home, Sightline connects to your cameras directly. To watch from anywhere else, it needs a way back in: a Sightline Hub (easiest) or your own VPN.',
+    turnOnRemote: 'Turn on remote access on your Hub’s setup page, then reopen Sightline.',
+    hubAbout: 'A small free app for a computer that’s always on at home. No router settings needed.',
+    awayOn: 'Away from home: on',
+    awayOff: 'Away from home: off',
+    setUpHub: 'Set up a Sightline Hub',
+    connectHub: 'I have a Hub: connect it',
+    removeTitle: 'Remove your VPN?',
+    removeBody: 'Sightline will no longer reach your cameras through it when you’re away from home.',
+    advanced: 'Advanced: my own VPN',
+    notInPreview: 'Not available in preview mode',
+    notInPreviewDetail: 'Your own VPN works in the full app from the App Store or TestFlight.',
+    ownHeading: 'My own VPN (WireGuard)',
+    advancedWg: 'Advanced: my own VPN (WireGuard)',
+    forRouter: 'For people whose router already runs a WireGuard VPN.',
+    setUpOwn: 'Set up my own VPN',
+    startsOnOwn: 'Starts on its own when you’re away from home and stops shortly after you leave the app.',
+    status: 'Status',
+    connected: 'Connected',
+    waiting: 'Waiting until you’re away',
+    lastContact: 'Last contact',
+    never: 'Never',
+    dataUsed: 'Data used',
+    megabytes: (n: string) => `${n} MB`,
+    reconnect: 'Reconnect',
+    replace: 'Replace VPN settings',
+    removeMine: 'Remove my VPN',
+  },
+};
 
 export default settings;

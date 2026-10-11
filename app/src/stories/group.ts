@@ -1,3 +1,4 @@
+import { tr } from '../i18n/index.ts';
 import type { CameraMap } from '@/state/store';
 
 /**
@@ -282,21 +283,24 @@ function pretty(label: string): string {
 
 /** "Dad", "Dad & Sam", or "Person" / "Car" from the main object kind. */
 export function storyWho(story: Pick<Story, 'names' | 'objects'>): string {
-  if (story.names.length) return story.names.slice(0, 2).join(' & ') + (story.names.length > 2 ? ` +${story.names.length - 2}` : '');
+  if (story.names.length) {
+    const two = story.names.length >= 2 ? tr().common.both(story.names[0], story.names[1]) : story.names[0];
+    return story.names.length > 2 ? tr().common.andMore(two, story.names.length - 2) : two;
+  }
   const order = ['person', 'car', 'truck', 'motorcycle', 'bicycle', 'dog', 'cat'];
   const main = [...story.objects].sort((a, b) => {
     const ia = order.indexOf(a);
     const ib = order.indexOf(b);
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
   })[0];
-  return main ? pretty(main) : 'Motion';
+  return main ? (tr().common.objects[main.toLowerCase()] ?? pretty(main)) : tr().common.motion;
 }
 
 export function formatSpan(sec: number): string {
   const s = Math.max(0, Math.round(sec));
-  if (s < 60) return `${s} s`;
+  if (s < 60) return tr().viewing.stories.spanSec(s);
   const m = Math.round(s / 60);
-  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  return m < 60 ? tr().viewing.stories.spanMin(m) : tr().viewing.stories.spanHourMin(Math.floor(m / 60), m % 60);
 }
 
 /**
@@ -305,12 +309,12 @@ export function formatSpan(sec: number): string {
  */
 export function storySummary(story: Story, nameOf: (cameraKey: string) => string): string {
   const path = story.steps.map((s) => nameOf(s.cameraKey));
-  return `${storyWho(story)}: ${path.join(' → ')} (${formatSpan(story.end - story.start)})`;
+  return tr().viewing.stories.summary(storyWho(story), path.join(' → '), formatSpan(story.end - story.start));
 }
 
 /** Short notification/list title: "Person across 4 cameras". */
 export function storyTitle(story: Story): string {
-  return `${storyWho(story)} across ${story.cameras.length} cameras`;
+  return tr().viewing.stories.title(storyWho(story), story.cameras.length);
 }
 
 /**

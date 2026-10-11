@@ -1,4 +1,5 @@
 import type { RecordingSegment } from './types';
+import { tr } from '../i18n/index.ts';
 
 /**
  * Brand-neutral helpers shared by the HTTP-based adapters. Pure (no app imports) so they
@@ -38,16 +39,16 @@ export function mergeSpans(spans: RecordingSegment[], tolerance = 1): RecordingS
 export function httpMessage(status: number, label: string): string {
   switch (status) {
     case 401:
-      return `${label} didn’t accept the username or password. Check them and try again.`;
+      return tr().systems.http.badLogin(label);
     case 403:
-      return `This ${label} account isn’t allowed to do that. Ask the owner to give it more access.`;
+      return tr().systems.http.forbidden(label);
     case 404:
-      return `${label} didn’t recognize the request. Check the address (including the port).`;
+      return tr().systems.http.notFound(label);
     case 502:
     case 504:
-      return `Couldn’t reach ${label}. Check that it’s turned on and on the same network.`;
+      return tr().systems.http.unreachable(label);
     default:
-      return status >= 500 ? `${label} had a problem (error ${status}). Try again in a moment.` : `${label} returned error ${status}.`;
+      return status >= 500 ? tr().systems.http.serverProblem(label, status) : tr().systems.http.httpError(label, status);
   }
 }
 

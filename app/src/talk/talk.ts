@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { tr } from '@/i18n';
 import { ensureTunnel } from '@/net/connection';
 import { useApp } from '@/state/store';
 import type { CameraSystemAdapter, SystemConfig, TalkTarget } from '@/systems/types';
@@ -66,7 +67,7 @@ export function useTalkRoute(adapter: CameraSystemAdapter | null, systemId: stri
 
 /** Opens the loopback talk endpoint for a route; returns its port. */
 export async function openTalk(route: TalkRoute): Promise<number> {
-  if (!nativeTalkAvailable()) throw new Error('Talking needs the latest version of the app.');
+  if (!nativeTalkAvailable()) throw new Error(tr().viewing.talk.needsUpdate);
   if (route.viaTunnel) await ensureTunnel();
   return WgTunnel!.addTalk!(route.kind, route.url, route.viaTunnel);
 }

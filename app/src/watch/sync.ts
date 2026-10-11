@@ -1,6 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import { AppState } from 'react-native';
 
+import { tr } from '@/i18n';
 import { connectSystem, useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { hubToken } from '@/systems/hub';
@@ -128,7 +129,7 @@ export function notifyWatchRing(ring: { systemId: string; cameraId: string; at?:
   pendingRing = {
     id: ring.reviewId || `${key}:${ring.at ?? ''}`,
     key,
-    title: 'Doorbell',
+    title: tr().common.objects.doorbell,
     camera: known.get(key)?.camera.name ?? ring.cameraId,
     time: ring.at ? Number(ring.at) : Math.floor(Date.now() / 1000),
     doorbell: true,

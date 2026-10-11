@@ -50,7 +50,8 @@
         },
         "SightlineAppGroup": "group.com.zachadams.sightline",
         "NSSupportsLiveActivities": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
@@ -72,6 +73,12 @@
       "runtimeVersion": {
         "policy": "appVersion"
       }
+    },
+    "locales": {
+      "es": "./locales/es.json",
+      "fr": "./locales/fr.json",
+      "de": "./locales/de.json",
+      "pt-BR": "./locales/pt-BR.json"
     },
     "android": {
       "package": "com.zachadams.sightline",

@@ -1,5 +1,362 @@
 import type en from '../en/settings.ts';
+import { plural } from '../plural.ts';
 
-const settings: typeof en = {};
+const p = plural('fr');
+
+const settings: typeof en = {
+  moveUp: (name) => `Monter ${name}`,
+  moveDown: (name) => `Descendre ${name}`,
+
+  backup: {
+    needsUpdate: 'Nécessite la dernière version de Sightline.',
+    signInICloud: 'Connectez-vous à iCloud dans l’app Réglages pour sauvegarder.',
+    backedUp: (when) => `Sauvegardé ${when}`,
+    backingUpSoon: 'Sauvegarde bientôt',
+    deleteTitle: 'Supprimer votre sauvegarde iCloud ?',
+    deleteBody:
+      'Vos réglages Sightline et les mots de passe des caméras seront supprimés d’iCloud, et la sauvegarde sera désactivée. Tout reste sur ce téléphone.',
+    icloudFooter:
+      'Vos enregistreurs, l’ordre des caméras, les groupes, les dispositions et les réglages d’alertes sont enregistrés dans votre propre iCloud, et les mots de passe des caméras dans le trousseau iCloud. Un nouvel iPhone connecté à votre compte Apple se configure tout seul à partir de ces données. Les vidéos ne sont jamais envoyées, et Sightline n’a aucun serveur.',
+    backUpToICloud: 'Sauvegarder dans iCloud',
+    backUpNow: 'Sauvegarder maintenant',
+    deleteBackup: 'Supprimer la sauvegarde iCloud',
+    movingTitle: 'Passer à un nouveau téléphone',
+    movingFooter:
+      'Pas d’iCloud ? Transférez tout directement vers le nouveau téléphone via le Wi-Fi de la maison, ou enregistrez un fichier de sauvegarde chiffré à envoyer par AirDrop ou à garder dans Fichiers.',
+    transfer: 'Transférer vers un autre téléphone',
+    transferDetail: 'Affiche un code à scanner avec le nouveau téléphone',
+    exportFile: 'Exporter un fichier de sauvegarde',
+    exportDetail: 'Protégé par un code de votre choix',
+    needsUpdateLong: 'Nécessite la dernière version de Sightline. Mettez-la à jour depuis TestFlight ou l’App Store.',
+    transferDone: 'C’est fait ! Vos caméras sont sur le nouveau téléphone.',
+    keepUsing: 'Vous pouvez continuer à utiliser ce téléphone aussi.',
+    onNewPhone: 'Sur le nouveau téléphone',
+    newPhoneSteps:
+      'Ouvrez Sightline, touchez « Vous venez d’un autre téléphone ? », puis « Scanner le code ». Gardez les deux téléphones sur le même Wi-Fi.',
+    transferCode: 'Code de transfert',
+    worksOnce: (time) =>
+      `Fonctionne une seule fois, encore ${time}. Il contient les mots de passe de vos caméras : ne le montrez qu’à votre propre téléphone.`,
+    codeRanOut: 'Ce code a expiré.',
+    makeNewCode: 'Créer un nouveau code',
+    preparing: 'Préparation…',
+    exportIntro: (n) =>
+      `Choisissez un code pour le fichier (au moins ${n} lettres ou chiffres). Vous le saisirez sur le nouveau téléphone. Notez-le : sans lui, le fichier ne peut pas être ouvert, pas même par nous.`,
+    passcode: 'Code',
+    typeAgain: 'Saisissez-le à nouveau',
+    noMatch: 'Les deux ne correspondent pas encore.',
+    exportButton: 'Exporter',
+  },
+
+  backupMsg: {
+    systems: (n) => p(n, { one: `${n} système`, other: `${n} systèmes` }),
+    checkins: (n) => p(n, { one: `${n} veille familiale`, other: `${n} veilles familiales` }),
+    tooBig:
+      'Vos réglages sont trop volumineux pour être sauvegardés en entier dans iCloud. Utilisez « Exporter un fichier de sauvegarde » pour garder une copie complète.',
+    refusedTooBig: 'iCloud a refusé la sauvegarde car elle est trop volumineuse. Utilisez plutôt « Exporter un fichier de sauvegarde ».',
+    notBackup: 'Ce n’est pas une sauvegarde Sightline.',
+    notBackupFile: 'Ce fichier n’est pas une sauvegarde Sightline.',
+    newerVersion: 'Cette sauvegarde a été faite avec une version plus récente de Sightline. Mettez l’app à jour et réessayez.',
+    passcodeMismatch: 'Ce code ne correspond pas à ce fichier de sauvegarde.',
+    codeFailed: 'Ce code n’a pas fonctionné. Créez-en un nouveau sur l’autre téléphone.',
+    atLeast: (n) => `Utilisez au moins ${n} lettres ou chiffres.`,
+    updateForFiles: 'Mettez Sightline à jour pour utiliser les fichiers de sauvegarde.',
+    passcodeFailed: 'Impossible d’utiliser ce code.',
+    updateBoth:
+      'Il faut la dernière version de Sightline sur les deux téléphones. Mettez-la à jour depuis TestFlight ou l’App Store et réessayez.',
+    startFailed: 'Impossible de démarrer le transfert.',
+    startFailedWhy: (why) => `Impossible de démarrer le transfert. ${why}`,
+    notTransferCode:
+      'Ce n’est pas un code de transfert Sightline. Sur votre ancien téléphone, ouvrez Réglages → Sauvegarde et nouveau téléphone → Transférer vers un autre téléphone.',
+    codeUsed: 'Ce code a déjà servi ou a expiré. Sur l’ancien téléphone, touchez « Créer un nouveau code » et scannez à nouveau.',
+    cantReachOld:
+      'Impossible de joindre votre ancien téléphone. Vérifiez que les deux téléphones sont sur le même Wi-Fi avec Sightline ouvert, puis réessayez.',
+    fileName: (day) => `Sauvegarde Sightline ${day}`,
+    saveDialog: 'Enregistrer votre sauvegarde Sightline',
+    needsPassword: (names) =>
+      `Les mots de passe de ${names} ne sont pas encore arrivés du trousseau iCloud. Ils arrivent généralement en quelques minutes. Sinon, ouvrez Réglages, touchez le système et saisissez à nouveau son mot de passe.`,
+  },
+
+  welcomeBack: {
+    almostThere: 'Presque terminé',
+    couldntRestore: 'Restauration impossible',
+    title: 'Bon retour. Restaurer vos caméras depuis iCloud ?',
+    from: (device) => `depuis ${device}`,
+    restore: 'Restaurer',
+    startFresh: 'Plus tard, repartir de zéro',
+    moving: 'Vous venez d’un autre téléphone ?',
+  },
+
+  cameras: {
+    footer: 'Les caméras masquées continuent d’enregistrer et peuvent toujours envoyer des alertes.',
+    showOnLive: (name) => `Afficher ${name} dans l’onglet En direct`,
+  },
+
+  crashData: {
+    title: 'Données de plantage',
+    intro:
+      'Si Sightline se ferme tout seul, iOS rédige un court rapport de plantage. Vous pouvez laisser iOS transmettre ces rapports au développeur pour que les problèmes soient corrigés, même ceux que vous ne signalez pas.',
+    turnOnTitle: 'L’activer dans les Réglages d’iOS',
+    step1: '1. Ouvrez l’app Réglages.',
+    step2: '2. Touchez Confidentialité et sécurité.',
+    step3: '3. Touchez Analyses et améliorations.',
+    step4: '4. Activez Partager avec les développeurs d’apps.',
+    openSettings: 'Ouvrir l’app Réglages',
+    opensNote:
+      'Cela ouvre la page de Sightline dans Réglages. Revenez à la liste principale des Réglages pour trouver Confidentialité et sécurité.',
+    whatsInTitle: 'Ce que contient un rapport de plantage',
+    whatsInBody:
+      'La partie de l’app qui s’est arrêtée, le modèle de votre iPhone et la version d’iOS. Aucune vidéo, image, aucun nom, adresse ni mot de passe. C’est Apple qui transmet les rapports, et Sightline n’a aucun serveur.',
+    keptBody:
+      'Sightline garde aussi sur votre téléphone les rapports de plantage qu’iOS lui fournit, et ne les inclut que lorsque vous choisissez Réglages → Signaler un problème et touchez Envoyer.',
+  },
+
+  diagnostics: {
+    theRecorder: 'l’enregistreur',
+    ready: 'Prêt.',
+    previewOnly: 'Certaines vérifications ne fonctionnent que dans l’app complète (pas dans l’aperçu).',
+    vpnOn: 'Votre propre VPN est actif (vous semblez être hors de chez vous).',
+    stepNetwork: 'Le réseau de votre téléphone',
+    stepReach: 'Joindre l’enregistreur',
+    stepSignIn: 'Connexion',
+    stepVideo: 'Vidéo',
+    found: (name) => `${name} trouvé sur le réseau.`,
+    addFirst: 'Ajoutez-le d’abord dans Sightline, puis vérifiez à nouveau.',
+    checkedAfterSignIn: 'Vérifié une fois la connexion réussie.',
+    signedIn: (n) => p(n, { one: `Connecté. ${n} caméra trouvée.`, other: `Connecté. ${n} caméras trouvées.` }),
+    refused: (name, system) => `${name} a refusé le nom d’utilisateur ou le mot de passe. Vérifiez-les dans Réglages → ${system}.`,
+    reachedNoSignIn: (name, why) => `${name} a été joint, mais la connexion a échoué. ${why}`,
+    skippedUnreachable: 'Ignoré : Sightline n’a pas pu le joindre.',
+    noCameras: (name) => `${name} n’a listé aucune caméra.`,
+    videoOk: 'La vidéo en direct est disponible.',
+    videoFail: 'Connecté, mais la vidéo en direct n’a pas pu démarrer.',
+    intro: 'Vérifie chaque étape pour joindre votre enregistreur ou votre caméra et explique simplement ce qui ne va pas.',
+    whatToCheck: 'Que vérifier',
+    anotherAddress: 'Autre adresse',
+    address: 'Adresse',
+    addressHint: 'L’adresse de l’enregistreur ou de la caméra, telle que vous la saisiriez dans Sightline.',
+    checking: 'Vérification…',
+    start: 'Lancer la vérification',
+    passed: 'Réussi',
+    problem: 'Problème',
+    skipped: 'Ignoré',
+    techDetails: 'Détails techniques',
+    copy: 'Copier pour l’assistance',
+  },
+
+  grid: {
+    intro:
+      'Créez des murs de caméras pour l’iPad. Agrandissez les caméras importantes et passez d’une vue à l’autre depuis l’onglet En direct.',
+    wide: 'Large',
+    newLayout: 'Nouvelle disposition',
+    layoutN: (n) => `Disposition ${n}`,
+    layoutName: 'Nom de la disposition',
+    tapHint: 'Touchez une caméra pour la sélectionner, faites-la glisser pour la déplacer et choisissez une taille ci-dessous.',
+    camera: 'Caméra',
+    addCamera: 'Ajouter une caméra',
+    saveLayout: 'Enregistrer',
+  },
+
+  groups: {
+    imported: (n) => p(n, { one: `${n} groupe importé.`, other: `${n} groupes importés.` }),
+    noneFound: 'Aucun groupe de caméras trouvé sur votre enregistreur.',
+    groupName: 'Nom du groupe',
+    placeholder: 'Devant la maison',
+    camerasN: (n) => `Caméras (${n})`,
+    saveGroup: 'Enregistrer le groupe',
+    intro:
+      'Les groupes apparaissent sous forme de boutons en haut de l’onglet En direct pour aller directement à Devant, Jardin ou Intérieur.',
+    editHint: 'Modifier ce groupe',
+    fromRecorder: 'de votre enregistreur',
+    deleteName: (name) => `Supprimer ${name}`,
+    newGroup: 'Nouveau groupe',
+    importGroups: 'Importer les groupes de mon enregistreur',
+  },
+
+  report: {
+    title: 'Signaler un problème',
+    gatherFailed: 'Impossible de rassembler les diagnostics.',
+    mailOpened: 'Mail est ouvert. Vérifiez le message, puis touchez Envoyer.',
+    noMail: 'Mail n’est pas configuré sur ce téléphone. Utilisez plutôt « Partager en fichier ».',
+    openFailed: 'Impossible d’ouvrir le rapport. Réessayez dans un instant.',
+    intro:
+      'Dites-nous ce qui ne va pas. Vous pouvez lire tout le rapport ci-dessous avant l’envoi, et rien ne quitte votre téléphone avant que vous touchiez Envoyer.',
+    whatHappened: 'Que s’est-il passé ?',
+    placeholder: 'Par exemple : la caméra de l’allée ne se lance pas quand je suis absent',
+    hint: 'Merci de ne pas saisir de mots de passe. Les adresses et les noms de caméras sont retirés automatiquement.',
+    footer:
+      'Les problèmes de connexion récents par marque, ainsi que les rapports de plantage d’iOS et de votre Hub. Jamais de noms de caméras, d’adresses, de mots de passe, d’images ni de vidéo.',
+    include: 'Inclure automatiquement les diagnostics quand je signale un problème',
+    email: 'Envoyer par e-mail',
+    noSupportEmail:
+      'Cette version n’a pas encore d’adresse e-mail d’assistance : utilisez « Partager en fichier » et envoyez-le comme vous voulez.',
+    shareFile: 'Partager en fichier',
+    seeWhat: 'Voir ce qui sera envoyé',
+    fileExtra:
+      '« Partager en fichier » ajoute aussi les données techniques de plantage d’iOS (emplacements dans le code de l’app, aucune information personnelle).',
+    sentTo: (email) => `Envoyé à ${email}.`,
+    clearRecent: 'Effacer les problèmes récents',
+  },
+
+  errorScreen: {
+    title: 'Un problème est survenu',
+    body: 'Sightline a rencontré un problème inattendu. Vos caméras et vos réglages sont en sécurité.',
+    send: 'Envoyer un rapport',
+    makeFailed: 'Impossible de créer le rapport. Réessayez dans un instant.',
+    footnote:
+      '« Envoyer un rapport » ouvre un message que vous pouvez lire avant l’envoi. Il indique ce qui n’a pas marché et quelles marques ont eu du mal à se connecter, jamais de noms de caméras, d’adresses, de mots de passe ni de vidéo.',
+  },
+
+  security: {
+    immediately: 'Immédiatement',
+    minutes: (n) => `${n} min`,
+    turnOnPrompt: 'Activer le verrouillage de l’app',
+    pinDigits: 'Le code PIN doit comporter 6 chiffres.',
+    pinSaved: 'Code PIN enregistré.',
+    footer: (bio) => `Exiger ${bio} ou un code PIN pour ouvrir l’app. Pratique si d’autres personnes utilisent votre téléphone.`,
+    appLock: 'Verrouillage de l’app',
+    hideSwitcher: 'Masquer dans le sélecteur d’apps',
+    hideSwitcherDetail: 'Cache vos caméras quand vous passez d’une app à l’autre.',
+    unlockWith: 'Déverrouiller avec',
+    bioAndPasscode: (bio) => `${bio} et code de l’iPhone`,
+    appPin: 'Code PIN de l’app',
+    setPinFirst: 'Créez d’abord un code PIN ci-dessous.',
+    alsoAllow: (bio) => `Autoriser aussi ${bio}`,
+    lockAgainAfter: 'Reverrouiller après',
+    changePin: 'Modifier le code PIN de l’app',
+    setPin: 'Créer un code PIN pour l’app',
+    sixDigits: '6 chiffres',
+    pinHint:
+      'Un code PIN différent du code de votre iPhone, pour que les personnes qui connaissent ce code ne puissent pas ouvrir vos caméras.',
+    savePin: 'Enregistrer le PIN',
+    removePin: 'Supprimer le PIN',
+  },
+
+  appLock: {
+    prompt: 'Déverrouillez vos caméras',
+    usePin: 'Utiliser le PIN',
+    locked: 'Verrouillé',
+    unlock: 'Déverrouiller',
+    wrongPin: 'Code PIN incorrect',
+    enterPin: 'Saisissez votre code PIN',
+    deleteDigit: 'Effacer',
+  },
+
+  sharing: {
+    needsHub: 'Le partage nécessite un Sightline Hub',
+    hubAbout:
+      'Un Sightline Hub est une petite app gratuite qui tourne sur un ordinateur toujours allumé à la maison. Il permet de partager des caméras avec la famille et les amis, et vous choisissez quelles caméras et pour combien de temps. Il envoie aussi des alertes instantanées et vous permet de regarder hors de chez vous sans VPN.',
+    whereTitle: 'Où l’installer',
+    haDetail: 'Ajoutez le module Sightline Hub. L’option la plus simple.',
+    nas: 'Synology, Unraid ou un autre NAS',
+    nasDetail: 'Ajoutez le conteneur sightline-hub.',
+    docker: 'N’importe quel ordinateur avec Docker',
+    dockerDetail: 'Une seule ligne, à côté de votre enregistreur.',
+    howToInstall: 'Comment l’installer',
+    haveHub: 'J’ai un Hub',
+    sharedIntro:
+      'Ces caméras ont été partagées avec vous. Seule la personne qui les a partagées peut les partager avec d’autres.',
+    sharedWithYou: 'Partagées avec vous',
+    connecting: 'Connexion au Hub…',
+    stopTitle: (name) => `Arrêter le partage avec ${name} ?`,
+    stopBody: 'Cette personne perd l’accès immédiatement, sur tous ses téléphones.',
+    revoke: 'Retirer',
+    couldntRevoke: 'Retrait impossible',
+    sendNewInvite: 'Envoyer une nouvelle invitation',
+    couldntInvite: 'Impossible de créer une invitation',
+    revokeAccess: 'Retirer l’accès',
+    intro:
+      'Donnez à votre famille, un voisin ou une personne qui garde la maison l’accès aux caméras de votre choix. Vous pouvez le retirer à tout moment.',
+    shareAccess: 'Partager l’accès',
+    people: 'Personnes',
+    noneYetFooter: 'Vous n’avez encore rien partagé.',
+    nobodyYet: 'Personne pour l’instant',
+    ownerPhones: 'Téléphones du propriétaire',
+    ownerFooter: 'Pour ajouter un autre de vos téléphones, partagez un Accès complet avec vous-même.',
+    thisPhone: (name) => `${name} (ce téléphone)`,
+    paired: (day) => `Associé ${day}`,
+    needName: 'Ajoutez un nom pour savoir à qui c’est destiné.',
+    pickCamera: 'Choisissez au moins une caméra.',
+    dateFormat: 'Utilisez des dates comme 2026-10-12 ou 2026-10-12 18:30.',
+    endAfterStart: 'La fin doit être après le début.',
+    endPassed: 'La date de fin est déjà passée.',
+    needsEnd: 'Un accès temporaire nécessite une date de fin.',
+    whatCanTheyDo: (hub) => `Que pourra faire cette personne sur ${hub} ?`,
+    whoFor: 'Pour qui ?',
+    whoPlaceholder: 'Maman, garde d’animaux…',
+    cameras: 'Caméras',
+    allCameras: 'Toutes les caméras',
+    when: 'Quand',
+    ends: 'Fin',
+    starts: 'Début',
+    noEnd: 'Sans date de fin',
+    thisWeek: 'Cette semaine',
+    custom: 'Personnalisé',
+    until: (day) => `Jusqu’au ${day}.`,
+    recordingsOnly: 'Seuls les enregistrements de cette période seront visibles.',
+    createInvite: 'Créer l’invitation',
+    inviteTitle: (name) => `Inviter ${name}`,
+    inviteBody:
+      'Sur son iPhone, la personne installe Sightline, touche « Quelqu’un a partagé des caméras avec moi » et scanne ce code. Ou envoyez-lui l’invitation.',
+    sendInvite: 'Envoyer l’invitation',
+    codeLine: (code, day) => `Code ${code} · une seule utilisation · expire ${day}`,
+    remoteOff:
+      'L’accès à distance est désactivé sur le Hub : la personne ne pourra rejoindre et regarder que depuis votre Wi-Fi. Activez-le depuis la page de configuration du Hub.',
+  },
+
+  system: {
+    removed: 'Cet enregistreur ou cette caméra a été supprimé.',
+    savedNoConnect: (why) => `Enregistré, mais la connexion a échoué. ${why}`,
+    checkAddress: 'Vérifiez l’adresse et que l’appareil est allumé.',
+    savedConnected: 'Enregistré et connecté.',
+    couldntSave: (why) => `Enregistrement impossible. ${why}`,
+    removeTitle: (name) => `Retirer ${name} ?`,
+    removeBody:
+      'Ses caméras disparaîtront de cette app. Rien n’est modifié sur l’enregistreur ou les caméras, et vous pourrez le rajouter plus tard.',
+    demo: 'Vidéo d’exemple intégrée, pas une vraie caméra',
+    connectedHome: 'Connecté à la maison',
+    connectedAway: 'Connecté hors de chez vous',
+    notConnected: 'Non connecté',
+    name: 'Nom',
+    unchanged: 'Inchangé',
+    hubAwayOn: 'Hors de chez vous : activé (via votre Hub).',
+    hubAwayOff: 'Hors de chez vous : désactivé. Activez l’accès à distance sur la page de configuration du Hub.',
+    reachAway: 'Y accéder quand je suis absent',
+    saveReconnect: 'Enregistrer et reconnecter',
+    removeFrom: 'Retirer de Sightline',
+    removingNote:
+      'Retirer un système le retire seulement de cette app. Rien n’est modifié sur votre enregistreur ou vos caméras.',
+  },
+
+  vpn: {
+    intro:
+      'À la maison, Sightline se connecte directement à vos caméras. Pour les regarder d’ailleurs, il lui faut un moyen d’accès : un Sightline Hub (le plus simple) ou votre propre VPN.',
+    turnOnRemote: 'Activez l’accès à distance sur la page de configuration de votre Hub, puis rouvrez Sightline.',
+    hubAbout: 'Une petite app gratuite pour un ordinateur toujours allumé à la maison. Aucun réglage du routeur nécessaire.',
+    awayOn: 'Hors de chez vous : activé',
+    awayOff: 'Hors de chez vous : désactivé',
+    setUpHub: 'Installer un Sightline Hub',
+    connectHub: 'J’ai un Hub : le connecter',
+    removeTitle: 'Supprimer votre VPN ?',
+    removeBody: 'Sightline ne passera plus par lui pour joindre vos caméras quand vous êtes absent.',
+    advanced: 'Avancé : mon propre VPN',
+    notInPreview: 'Non disponible dans l’aperçu',
+    notInPreviewDetail: 'Votre propre VPN fonctionne dans l’app complète de l’App Store ou de TestFlight.',
+    ownHeading: 'Mon propre VPN (WireGuard)',
+    advancedWg: 'Avancé : mon propre VPN (WireGuard)',
+    forRouter: 'Pour les personnes dont le routeur fait déjà tourner un VPN WireGuard.',
+    setUpOwn: 'Configurer mon propre VPN',
+    startsOnOwn: 'Démarre tout seul quand vous êtes absent et s’arrête peu après que vous quittez l’app.',
+    status: 'État',
+    connected: 'Connecté',
+    waiting: 'En attente de votre départ',
+    lastContact: 'Dernier contact',
+    never: 'Jamais',
+    dataUsed: 'Données utilisées',
+    megabytes: (n) => `${n} Mo`,
+    reconnect: 'Reconnecter',
+    replace: 'Remplacer les réglages VPN',
+    removeMine: 'Supprimer mon VPN',
+  },
+};
 
 export default settings;

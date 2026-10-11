@@ -17,6 +17,7 @@ import type {
   TalkTarget,
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
+import { tr } from '@/i18n';
 
 /**
  * Frigate 0.14+ adapter. All requests go to `baseUrl`, which is the loopback gateway
@@ -312,8 +313,8 @@ export class FrigateAdapter implements CameraSystemAdapter {
       const body = (await res.json().catch(() => ({}))) as { message?: string };
       throw new Error(
         /semantic/i.test(body.message ?? '')
-          ? 'Smart search needs Semantic Search turned on in Frigate (semantic_search: enabled: true).'
-          : 'Frigate couldn’t run that search. Try different words.',
+          ? tr().systems.frigate.semanticOff
+          : tr().systems.frigate.searchFailed,
       );
     }
     if (!res.ok) throw new Error(httpMessage(res.status));
@@ -418,7 +419,7 @@ export class FrigateAdapter implements CameraSystemAdapter {
     if (this.wsReady) return this.wsReady;
     // Each attempt only clears state it owns: an old socket that closes late must not wipe out
     // a newer connection attempt (or its open socket).
-    const failed = 'Couldn’t connect to Frigate to move the camera. Check that it’s reachable, then try again.';
+    const failed = tr().systems.frigate.ptzFailed;
     const ready: Promise<WebSocket> = new Promise<WebSocket>((resolve, reject) => {
       const ws = new WebSocket(`${this.baseUrl.replace(/^http/, 'ws')}/ws`);
       const timer = setTimeout(() => {
@@ -463,30 +464,30 @@ function titleCase(s: string) {
 function httpMessage(status: number): string {
   switch (status) {
     case 401:
-      return 'Frigate rejected the login. Check your username and password.';
+      return tr().systems.frigate.badLogin;
     case 403:
-      return 'This Frigate user doesn’t have access to that.';
+      return tr().systems.frigate.forbidden;
     case 404:
-      return 'Frigate didn’t recognize the request. Check the address (including the port).';
+      return tr().systems.http.notFound('Frigate');
     case 502:
     case 504:
-      return 'Couldn’t reach Frigate. Check that it’s turned on and on the same network.';
+      return tr().systems.http.unreachable('Frigate');
     default:
-      return status >= 500 ? `Frigate had a problem (error ${status}). Try again in a moment.` : `Frigate returned error ${status}.`;
+      return status >= 500 ? tr().systems.http.serverProblem('Frigate', status) : tr().systems.http.httpError('Frigate', status);
   }
 }
 
 /** Same wording as HttpSystem.send(): never "Network request failed" or a loopback port. */
 function networkMessage(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
-  if (msg.startsWith('No response')) return 'Frigate didn’t answer in time. Check that it’s on and reachable.';
-  return 'Couldn’t reach Frigate. Check the address and that your phone is on the same network.';
+  if (msg.startsWith('No response')) return tr().systems.http.noAnswer('Frigate');
+  return tr().systems.http.cantReach('Frigate');
 }
 
 function parseJson<T>(text: string): T {
   try {
     return JSON.parse(text) as T;
   } catch {
-    throw new Error('Frigate sent an unexpected reply. Check that the address points to Frigate.');
+    throw new Error(tr().systems.http.unexpectedReply('Frigate'));
   }
 }

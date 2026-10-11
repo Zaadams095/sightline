@@ -69,6 +69,7 @@ import type {
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 import { WgTunnel } from '@modules/wg-tunnel';
+import { fmtList, tr } from '@/i18n';
 
 /**
  * Reolink NVRs, Home Hub and standalone cameras through the Reolink HTTP API
@@ -137,7 +138,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
   /** Current route (LAN or VPN); the gateway port can change after the adapter is created. */
   private get base(): string {
     const b = useLinks.getState().links[this.config.id]?.baseUrl || this.initialBase;
-    if (!b) throw new ReolinkError('Still connecting to the Reolink device…');
+    if (!b) throw new ReolinkError(tr().systems.device.stillConnecting('Reolink'));
     return b.replace(/\/$/, '');
   }
 
@@ -162,13 +163,13 @@ export class ReolinkAdapter implements CameraSystemAdapter {
       );
     } catch (e) {
       if (e instanceof ReolinkError) throw e;
-      throw new ReolinkError('Couldn’t reach the Reolink device. Check that it’s on and connected to your network.');
+      throw new ReolinkError(tr().systems.device.cantReach('Reolink'));
     }
-    if (res.status === 502) throw new ReolinkError('Couldn’t reach the Reolink device. Check that it’s on and connected to your network.');
-    if (res.status === 401 || res.status === 403) throw new ReolinkError('The Reolink device rejected the username or password.');
+    if (res.status === 502) throw new ReolinkError(tr().systems.device.cantReach('Reolink'));
+    if (res.status === 401 || res.status === 403) throw new ReolinkError(tr().systems.device.rejectedLogin('Reolink'));
     if (res.status === 300) {
       // Login over http on a device that only allows https (reolink_aio notes this too).
-      throw new ReolinkError('This Reolink device only accepts secure connections. Add it again using https:// before the address.');
+      throw new ReolinkError(tr().systems.reolink.httpsOnly);
     }
     return parseResponse(await res.text());
   }
@@ -335,7 +336,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
     if (mdGrid) {
       await this.one('SetMdAlarm', { MdAlarm: { channel, scope: { cols: mdGrid.cols, rows: mdGrid.rows, table: mdGrid.table } } });
       const back = (await this.one('GetMdAlarm', { channel }).catch(() => null))?.MdAlarm?.scope?.table;
-      if (back !== mdGrid.table) throw new ReolinkError('The camera didn’t keep the new motion area. Try again, or set it in the Reolink app.');
+      if (back !== mdGrid.table) throw new ReolinkError(tr().systems.reolink.motionAreaNotKept);
       done.push('motion');
     }
 
@@ -354,16 +355,16 @@ export class ReolinkAdapter implements CameraSystemAdapter {
       if (ok) done.push(label);
     }
 
-    if (!done.length) throw new ReolinkError('This camera didn’t let Sightline change its detection area. You can draw it in the Reolink app instead.');
-    const list = done.length === 1 ? done[0] : `${done.slice(0, -1).join(', ')} and ${done[done.length - 1]}`;
+    if (!done.length) throw new ReolinkError(tr().systems.reolink.zonesRefused);
+    const list = fmtList(done.map((d) => tr().systems.reolink.zoneKinds[d] ?? d));
     return zones.length
-      ? `Saved to the camera. It now only watches the highlighted area for ${list} detection.`
-      : `Saved to the camera. It watches the whole picture again for ${list} detection.`;
+      ? tr().systems.reolink.zonesSaved(list)
+      : tr().systems.reolink.zonesCleared(list);
   }
 
   private channelOf(cameraId: string): number {
     const ch = Number(cameraId);
-    if (!Number.isInteger(ch) || ch < 0) throw new ReolinkError('Camera not found on this Reolink device.');
+    if (!Number.isInteger(ch) || ch < 0) throw new ReolinkError(tr().systems.device.cameraNotFound('Reolink'));
     return ch;
   }
 
@@ -415,7 +416,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
         const [item] = await this.api(enableRtspBody(this.net));
         if (!item || item.code !== 0) {
           throw new ReolinkError(
-            'Live video is turned off on this Reolink device. In the Reolink app, open the device’s settings → Network → Advanced → Port Settings, and turn on RTSP.',
+            tr().systems.reolink.rtspOff,
           );
         }
         // Changing port settings ends the session (reolink_aio expires its token here too);
@@ -531,10 +532,10 @@ export class ReolinkAdapter implements CameraSystemAdapter {
     if (nvr && !this.dev?.isHub && !(name && /\.(mp4|vref)$/i.test(name))) {
       // reolink_aio _generate_NVR_download_vod
       const [item] = await this.api(nvrDownloadBody(ch, f.startWall, f.endWall), 30_000);
-      if (!item || item.code !== 0) throw new ReolinkError('The Reolink recorder couldn’t prepare this recording for playback.');
+      if (!item || item.code !== 0) throw new ReolinkError(tr().systems.reolink.vodPrepFailed);
       name = parseNvrDownload(item.value) ?? undefined;
     }
-    if (!name) throw new ReolinkError('The Reolink device didn’t name this recording, so it can’t be played.');
+    if (!name) throw new ReolinkError(tr().systems.reolink.vodUnnamed);
     return vodFileUrl({ base: this.base, fileName: name, startWall: f.startWall, nvr, token: tok.token });
   }
 
@@ -555,7 +556,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
       this.files.set(cameraId, cache);
     }
     const f = fileAt(cache!.files, start, end);
-    if (!f) throw new ReolinkError('There’s no recording at this time.');
+    if (!f) throw new ReolinkError(tr().systems.common.noRecordingThere);
     // The file plays from its own beginning; startTime lets the player seek to `start`.
     return { kind: 'stream', source: { kind: 'file', uri: await this.fileUrl(ch, f), startTime: f.start } };
   }
@@ -597,7 +598,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
       const name = action.slice('preset_'.length);
       if (!this.presets.has(ch)) this.presets.set(ch, parsePresets(await this.one('GetPtzPreset', { channel: ch })));
       const id = this.presets.get(ch)!.get(name);
-      if (id == null) throw new ReolinkError('That preset no longer exists on the camera.');
+      if (id == null) throw new ReolinkError(tr().systems.common.presetGone);
       body = ptzBody(ch, 'ToPos', { id, speed: PTZ_SPEED });
     } else {
       const op = PTZ_OPS[action];
@@ -631,7 +632,7 @@ export class ReolinkAdapter implements CameraSystemAdapter {
     const ch = this.channelOf(cameraId);
     const body =
       action === 'siren' ? (info.siren ? sirenBody(ch) : null) : info.light ? whiteLedBody(ch, action === 'light-on') : null;
-    if (!body) throw new ReolinkError('This camera doesn’t have that.');
+    if (!body) throw new ReolinkError(tr().systems.common.cameraLacksThat);
     const [item] = await this.api(body);
     if (!item || item.code !== 0) throw new ReolinkError(errorMessage(item), item?.error?.rspCode);
   }

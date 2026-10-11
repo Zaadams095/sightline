@@ -15,6 +15,7 @@ import { startDoorbellWatch } from '@/alerts/doorbell';
 import { installCrashHandlers } from '@/diagnostics/log';
 // Picks the app's language (Settings → Appearance, else the iPhone's) before anything shows text.
 import '@/i18n/device';
+import { useT } from '@/i18n/use-t';
 import { BrandIntro } from '@/components/brand-intro';
 import { startLiveActivities } from '@/alerts/live-activity';
 import { startLifecycle } from '@/net/connection';
@@ -44,6 +45,7 @@ export default function RootLayout() {
   const hydrated = useHydrated();
   const dark = useIsDark();
   const p = usePalette();
+  const t = useT();
 
   useEffect(() => {
     if (!hydrated) return;
@@ -101,35 +103,35 @@ export default function RootLayout() {
             <Stack.Screen name="doorbell" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
             <Stack.Screen name="timelapse" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="story" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
-            <Stack.Screen name="people" options={{ title: 'People & vehicles' }} />
+            <Stack.Screen name="people" options={{ title: t.home.nav.peopleVehicles }} />
             <Stack.Screen name="person" options={{ title: '' }} />
             <Stack.Screen name="ask" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
-            <Stack.Screen name="settings/alerts" options={{ title: 'Alerts' }} />
-            <Stack.Screen name="settings/vpn" options={{ title: 'Away from home' }} />
-            <Stack.Screen name="settings/systems" options={{ title: 'Recorder or camera' }} />
-            <Stack.Screen name="settings/cameras" options={{ title: 'Cameras & order' }} />
-            <Stack.Screen name="settings/grid" options={{ title: 'Grid layouts' }} />
-            <Stack.Screen name="settings/groups" options={{ title: 'Camera groups' }} />
-            <Stack.Screen name="settings/bridge" options={{ title: 'Instant Alerts' }} />
-            <Stack.Screen name="settings/zones" options={{ title: 'Alert zones', presentation: 'fullScreenModal' }} />
-            <Stack.Screen name="settings/diagnostics" options={{ title: 'Connection check' }} />
-            <Stack.Screen name="settings/home-away" options={{ title: 'Home & Away' }} />
-            <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />
-            <Stack.Screen name="settings/sharing" options={{ title: 'Sharing' }} />
-            <Stack.Screen name="settings/backup" options={{ title: 'Backup & new phone' }} />
-            <Stack.Screen name="settings/learned" options={{ title: 'What Sightline learned' }} />
-            <Stack.Screen name="settings/checkins" options={{ title: 'Family check-ins' }} />
-            <Stack.Screen name="settings/checkin" options={{ title: 'Check-in' }} />
-            <Stack.Screen name="settings/wall" options={{ title: 'Wall display' }} />
+            <Stack.Screen name="settings/appearance" options={{ title: t.common.appearance.title }} />
+            <Stack.Screen name="settings/alerts" options={{ title: t.home.nav.alerts }} />
+            <Stack.Screen name="settings/vpn" options={{ title: t.home.nav.awayFromHome }} />
+            <Stack.Screen name="settings/systems" options={{ title: t.home.nav.recorderOrCamera }} />
+            <Stack.Screen name="settings/cameras" options={{ title: t.home.nav.camerasOrder }} />
+            <Stack.Screen name="settings/grid" options={{ title: t.home.nav.gridLayouts }} />
+            <Stack.Screen name="settings/groups" options={{ title: t.home.nav.cameraGroups }} />
+            <Stack.Screen name="settings/bridge" options={{ title: t.home.nav.instantAlerts }} />
+            <Stack.Screen name="settings/zones" options={{ title: t.home.nav.alertZones, presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="settings/diagnostics" options={{ title: t.home.nav.connectionCheck }} />
+            <Stack.Screen name="settings/home-away" options={{ title: t.home.nav.homeAway }} />
+            <Stack.Screen name="settings/security" options={{ title: t.home.nav.privacyLock }} />
+            <Stack.Screen name="settings/sharing" options={{ title: t.home.nav.sharing }} />
+            <Stack.Screen name="settings/backup" options={{ title: t.home.nav.backup }} />
+            <Stack.Screen name="settings/learned" options={{ title: t.home.nav.learned }} />
+            <Stack.Screen name="settings/checkins" options={{ title: t.home.nav.checkins }} />
+            <Stack.Screen name="settings/checkin" options={{ title: t.home.nav.checkin }} />
+            <Stack.Screen name="settings/wall" options={{ title: t.home.nav.wallDisplay }} />
             <Stack.Screen name="wall" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false, animation: 'fade' }} />
-            <Stack.Screen name="export" options={{ title: 'Export for police or insurance', presentation: 'modal' }} />
-            <Stack.Screen name="share-neighbors" options={{ title: 'Share with neighbors', presentation: 'modal' }} />
+            <Stack.Screen name="export" options={{ title: t.home.nav.export, presentation: 'modal' }} />
+            <Stack.Screen name="share-neighbors" options={{ title: t.home.nav.shareNeighbors, presentation: 'modal' }} />
             {/* Deep links sightline://invite?… and sightline://hub?… redirect to the join screen. */}
             <Stack.Screen name="invite" options={{ headerShown: false }} />
             <Stack.Screen name="hub" options={{ headerShown: false }} />
             {/* sightline://tv?… (the QR code on the Apple TV app) connects the TV to a Hub. */}
-            <Stack.Screen name="tv" options={{ title: 'Connect Apple TV' }} />
+            <Stack.Screen name="tv" options={{ title: t.home.nav.connectTv }} />
           </Stack>
           <BrandIntro ready={hydrated} />
           <AppLockGate />

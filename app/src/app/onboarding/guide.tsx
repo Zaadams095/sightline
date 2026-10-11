@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChoiceRow, FindOnNetwork, GuideProgress, StepList } from '@/components/guide/parts';
 import { Button, Card, Disclosure, Field, Screen, T, ToggleRow } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import {
   buildStreamUrl,
@@ -36,6 +37,7 @@ export default function Guide() {
   const params = useLocalSearchParams<{ brand: string; option?: string }>();
   const guide = guideById(params.brand);
   const insets = useSafeAreaInsets();
+  const t = useT();
   const [optionId, setOptionId] = useState<string | undefined>(() =>
     params.option ?? (guide && guide.options.length === 1 ? guide.options[0]!.id : undefined),
   );
@@ -44,17 +46,18 @@ export default function Guide() {
   if (!guide) {
     return (
       <Screen style={{ paddingTop: insets.top + 56 }}>
-        <T v="title">Let’s try another way</T>
-        <T muted>That brand guide isn’t available. Pick your brand again, or let Sightline look for your cameras.</T>
-        <Button title="Pick my brand" onPress={() => router.replace('/onboarding/brands')} />
-        <Button title="Find cameras on my Wi-Fi" kind="secondary" onPress={() => router.push('/onboarding/discover')} />
+        <T v="title">{t.guides.screen.missingTitle}</T>
+        <T muted>{t.guides.screen.missingBody}</T>
+        <Button title={t.guides.screen.pickBrand} onPress={() => router.replace('/onboarding/brands')} />
+        <Button title={t.guides.screen.findOnWifi} kind="secondary" onPress={() => router.push('/onboarding/discover')} />
       </Screen>
     );
   }
 
   const option = guide.options.find((o) => o.id === optionId);
   const choose = guide.options.length > 1;
-  const stages = [choose ? 'Which camera' : null, 'Get ready', 'Connect'].filter((s): s is string => !!s);
+  const { stageWhich, stageReady, stageConnect } = t.guides.screen;
+  const stages = [choose ? stageWhich : null, stageReady, stageConnect].filter((s): s is string => !!s);
   const progress = (label: string) => <GuideProgress step={stages.indexOf(label) + 1} total={stages.length} label={label} />;
 
   const pickOption = (id: string) => {
@@ -66,37 +69,37 @@ export default function Guide() {
     <Screen style={{ paddingTop: insets.top + 56 }}>
       {!option ? (
         <>
-          {progress('Which camera')}
-          <T v="title">Which {guide.name} do you have?</T>
+          {progress(stageWhich)}
+          <T v="title">{t.guides.screen.whichOne(guide.name)}</T>
           <View style={{ gap: space.sm }}>
             {guide.options.map((o) => (
               <ChoiceRow key={o.id} title={o.title} detail={o.detail} onPress={() => pickOption(o.id)} />
             ))}
           </View>
           <T v="caption" muted>
-            Not sure? Look at the camera: if it has a power cord, it’s plugged in.
+            {t.guides.screen.notSure}
           </T>
         </>
       ) : option.target.type === 'unsupported' ? (
         <Unsupported guide={guide} target={option.target} onSwitch={pickOption} />
       ) : phase === 'steps' ? (
         <>
-          {progress('Get ready')}
+          {progress(stageReady)}
           <T v="title">{guide.name}</T>
           {choose && <T muted>{option.title}</T>}
           <StepList steps={stepsFor(option)} />
-          <Button title="Next" onPress={() => setPhase('connect')} />
-          {choose && <Button title="I have a different one" kind="ghost" onPress={() => setOptionId(undefined)} />}
+          <Button title={t.common.next} onPress={() => setPhase('connect')} />
+          {choose && <Button title={t.guides.screen.differentOne} kind="ghost" onPress={() => setOptionId(undefined)} />}
         </>
       ) : (
         <>
-          {progress('Connect')}
+          {progress(stageConnect)}
           {option.target.type === 'stream' ? (
             <StreamConnect guide={guide} target={option.target} />
           ) : (
             <SystemConnect guide={guide} target={option.target} />
           )}
-          <Button title="Show the steps again" kind="ghost" onPress={() => setPhase('steps')} />
+          <Button title={t.guides.screen.stepsAgain} kind="ghost" onPress={() => setPhase('steps')} />
         </>
       )}
     </Screen>
@@ -105,6 +108,7 @@ export default function Guide() {
 
 function Unsupported({ guide, target, onSwitch }: { guide: BrandGuide; target: UnsupportedTarget; onSwitch: (option: string) => void }) {
   const p = usePalette();
+  const t = useT();
   const go = (a: Alternative) => {
     switch (a.action) {
       case 'brands':
@@ -121,11 +125,11 @@ function Unsupported({ guide, target, onSwitch }: { guide: BrandGuide; target: U
   return (
     <>
       <SymbolView name="heart.text.square" tintColor={p.accent} size={44} />
-      <T v="title">This one can’t join Sightline</T>
+      <T v="title">{t.guides.unsupported.title}</T>
       <T>{target.why}</T>
-      <T muted>Nothing is wrong with your camera, and your other cameras can still live here.</T>
+      <T muted>{t.guides.unsupported.nothingWrong}</T>
       <View style={{ gap: space.sm }}>
-        <T v="heading">What you can do</T>
+        <T v="heading">{t.guides.unsupported.whatYouCanDo}</T>
         {target.alternatives.map((a, i) => (
           <Button key={a.label} title={a.label} kind={i === 0 ? 'primary' : 'secondary'} onPress={() => go(a)} />
         ))}
@@ -136,6 +140,7 @@ function Unsupported({ guide, target, onSwitch }: { guide: BrandGuide; target: U
 
 /** Recorder brands: find it on the network, then the regular setup screen with the brand prefilled. */
 function SystemConnect({ guide, target }: { guide: BrandGuide; target: SystemTarget }) {
+  const t = useT();
   const open = (address?: string) =>
     router.push({
       pathname: '/onboarding/connect',
@@ -143,10 +148,10 @@ function SystemConnect({ guide, target }: { guide: BrandGuide; target: SystemTar
     });
   return (
     <>
-      <T v="title">Where is your {guide.name}?</T>
-      <T muted>Sightline can look for it on your home Wi-Fi, so you don’t have to type its address.</T>
+      <T v="title">{t.guides.system.where(guide.name)}</T>
+      <T muted>{t.guides.system.body}</T>
       <FindOnNetwork target={target} autoStart onPick={(f) => open(f.address)} />
-      <Button title="I’ll type the address" kind="secondary" onPress={() => open()} />
+      <Button title={t.guides.system.typeAddress} kind="secondary" onPress={() => open()} />
     </>
   );
 }
@@ -154,6 +159,7 @@ function SystemConnect({ guide, target }: { guide: BrandGuide; target: SystemTar
 /** Cameras added by stream: address + the account just made; Sightline builds the link. */
 function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTarget }) {
   const p = usePalette();
+  const t = useT();
   const upsert = useApp((s) => s.upsertSystem);
   const existing = useApp((s) => s.systems.find((x) => x.kind === 'rtsp'));
   const [address, setAddress] = useState('');
@@ -183,7 +189,7 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
       setAddress(text);
       setResult(null);
     } else {
-      setResult({ ok: false, msg: `There’s no link copied yet. In the ${guide.app ?? guide.name} app, tap Copy next to the link, then try again.` });
+      setResult({ ok: false, msg: t.guides.connect.noLink(guide.app ?? guide.name) });
     }
   };
 
@@ -193,7 +199,7 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
     upsert({
       id,
       kind: 'rtsp',
-      name: 'IP cameras',
+      name: t.guides.connect.ipCameras,
       endpoint: existing?.endpoint ?? { lanUrl: '', useTunnel },
       manualCameras: [...(existing?.manualCameras ?? []), cam],
     });
@@ -211,11 +217,11 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
       const hostport = `${u.hostname}:${u.port || (/^rtsps:/i.test(url) ? '322' : '554')}`;
       const err = await WgTunnel.probeError(hostport, false, 4000);
       if (!err) return save();
-      const friendly = friendlyNetError(err, 'the camera');
+      const friendly = friendlyNetError(err, t.guides.connect.theCamera);
       setResult({ ok: false, msg: friendly.charAt(0).toUpperCase() + friendly.slice(1) });
       setFailed(true);
     } catch {
-      setResult({ ok: false, msg: 'That address doesn’t look right. It should look like 192.168.1.50.' });
+      setResult({ ok: false, msg: t.guides.connect.badAddress });
     } finally {
       setBusy(false);
     }
@@ -224,18 +230,18 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
   return (
     <>
       <View style={{ gap: space.xs }}>
-        <T v="title">Connect your {target.cameraName}</T>
-        <T muted>Just the camera’s address and the account you made. Sightline does the rest.</T>
+        <T v="title">{t.guides.connect.title(target.cameraName)}</T>
+        <T muted>{t.guides.connect.body}</T>
       </View>
 
       {target.pasteLink && (
         <Card>
           <View style={{ gap: space.sm }}>
-            <T v="label">Copied the link from the {guide.app ?? guide.name} app?</T>
-            <Button title="Paste the link" kind="secondary" onPress={paste} />
+            <T v="label">{t.guides.connect.copiedFrom(guide.app ?? guide.name)}</T>
+            <Button title={t.guides.connect.paste} kind="secondary" onPress={paste} />
             {pasted && (
               <T v="caption" color={p.success}>
-                Link pasted. {linkHasAccount ? 'It already has the username and password in it.' : 'Add the username and password below.'}
+                {linkHasAccount ? t.guides.connect.pastedWithAccount : t.guides.connect.pastedNoAccount}
               </T>
             )}
           </View>
@@ -246,7 +252,7 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
         <>
           <FindOnNetwork target={target} onPick={(f) => setAddress(f.host)} />
           <Field
-            label="Camera address"
+            label={t.guides.connect.address}
             value={address}
             onChangeText={(v) => {
               setAddress(v);
@@ -254,7 +260,7 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
             }}
             placeholder="192.168.1.50"
             keyboardType="url"
-            hint={`Or find it in the ${guide.app ?? guide.name} app: camera settings → Device info (or Network). It looks like 192.168.1.50.`}
+            hint={t.guides.connect.addressHint(guide.app ?? guide.name)}
           />
         </>
       )}
@@ -263,14 +269,14 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
       {needsAccount && (
         <>
           <Field
-            label={target.usernameLabel ?? 'Username'}
+            label={target.usernameLabel ?? t.guides.connect.username}
             value={username}
             onChangeText={setUsername}
             hint={target.usernameHint}
             textContentType="username"
           />
           <Field
-            label={target.passwordLabel ?? 'Password'}
+            label={target.passwordLabel ?? t.guides.connect.password}
             value={password}
             onChangeText={setPassword}
             hint={target.passwordHint}
@@ -280,12 +286,18 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
         </>
       )}
 
-      <Field label="Name" value={name} onChangeText={setName} placeholder="Front door" autoCapitalize="words" />
+      <Field
+        label={t.guides.connect.name}
+        value={name}
+        onChangeText={setName}
+        placeholder={t.guides.connect.namePlaceholder}
+        autoCapitalize="words"
+      />
 
       <Card>
         <ToggleRow
-          label="Reach it when I’m away"
-          detail="Uses your own VPN, if you set one up (Settings → Away from home)."
+          label={t.guides.connect.away}
+          detail={t.guides.connect.awayDetail}
           value={useTunnel}
           onChange={setUseTunnel}
           last
@@ -293,7 +305,7 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
       </Card>
 
       {!!url && (
-        <Disclosure title="Show the link Sightline will use">
+        <Disclosure title={t.guides.connect.showLink}>
           <T v="caption" muted style={{ fontFamily: 'Menlo' }}>
             {redactStreamUrl(url)}
           </T>
@@ -301,8 +313,8 @@ function StreamConnect({ guide, target }: { guide: BrandGuide; target: StreamTar
       )}
 
       {result && <T color={result.ok ? p.success : p.danger}>{result.msg}</T>}
-      {failed && <Button title="Add it anyway" kind="secondary" onPress={save} />}
-      <Button title="Connect" onPress={connect} loading={busy} disabled={!ready} />
+      {failed && <Button title={t.guides.connect.addAnyway} kind="secondary" onPress={save} />}
+      <Button title={t.guides.connect.connect} onPress={connect} loading={busy} disabled={!ready} />
     </>
   );
 }

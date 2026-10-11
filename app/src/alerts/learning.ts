@@ -1,3 +1,4 @@
+import { tr } from '../i18n/index.ts';
 import { hourBucket, lightAt, zoned, type HourBucket, type Light, type SunPlace } from './clock.ts';
 
 /**
@@ -213,32 +214,32 @@ export function newlyLearned(before: LearnedRule[], after: LearnedRule[]): Learn
 
 // ---- wording ----
 
-const PLURALS: Record<string, string> = { person: 'people', bus: 'buses', mouse: 'mice', face: 'faces', license_plate: 'license plates' };
-
 function nounFor(objects: string[], count: number): string {
-  if (objects.length === 0) return count === 1 ? 'motion alert' : 'motion alerts';
-  const pretty = (o: string) => o.replace(/_/g, ' ');
-  if (objects.length === 1) return count === 1 ? pretty(objects[0]) : (PLURALS[objects[0]] ?? `${pretty(objects[0])}s`);
-  return `${objects.map(pretty).join(' & ')} ${count === 1 ? 'alert' : 'alerts'}`;
+  const t = tr().alerts.learned;
+  if (objects.length === 0) return t.motionAlerts(count);
+  if (objects.length === 1) return t.thing(objects[0], count);
+  return t.comboAlerts(objects.map((o) => t.thing(o, 1)).join(' & '), count);
 }
 
-const lightText = (l: Light | 'any') => (l === 'night' ? ' at night' : l === 'day' ? ' during the day' : '');
-const zoneText = (zones: string[]) => (zones.length ? ` in ${zones.map((z) => z.replace(/_/g, ' ')).join(' or ')}` : '');
+const lightText = (l: Light | 'any') => (l === 'night' ? tr().alerts.learned.atNight : l === 'day' ? tr().alerts.learned.duringDay : '');
+const zoneText = (zones: string[]) =>
+  zones.length ? tr().alerts.learned.inZones(zones.map((z) => z.replace(/_/g, ' ')).join(` ${tr().alerts.learned.or} `)) : '';
 
 /** Short label: "Cars on Driveway at night". */
 export function ruleTitle(r: LearnedRule, cameraName: string): string {
   const n = nounFor(r.objects, 2);
-  return `${n[0].toUpperCase()}${n.slice(1)} on ${cameraName}${r.kind === 'quiet' ? lightText(r.light) + zoneText(r.zones) : ''}`;
+  return tr().alerts.learned.title(`${n[0].toUpperCase()}${n.slice(1)}`, cameraName, r.kind === 'quiet' ? lightText(r.light) + zoneText(r.zones) : '');
 }
 
 /** "You marked 5 cars on Driveway at night as not important — Sightline will stop alerting for those." */
 export function ruleExplanation(r: LearnedRule, cameraName: string): string {
-  if (r.kind === 'always') return `You asked to always hear about ${nounFor(r.objects, 2)} on ${cameraName}. They won’t be quieted.`;
-  const what = `${r.count} ${nounFor(r.objects, r.count)} on ${cameraName}${lightText(r.light)}${zoneText(r.zones)}`;
+  const t = tr().alerts.learned;
+  if (r.kind === 'always') return t.always(nounFor(r.objects, 2), cameraName);
+  const what = t.counted(r.count, nounFor(r.objects, r.count), cameraName, `${lightText(r.light)}${zoneText(r.zones)}`);
   if (r.needsConfirm && !r.confirmed) {
-    return `You marked ${what} as not important. Sightline never quiets people on its own — stop alerting for these?`;
+    return t.askPeople(what);
   }
-  return `You marked ${what} as not important — Sightline will stop alerting for those.`;
+  return t.willStop(what);
 }
 
 // ---- rain, wind and headlights (no weather service) ----

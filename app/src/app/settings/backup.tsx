@@ -7,6 +7,7 @@ import { backupNow, cloudBackupSupported, deleteCloudBackup, iCloudSignedIn, set
 import { useBackup } from '@/backup/settings';
 import { exportBackupFile, fileBackupSupported, startTransfer, stopTransfer, transferStatus, transferSupported, type OutgoingTransfer } from '@/backup/transfer';
 import { Button, Card, Field, Row, Screen, Section, T, ToggleRow } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { formatRelative } from '@/util/format';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -14,6 +15,8 @@ import { usePalette } from '@/theme/use-palette';
 /** Settings → Backup & new phone. */
 export default function BackupSettings() {
   const p = usePalette();
+  const t = useT();
+  const b = t.settings.backup;
   const enabled = useBackup((s) => s.enabled);
   const lastBackupAt = useBackup((s) => s.lastBackupAt);
   const lastError = useBackup((s) => s.lastError);
@@ -27,20 +30,20 @@ export default function BackupSettings() {
   const supported = cloudBackupSupported();
   const signedIn = supported && iCloudSignedIn();
   const status = !supported
-    ? 'Needs the latest version of Sightline.'
+    ? b.needsUpdate
     : !signedIn
-      ? 'Sign in to iCloud in the Settings app to back up.'
+      ? b.signInICloud
       : !enabled
-        ? 'Off'
-        : (lastError ?? (lastBackupAt ? `Backed up ${formatRelative(Math.floor(lastBackupAt / 1000))}` : 'Backing up soon'));
+        ? t.common.off
+        : (lastError ?? (lastBackupAt ? b.backedUp(formatRelative(Math.floor(lastBackupAt / 1000))) : b.backingUpSoon));
 
   const confirmDelete = () =>
     Alert.alert(
-      'Delete your iCloud backup?',
-      'This removes your Sightline settings and camera passwords from iCloud and turns backup off. Everything stays on this phone.',
+      b.deleteTitle,
+      b.deleteBody,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => void deleteCloudBackup() },
+        { text: t.common.cancel, style: 'cancel' },
+        { text: t.common.delete, style: 'destructive', onPress: () => void deleteCloudBackup() },
       ],
     );
 
@@ -48,9 +51,9 @@ export default function BackupSettings() {
     <Screen>
       <Section
         title="iCloud"
-        footer="Your recorders, camera order, groups, layouts and alert settings are saved in your own iCloud, and camera passwords in iCloud Keychain. A new iPhone signed in to your Apple Account sets itself up from them. Videos are never uploaded, and Sightline has no servers of its own.">
+        footer={b.icloudFooter}>
         <ToggleRow
-          label="Back up to iCloud"
+          label={b.backUpToICloud}
           detail={status}
           value={enabled && supported}
           onChange={(v) => {
@@ -58,16 +61,16 @@ export default function BackupSettings() {
             if (v) void backupNow();
           }}
         />
-        {enabled && signedIn && <Row label="Back up now" onPress={() => void backupNow()} />}
-        <Row label="Delete iCloud backup" destructive onPress={confirmDelete} last />
+        {enabled && signedIn && <Row label={b.backUpNow} onPress={() => void backupNow()} />}
+        <Row label={b.deleteBackup} destructive onPress={confirmDelete} last />
       </Section>
 
       <Section
-        title="Moving to a new phone"
-        footer="No iCloud? Move everything straight to the new phone over your home Wi-Fi, or save an encrypted backup file to AirDrop or keep in Files.">
+        title={b.movingTitle}
+        footer={b.movingFooter}>
         <Row
-          label="Transfer to another phone"
-          detail="Show a code for the new phone to scan"
+          label={b.transfer}
+          detail={b.transferDetail}
           onPress={() => {
             if (mode === 'transfer') return closeTransfer();
             setMode('transfer');
@@ -75,8 +78,8 @@ export default function BackupSettings() {
           }}
         />
         <Row
-          label="Export backup file"
-          detail="Protected with a passcode you choose"
+          label={b.exportFile}
+          detail={b.exportDetail}
           onPress={() => {
             if (mode === 'transfer') transfer.stop();
             setMode(mode === 'export' ? 'none' : 'export');
@@ -90,7 +93,7 @@ export default function BackupSettings() {
 
       {!transferSupported() && mode !== 'none' && (
         <T v="caption" color={p.warning}>
-          This needs the latest version of Sightline. Update from TestFlight or the App Store.
+          {b.needsUpdateLong}
         </T>
       )}
     </Screen>
@@ -125,6 +128,8 @@ function useTransferSession() {
 
 function TransferCard({ session, onClose }: { session: ReturnType<typeof useTransferSession>; onClose: () => void }) {
   const p = usePalette();
+  const tt = useT();
+  const b = tt.settings.backup;
   const { t, error, busy } = session;
   const make = session.start;
   const [served, setServed] = useState(false);
@@ -147,32 +152,31 @@ function TransferCard({ session, onClose }: { session: ReturnType<typeof useTran
       {served ? (
         <>
           <T v="label" color={p.success}>
-            Done! Your cameras are on the new phone.
+            {b.transferDone}
           </T>
-          <T muted>You can keep using this phone too.</T>
-          <Button title="Close" onPress={onClose} />
+          <T muted>{b.keepUsing}</T>
+          <Button title={tt.common.close} onPress={onClose} />
         </>
       ) : (
         <>
-          <T v="label">On the new phone</T>
-          <T muted>Open Sightline, tap “Moving from another phone?”, then “Scan the code”. Keep both phones on the same Wi-Fi.</T>
+          <T v="label">{b.onNewPhone}</T>
+          <T muted>{b.newPhoneSteps}</T>
           {t && !expired && (
             <View style={styles.qrWrap}>
-              <Image source={{ uri: t.qr }} style={styles.qr} contentFit="contain" accessibilityLabel="Transfer code" />
+              <Image source={{ uri: t.qr }} style={styles.qr} contentFit="contain" accessibilityLabel={b.transferCode} />
             </View>
           )}
           {t && !expired && (
             <T v="caption" muted style={{ textAlign: 'center' }}>
-              Works once, for {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')} more. It includes your camera passwords, so only show it to your
-              own phone.
+              {b.worksOnce(`${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`)}
             </T>
           )}
-          {expired && <T muted>That code ran out.</T>}
-          {(expired || error) && <Button title="Make a new code" onPress={() => void make()} loading={busy} />}
-          {busy && !t && <Button title="Preparing…" onPress={() => {}} loading />}
+          {expired && <T muted>{b.codeRanOut}</T>}
+          {(expired || error) && <Button title={b.makeNewCode} onPress={() => void make()} loading={busy} />}
+          {busy && !t && <Button title={b.preparing} onPress={() => {}} loading />}
           {error && <T color={p.danger}>{error}</T>}
           <Button
-            title="Cancel"
+            title={tt.common.cancel}
             kind="ghost"
             onPress={() => {
               stopTransfer();
@@ -187,6 +191,7 @@ function TransferCard({ session, onClose }: { session: ReturnType<typeof useTran
 
 function ExportCard({ onClose }: { onClose: () => void }) {
   const p = usePalette();
+  const b = useT().settings.backup;
   const [pass, setPass] = useState('');
   const [again, setAgain] = useState('');
   const [busy, setBusy] = useState(false);
@@ -210,12 +215,11 @@ function ExportCard({ onClose }: { onClose: () => void }) {
   return (
     <Card style={{ padding: space.lg, gap: space.md }}>
       <T muted>
-        Choose a passcode for the file (at least {MIN_PASSCODE} letters or numbers). You’ll type it on the new phone. Write it down: without it the
-        file can’t be opened, not even by us.
+        {b.exportIntro(MIN_PASSCODE)}
       </T>
-      <Field label="Passcode" value={pass} onChangeText={setPass} secureTextEntry hint={problem ?? undefined} />
-      <Field label="Type it again" value={again} onChangeText={setAgain} secureTextEntry hint={mismatch ? 'The two don’t match yet.' : undefined} />
-      <Button title="Export" onPress={() => void go()} loading={busy} disabled={!fileBackupSupported() || !pass || !!problem || again !== pass} />
+      <Field label={b.passcode} value={pass} onChangeText={setPass} secureTextEntry hint={problem ?? undefined} />
+      <Field label={b.typeAgain} value={again} onChangeText={setAgain} secureTextEntry hint={mismatch ? b.noMatch : undefined} />
+      <Button title={b.exportButton} onPress={() => void go()} loading={busy} disabled={!fileBackupSupported() || !pass || !!problem || again !== pass} />
       {error && <T color={p.danger}>{error}</T>}
     </Card>
   );

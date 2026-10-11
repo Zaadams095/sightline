@@ -35,6 +35,7 @@ import type {
   Severity,
   SystemCapabilities,
 } from '@/systems/types';
+import { tr } from '@/i18n';
 
 /**
  * ZoneMinder 1.36/1.37. API: https://zoneminder.readthedocs.io/en/latest/api.html; behavior
@@ -99,8 +100,8 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
         if (res.status === 401) {
           throw new Error(
             this.config.username
-              ? 'ZoneMinder didn’t accept the username or password. Also check that this user has “API” access turned on (Options → Users).'
-              : 'ZoneMinder needs a username and password. Edit this system and add them.',
+              ? tr().systems.zoneminder.badLogin
+              : tr().systems.zoneminder.needsLogin,
           );
         }
         if (!res.ok) throw new Error(httpMessage(res.status, this.label));
@@ -117,8 +118,8 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
       }
       throw new Error(
         lastStatus === 404
-          ? 'Couldn’t find ZoneMinder at this address. Use the address you open ZoneMinder at, without the /zm part, and check that its API is turned on (Options → System → OPT_USE_API).'
-          : 'That address answered, but it doesn’t look like ZoneMinder.',
+          ? tr().systems.zoneminder.notFound
+          : tr().systems.http.notThisSystemShort('ZoneMinder'),
       );
     })().finally(() => {
       this.loggingIn = null;
@@ -143,7 +144,7 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
     try {
       return (await res.json()) as T;
     } catch {
-      throw new Error('ZoneMinder sent an unexpected reply.');
+      throw new Error(tr().systems.http.unexpectedReplyShort('ZoneMinder'));
     }
   }
 
@@ -333,7 +334,7 @@ export class ZoneMinderAdapter extends HttpSystem implements CameraSystemAdapter
     const now = Date.now() / 1000;
     const evs = (await this.events(cameraId, start - 3600, end, 500)).map((e) => ({ ...e, end: e.end ?? now }));
     const e = fileAt(evs, start, end);
-    if (!e) throw new Error('No recording at this time.');
+    if (!e) throw new Error(tr().systems.common.noRecording);
     await this.ensureAuth();
     if (e.video) {
       // Stored as video (H.264 passthrough): an MP4 with range support (views/view_video.php).

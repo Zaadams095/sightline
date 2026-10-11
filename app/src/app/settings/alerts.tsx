@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -9,6 +9,8 @@ import { DoorbellPackagesSection, HealthSection, KnownPeopleSection, LockScreenS
 import { SmartAlertsSection } from '@/components/alerts/smart-section';
 import { Button, Chip, Row, Screen, Section, T, TimeStepper, ToggleRow } from '@/components/ui/primitives';
 import { useFamiliar } from '@/familiar/store';
+import type { Strings } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useApp, type CameraAlertRule } from '@/state/store';
 import { useFeatureSupport } from '@/systems/caps';
 import { useAllCameras } from '@/systems/registry';
@@ -21,6 +23,8 @@ const COOLDOWNS = [0, 30, 60, 300, 900];
 
 export default function AlertSettings() {
   const p = usePalette();
+  const t = useT();
+  const a = t.alertSettings.alerts;
   const alerts = useApp((s) => s.alerts);
   const setAlerts = useApp((s) => s.setAlerts);
   const setRule = useApp((s) => s.setCameraRule);
@@ -35,26 +39,27 @@ export default function AlertSettings() {
 
   return (
     <Screen>
+      <Stack.Screen options={{ title: a.title }} />
       <Section
-        title="Delivery"
+        title={a.delivery}
         footer={
           !instantReady
-            ? 'Built-in alerts are checked in the background when iOS allows, so they can arrive several minutes late. Instant Alerts arrive within a second, but need a Sightline Hub at home.'
+            ? a.deliveryNoHub
             : alerts.mode === 'built-in'
-              ? 'iOS schedules background checks, so alerts may arrive several minutes late. Instant Alerts deliver within a second.'
-              : 'Alerts come through your Sightline Hub within a second.'
+              ? a.deliveryBuiltIn
+              : a.deliveryInstant
         }>
         <View style={styles.chips}>
-          <Chip label="Built-in" selected={alerts.mode === 'built-in'} onPress={() => { setAlerts({ mode: 'built-in' }); void registerBackgroundAlerts(); }} />
+          <Chip label={a.builtIn} selected={alerts.mode === 'built-in'} onPress={() => { setAlerts({ mode: 'built-in' }); void registerBackgroundAlerts(); }} />
           <Chip
-            label="Instant Alerts"
+            label={a.instant}
             selected={alerts.mode === 'instant'}
             disabled={!instantReady && alerts.mode !== 'instant'}
-            accessibilityLabel={instantReady ? 'Instant Alerts' : 'Instant Alerts, needs a Sightline Hub'}
+            accessibilityLabel={instantReady ? a.instant : a.instantNeedsHub}
             onPress={() => { setAlerts({ mode: 'instant' }); void registerBackgroundAlerts(); }}
           />
         </View>
-        {!instantReady && <Row label="Set up a Sightline Hub" detail="Free. Also lets you share cameras and watch away from home." onPress={() => router.push('/settings/bridge')} last />}
+        {!instantReady && <Row label={a.setUpHub} detail={a.setUpHubDetail} onPress={() => router.push('/settings/bridge')} last />}
       </Section>
 
       <SnoozedSection entries={entries} />
@@ -67,34 +72,34 @@ export default function AlertSettings() {
 
       {(support.knownNames || hasFamiliar) && <KnownPeopleSection />}
 
-      <Section title="Quiet hours">
+      <Section title={a.quietHours}>
         <ToggleRow
-          label="Quiet hours"
-          detail="No notifications during this time. Everything is still recorded."
+          label={a.quietHours}
+          detail={a.quietHoursDetail}
           value={alerts.quietHours.enabled}
           onChange={(enabled) => setAlerts({ quietHours: { ...alerts.quietHours, enabled } })}
           last={!alerts.quietHours.enabled}
         />
         {alerts.quietHours.enabled && (
           <>
-            <TimeStepper label="From" value={alerts.quietHours.start} onChange={(start) => setAlerts({ quietHours: { ...alerts.quietHours, start } })} />
-            <TimeStepper label="Until" value={alerts.quietHours.end} onChange={(end) => setAlerts({ quietHours: { ...alerts.quietHours, end } })} last />
+            <TimeStepper label={a.from} value={alerts.quietHours.start} onChange={(start) => setAlerts({ quietHours: { ...alerts.quietHours, start } })} />
+            <TimeStepper label={a.until} value={alerts.quietHours.end} onChange={(end) => setAlerts({ quietHours: { ...alerts.quietHours, end } })} last />
           </>
         )}
       </Section>
 
       {support.health && <HealthSection />}
 
-      <Section title="Cooldown per camera">
+      <Section title={a.cooldown}>
         <View style={styles.chips}>
           {COOLDOWNS.map((c) => (
-            <Chip key={c} label={c === 0 ? 'Off' : c < 60 ? `${c}s` : `${c / 60} min`} selected={alerts.cooldownSec === c} onPress={() => setAlerts({ cooldownSec: c })} />
+            <Chip key={c} label={c === 0 ? t.common.off : c < 60 ? a.secShort(c) : a.minShort(c / 60)} selected={alerts.cooldownSec === c} onPress={() => setAlerts({ cooldownSec: c })} />
           ))}
         </View>
       </Section>
 
       <T v="caption" muted style={{ textTransform: 'uppercase', letterSpacing: 0.6, marginLeft: space.xs }}>
-        Cameras
+        {a.cameras}
       </T>
       {entries.map(({ camera, adapter }) => {
         const rule = ruleFor(alerts, camera.key);
@@ -103,9 +108,9 @@ export default function AlertSettings() {
           <Section key={camera.key}>
             <Row
               label={camera.name}
-              detail={describe(rule)}
+              detail={describe(rule, t)}
               onPress={() => setOpen(open === camera.key ? null : camera.key)}
-              right={<T color={rule.enabled ? p.success : p.textMuted}>{rule.enabled ? 'On' : 'Off'}</T>}
+              right={<T color={rule.enabled ? p.success : p.textMuted}>{rule.enabled ? t.common.on : t.common.off}</T>}
               last={open !== camera.key}
             />
             {open === camera.key && (
@@ -123,12 +128,12 @@ export default function AlertSettings() {
       })}
 
       <Button
-        title="Check for alerts now"
+        title={a.checkNow}
         kind="secondary"
         onPress={async () => {
           await requestNotificationPermission();
           const n = await checkForAlerts();
-          setTestMsg(n ? `Sent ${n} notification${n === 1 ? '' : 's'}.` : 'Nothing new matched your rules.');
+          setTestMsg(n ? a.sent(n) : a.nothingNew);
         }}
       />
       {testMsg && <T muted>{testMsg}</T>}
@@ -151,16 +156,18 @@ function RuleEditor({
   onReset: () => void;
   zones: ZoneSupport;
 }) {
+  const t = useT();
+  const a = t.alertSettings.alerts;
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const severities: { v: Severity; label: string }[] = [
-    { v: 'alert', label: 'Important (people, cars…)' },
-    { v: 'detection', label: 'Other motion' },
+    { v: 'alert', label: a.important },
+    { v: 'detection', label: a.otherMotion },
   ];
   return (
     <View style={{ padding: space.lg, gap: space.md }}>
-      <ToggleRow label="Notify for this camera" value={rule.enabled} onChange={(enabled) => onChange({ ...rule, enabled })} last />
+      <ToggleRow label={a.notifyForCamera} value={rule.enabled} onChange={(enabled) => onChange({ ...rule, enabled })} last />
       <T v="label" muted>
-        Notify me for
+        {a.notifyMeFor}
       </T>
       <View style={styles.chips0}>
         {severities.map((s) => (
@@ -168,7 +175,7 @@ function RuleEditor({
         ))}
       </View>
       <T v="label" muted>
-        What {rule.objects.length === 0 ? '(anything)' : ''}
+        {rule.objects.length === 0 ? a.whatAnything : a.what}
       </T>
       <View style={styles.chips0}>
         {camera.objects.map((o) => (
@@ -178,7 +185,7 @@ function RuleEditor({
       {camera.zones.length > 0 && (
         <>
           <T v="label" muted>
-            Where {rule.zones.length === 0 ? '(anywhere)' : ''}
+            {rule.zones.length === 0 ? a.whereAnywhere : a.where}
           </T>
           <View style={styles.chips0}>
             {camera.zones.map((z) => (
@@ -191,31 +198,30 @@ function RuleEditor({
         <ZonesButton cameraKey={camera.key} />
       ) : (
         <T v="caption" muted>
-          This recorder can’t tell Sightline where things happened in the picture, so alert zones can’t work for this camera. To
-          ignore part of its view (like the street), set a motion area in the camera’s or recorder’s own app.
+          {a.noZones}
         </T>
       )}
-      {custom && <Button title="Use default rule" kind="ghost" onPress={onReset} />}
+      {custom && <Button title={a.useDefault} kind="ghost" onPress={onReset} />}
     </View>
   );
 }
 
 function ZonesButton({ cameraKey }: { cameraKey: string }) {
+  const t = useT();
   const count = useApp((s) => s.alertZones[cameraKey]?.length ?? 0);
   return (
     <Button
-      title={count ? `Alert zones (${count})` : 'Alert zones: only part of the picture'}
+      title={count ? t.alertSettings.alerts.zonesCount(count) : t.alertSettings.alerts.zonesNone}
       kind="secondary"
       onPress={() => router.push({ pathname: '/settings/zones', params: { key: cameraKey } })}
     />
   );
 }
 
-function describe(r: CameraAlertRule): string {
-  if (!r.enabled) return 'Notifications off';
-  const what = r.objects.length ? r.objects.join(', ') : 'anything';
-  const where = r.zones.length ? ` in ${r.zones.join(', ').replace(/_/g, ' ')}` : '';
-  return `${what}${where}`;
+function describe(r: CameraAlertRule, t: Strings): string {
+  if (!r.enabled) return t.alertSettings.alerts.notificationsOff;
+  const what = r.objects.length ? r.objects.map((o) => t.common.objects[o] ?? o).join(', ') : t.alertSettings.alerts.anything;
+  return r.zones.length ? t.alertSettings.alerts.whatWhere(what, r.zones.join(', ').replace(/_/g, ' ')) : what;
 }
 
 const styles = StyleSheet.create({

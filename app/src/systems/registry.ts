@@ -19,6 +19,7 @@ import { ZoneMinderAdapter } from '@/systems/zoneminder';
 import { UnifiProtectAdapter } from '@/systems/unifi-protect';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 import { configVersion, sameConfig } from '@/util/config';
+import { tr } from '@/i18n';
 
 const adapters = new Map<string, CameraSystemAdapter>();
 /** Config objects already found equal to their adapter's, so renders don't re-compare. */
@@ -57,7 +58,7 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
     case 'demo':
       return new DemoAdapter(s);
     default:
-      throw new Error(`${s.kind} is not supported yet`);
+      throw new Error(tr().systems.common.notSupported(s.kind));
   }
 }
 

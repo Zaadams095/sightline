@@ -1,6 +1,7 @@
 import { ensureTunnel } from '@/net/connection';
 import type { LiveSource, SystemConfig } from '@/systems/types';
 import { WgTunnel } from '@modules/wg-tunnel';
+import { tr } from '@/i18n';
 
 /** What the players can show directly. RTSP never reaches the UI; it's restreamed to MSE. */
 export type ResolvedLive = (
@@ -28,12 +29,12 @@ function rtspHostPort(url: string): string {
  */
 export async function resolveLive(source: LiveSource, system: SystemConfig): Promise<ResolvedLive> {
   if (source.kind !== 'rtsp') return source.kind === 'mse' ? { kind: 'mse', wsUrl: source.wsUrl } : source;
-  if (!WgTunnel) throw new Error('Live view for this camera needs the full app (not Expo Go).');
+  if (!WgTunnel) throw new Error(tr().systems.common.needsFullApp);
 
   const direct = await WgTunnel.probe(rtspHostPort(source.url), false, 1500);
   let viaTunnel = false;
   if (!direct) {
-    if (!system.endpoint.useTunnel) throw new Error('This camera isn’t reachable from this network.');
+    if (!system.endpoint.useTunnel) throw new Error(tr().systems.common.notReachableHere);
     await ensureTunnel();
     viaTunnel = true;
   }

@@ -14,12 +14,14 @@ import { SearchPanel } from '@/components/review/search-panel';
 import { StoryRow } from '@/components/stories/story-row';
 import { Button, Chip, T } from '@/components/ui/primitives';
 import { useFamiliarItems } from '@/familiar/use-familiar';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { groupStories, storyOf, type Story } from '@/stories/group';
 import { useFeatureSupport } from '@/systems/caps';
 import { getAdapter, useAllCameras } from '@/systems/registry';
 import type { ReviewItem, Severity } from '@/systems/types';
+import { useLargeText } from '@/theme/text-scale';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { formatClock, formatDay, titleFor } from '@/util/format';
@@ -31,6 +33,8 @@ type ListRow = { kind: 'event'; item: ReviewItem } | { kind: 'story'; story: Sto
 
 export default function ReviewScreen() {
   const p = usePalette();
+  const t = useT();
+  const large = useLargeText();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const systems = useApp((s) => s.systems);
@@ -109,14 +113,14 @@ export default function ReviewScreen() {
   const modeTabs = (
     <View style={styles.modes}>
       {([
-        ['events', 'Events'],
-        ['search', 'Search'],
-        ['saved', savedCount ? `Saved (${savedCount})` : 'Saved'],
+        ['events', t.home.review.events],
+        ['search', t.home.review.search],
+        ['saved', savedCount ? t.home.review.savedCount(savedCount) : t.home.review.saved],
       ] as [Mode, string][])
         // Search only appears when a connected system can do it.
         .filter(([m]) => m !== 'search' || support.search)
         .map(([m, label]) => (
-          <Pressable key={m} onPress={() => setMode(m)} style={[styles.mode, mode === m && { backgroundColor: p.surfaceRaised }]}>
+          <Pressable key={m} onPress={() => setMode(m)} accessibilityRole="button" accessibilityState={{ selected: mode === m }} style={[styles.mode, mode === m && { backgroundColor: p.surfaceRaised }]}>
           <T v="label" color={mode === m ? p.text : p.textMuted}>
             {label}
           </T>
@@ -132,7 +136,7 @@ export default function ReviewScreen() {
         contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingBottom: 120, gap: space.md }}
         keyboardShouldPersistTaps="handled">
         <T v="title" style={{ paddingHorizontal: space.lg }}>
-          Recordings
+          {t.home.tabs.recordings}
         </T>
         <AskBar />
         {modeTabs}
@@ -152,26 +156,26 @@ export default function ReviewScreen() {
       ListHeaderComponent={
         <View style={{ paddingTop: insets.top + space.sm, gap: space.md, paddingBottom: space.sm }}>
           <T v="title" style={{ paddingHorizontal: space.lg }}>
-            Recordings
+            {t.home.tabs.recordings}
           </T>
           <DemoBanner />
           <AskBar />
           {modeTabs}
           <PackagesCard names={names} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            <Chip label="Important" selected={filter === 'alert'} onPress={() => setFilter('alert')} />
-            <Chip label="Other motion" selected={filter === 'detection'} onPress={() => setFilter('detection')} />
-            <Chip label="Everything" selected={filter === 'all'} onPress={() => setFilter('all')} />
-            <Chip label="Not seen yet" selected={unreviewedOnly} onPress={() => setUnreviewedOnly((v) => !v)} />
+            <Chip label={t.home.review.important} selected={filter === 'alert'} onPress={() => setFilter('alert')} />
+            <Chip label={t.home.review.otherMotion} selected={filter === 'detection'} onPress={() => setFilter('detection')} />
+            <Chip label={t.home.review.everything} selected={filter === 'all'} onPress={() => setFilter('all')} />
+            <Chip label={t.home.review.notSeen} selected={unreviewedOnly} onPress={() => setUnreviewedOnly((v) => !v)} />
             <Chip
-              label={stories.length ? `Stories (${stories.length})` : 'Stories'}
+              label={stories.length ? t.home.review.storiesCount(stories.length) : t.home.review.stories}
               selected={storiesOnly}
               onPress={() => setStoriesOnly((v) => !v)}
-              accessibilityLabel="Stories: activity that moved across several cameras"
+              accessibilityLabel={t.home.review.storiesA11y}
             />
           </ScrollView>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            <Chip label="All cameras" selected={!camera} onPress={() => setCamera(null)} />
+            <Chip label={t.home.review.allCameras} selected={!camera} onPress={() => setCamera(null)} />
             {entries.map((e) => (
               <Chip key={e.camera.key} label={e.camera.name} selected={camera === e.camera.key} onPress={() => setCamera(e.camera.key)} />
             ))}
@@ -203,27 +207,27 @@ export default function ReviewScreen() {
         const story = storyOf(stories, item.systemId, item.id);
         return (
         <Pressable onPress={() => open(item)} style={({ pressed }) => [styles.item, pressed && { backgroundColor: p.surface }]}>
-          <View style={[styles.thumbWrap, { borderRadius: Math.min(radius, 12), backgroundColor: p.surface }]}>
+          <View style={[styles.thumbWrap, large && styles.thumbSmall, { borderRadius: Math.min(radius, 12), backgroundColor: p.surface }]}>
             {item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <View style={styles.titleRow}>
               {!item.reviewed && <View style={[styles.dot, { backgroundColor: p.accent }]} />}
-              <T v="label" numberOfLines={1}>
+              <T v="label" numberOfLines={large ? undefined : 1}>
                 {titleFor(item)}
               </T>
             </View>
-            <T v="caption" muted numberOfLines={1}>
+            <T v="caption" muted numberOfLines={large ? undefined : 1}>
               {names.get(`${item.systemId}:${item.cameraId}`) ?? item.cameraId} · {formatClock(item.startTime)}
             </T>
             {item.zones.length > 0 && (
-              <T v="caption" muted numberOfLines={1}>
+              <T v="caption" muted numberOfLines={large ? undefined : 1}>
                 {item.zones.join(', ')}
               </T>
             )}
             {story && (
-              <T v="caption" color={p.accent} numberOfLines={1}>
-                Part of a story across {story.cameras.length} cameras
+              <T v="caption" color={p.accent} numberOfLines={large ? undefined : 1}>
+                {t.home.review.partOfStory(story.cameras.length)}
               </T>
             )}
           </View>
@@ -252,29 +256,30 @@ function ReviewEmpty({
   hasSystems: boolean;
   anyConnected: boolean;
 }) {
-  let title = 'Nothing to review';
-  let body = 'When something happens on your cameras, it shows up here.';
+  const t = useT();
+  let title = t.home.review.nothingTitle;
+  let body = t.home.review.nothingBody;
   let action: { label: string; onPress: () => void } | null = null;
   if (loading) {
-    title = 'Loading…';
+    title = t.common.loading;
     body = '';
   } else if (failed.length) {
-    title = `Couldn’t load events from ${failed.join(', ')}`;
-    body = 'Pull down to try again.';
+    title = t.home.review.failedTitle(failed.join(', '));
+    body = t.home.review.pullToRetry;
   } else if (!hasSystems) {
-    title = 'No cameras yet';
-    body = 'Add your recorder or cameras to see what happened.';
-    action = { label: 'Add cameras', onPress: () => router.push('/onboarding') };
+    title = t.home.live.noCameras;
+    body = t.home.review.noCamerasBody;
+    action = { label: t.home.live.addCameras, onPress: () => router.push('/onboarding') };
   } else if (!anyConnected) {
-    title = 'Can’t reach your cameras right now';
-    body = 'Pull down to try again, or check Settings → Diagnostics.';
+    title = t.home.review.unreachableTitle;
+    body = t.home.review.unreachableBody;
   } else if (!hasReviewable) {
-    title = 'Live view only';
-    body = 'Your cameras are connected for live view. To look back at what happened, add the recorder or software that records them.';
-    action = { label: 'Add a recorder', onPress: () => router.push('/onboarding') };
+    title = t.home.review.liveOnlyTitle;
+    body = t.home.review.liveOnlyBody;
+    action = { label: t.home.review.addRecorder, onPress: () => router.push('/onboarding') };
   } else if (storiesOnly) {
-    title = 'No stories yet';
-    body = 'When someone moves past several cameras, it shows up here as one story. Placing your cameras on the Map tab makes stories more accurate.';
+    title = t.home.review.noStoriesTitle;
+    body = t.home.review.noStoriesBody;
   }
   return (
     <View style={styles.empty}>
@@ -298,6 +303,8 @@ const styles = StyleSheet.create({
   sectionHeader: { paddingHorizontal: space.lg, paddingVertical: space.sm },
   item: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm },
   thumbWrap: { width: 128, height: 72, overflow: 'hidden' },
+  // Leaves room for the wrapped title at big text sizes.
+  thumbSmall: { width: 80, height: 45 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   sev: { width: 4, alignSelf: 'stretch', borderRadius: 2 },

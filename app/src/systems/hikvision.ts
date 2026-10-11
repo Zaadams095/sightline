@@ -52,6 +52,7 @@ import type {
 } from '@/systems/types';
 import { fetchWithTimeout } from '@/util/fetch';
 import { WgTunnel } from '@modules/wg-tunnel';
+import { tr } from '@/i18n';
 
 /**
  * Hikvision NVRs, DVRs and IP cameras (and the many rebranded ones) through ISAPI. Requests go
@@ -107,7 +108,7 @@ export class HikvisionAdapter implements CameraSystemAdapter {
   /** Current route (LAN or VPN); the gateway port can change after the adapter is created. */
   private get base(): string {
     const b = useLinks.getState().links[this.config.id]?.baseUrl || this.initialBase;
-    if (!b) throw new HikvisionError('Still connecting to the Hikvision device…');
+    if (!b) throw new HikvisionError(tr().systems.device.stillConnecting('Hikvision'));
     return b.replace(/\/$/, '');
   }
 
@@ -136,7 +137,7 @@ export class HikvisionAdapter implements CameraSystemAdapter {
       );
     } catch (e) {
       if (e instanceof HikvisionError) throw e;
-      throw new HikvisionError('Couldn’t reach the Hikvision device. Check that it’s on and connected to your network.');
+      throw new HikvisionError(tr().systems.device.cantReach('Hikvision'));
     }
     const text = await res.text();
     if (!res.ok) throw errorFor(res.status, text);
@@ -243,7 +244,7 @@ export class HikvisionAdapter implements CameraSystemAdapter {
 
   private channelOf(cameraId: string): number {
     const ch = Number(cameraId);
-    if (!Number.isInteger(ch) || ch < 1) throw new HikvisionError('Camera not found on this Hikvision device.');
+    if (!Number.isInteger(ch) || ch < 1) throw new HikvisionError(tr().systems.device.cameraNotFound('Hikvision'));
     return ch;
   }
 
@@ -438,7 +439,7 @@ export class HikvisionAdapter implements CameraSystemAdapter {
     const ch = this.channelOf(cameraId);
     const c = this.channels.find((x) => x.id === ch) ?? { id: ch, name: '', online: true, proxied: false };
     const r = await this.ptzRoute(c);
-    if (!r) throw new HikvisionError('This camera can’t be moved.');
+    if (!r) throw new HikvisionError(tr().systems.hikvision.cantMove);
     return r;
   }
 
@@ -460,7 +461,7 @@ export class HikvisionAdapter implements CameraSystemAdapter {
       const ch = Number(cameraId);
       if (!this.presets.has(ch)) this.presets.set(ch, parsePtzPresets(await this.maybe(`${r.path}/presets`)));
       const id = this.presets.get(ch)!.get(action.slice('preset_'.length));
-      if (id == null) throw new HikvisionError('That preset no longer exists on the camera.');
+      if (id == null) throw new HikvisionError(tr().systems.common.presetGone);
       await this.req(`${r.path}/presets/${id}/goto`, { method: 'PUT' });
       return;
     }

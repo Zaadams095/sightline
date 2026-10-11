@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import { legacyMasks } from '@/alerts/zones';
 import type { CheckInState } from '@/alerts/checkins';
 import { hubLearningFor } from '@/alerts/smart';
+import { getLocale, subscribeLocale, tr } from '@/i18n';
 import { connectSystem } from '@/net/connection';
 import { secrets } from '@/state/secrets';
 import { WgTunnel } from '@modules/wg-tunnel';
@@ -25,7 +26,7 @@ export async function bridgeSecret(): Promise<string> {
   if (!s) {
     // Already paired, so the real secret exists: on a phone restored from iCloud it may still
     // be on its way through iCloud Keychain. A new random one would replace it everywhere.
-    if (useApp.getState().alerts.bridge) throw new Error('Waiting for your Instant Alerts key from iCloud Keychain. Try again in a few minutes.');
+    if (useApp.getState().alerts.bridge) throw new Error(tr().alerts.bridge.waitingKey);
     const bytes = Crypto.getRandomBytes(24);
     s = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
     await secrets.set(SCOPE, 'secret', s);
@@ -55,7 +56,7 @@ export function composeSnippet(secret: string): string {
 
 async function pushToken(): Promise<string> {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
-  if (!projectId) throw new Error('Push is not configured in this build (missing EAS project ID).');
+  if (!projectId) throw new Error(tr().alerts.bridge.noPush);
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
   return data;
 }
@@ -71,20 +72,20 @@ function bridgeSystem(url: string): SystemConfig {
 
 async function request(method: string, path: string, body?: unknown): Promise<Response> {
   const bridge = useApp.getState().alerts.bridge;
-  if (!bridge) throw new Error('Instant Alerts are not paired yet.');
+  if (!bridge) throw new Error(tr().alerts.bridge.notPaired);
   WgTunnel?.setShared('bridge.url', bridge.url);
   // `http`: the borrowed 'rtsp' kind has no HTTP side, which would leave baseUrl empty and
   // send these requests to a relative URL.
   const link = await connectSystem(bridgeSystem(bridge.url), { publish: false, http: true });
-  if (link.mode === 'offline') throw new Error(link.error ?? 'Could not reach the bridge');
-  if (!link.baseUrl) throw new Error('Could not reach the bridge');
+  if (link.mode === 'offline') throw new Error(link.error ?? tr().alerts.bridge.unreachable);
+  if (!link.baseUrl) throw new Error(tr().alerts.bridge.unreachable);
   const res = await fetch(`${link.baseUrl}${path}`, {
     method,
     headers: { 'Content-Type': 'application/json', 'X-Bridge-Secret': await bridgeSecret() },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 401) throw new Error('The bridge rejected the secret. Re-copy the snippet and restart the container.');
-  if (!res.ok) throw new Error(`Bridge returned HTTP ${res.status}: ${await res.text()}`);
+  if (res.status === 401) throw new Error(tr().alerts.bridge.badSecret);
+  if (!res.ok) throw new Error(tr().alerts.bridge.httpError(res.status, await res.text()));
   return res;
 }
 
@@ -117,6 +118,9 @@ async function deviceBody(system: SystemConfig, token: string) {
     pushToken: token,
     systemId: system.id,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    // The app's language ('en' | 'es' | 'fr' | 'de' | 'pt-BR'): the Hub writes this phone's
+    // notifications in it.
+    lang: getLocale(),
     defaultRule: st.alerts.defaultRule,
     rules,
     cameraNames,
@@ -182,7 +186,7 @@ export async function unregisterHubDevice(system: SystemConfig): Promise<void> {
 export async function syncBridge(): Promise<void> {
   const st = useApp.getState();
   const frigate = st.systems.find((s) => s.kind === 'frigate');
-  if (!frigate) throw new Error('Add a Frigate system first.');
+  if (!frigate) throw new Error(tr().alerts.bridge.addFrigate);
 
   const token = await pushToken();
   const id = await deviceId(token);
@@ -223,9 +227,18 @@ export function watchBridgeSync() {
     if (syncTimer) clearTimeout(syncTimer);
     syncTimer = setTimeout(() => void syncBridge().catch(() => {}), 1500);
   });
+  // The Hub and bridge word notifications in the app's language (`lang`): re-send it when it changes.
+  const unsubLocale = subscribeLocale(() => {
+    if (useApp.getState().systems.some((s) => s.kind === 'hub')) syncHubsSoon(1500);
+    const a = useApp.getState().alerts;
+    if (a.mode !== 'instant' || !a.bridge) return;
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => void syncBridge().catch(() => {}), 1500);
+  });
   return () => {
     unsub();
     unsubSmart();
+    unsubLocale();
     if (hubTimer) clearTimeout(hubTimer);
   };
 }

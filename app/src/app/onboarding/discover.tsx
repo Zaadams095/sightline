@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { describe } from '@/systems/catalog';
 import { discover, type Found } from '@/systems/discovery';
 import { space } from '@/theme/tokens';
@@ -13,9 +14,11 @@ import { usePalette } from '@/theme/use-palette';
 /** "Find my cameras": scans home Wi-Fi and lists what it recognized. Tap one to connect. */
 export default function Discover() {
   const p = usePalette();
+  const t = useT();
+  const s = t.onboarding.discover;
   const insets = useSafeAreaInsets();
   const [found, setFound] = useState<Found[] | null>(null);
-  const [status, setStatus] = useState('Starting…');
+  const [status, setStatus] = useState(s.starting);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState(0);
 
@@ -40,28 +43,26 @@ export default function Discover() {
 
   return (
     <Screen style={{ paddingTop: insets.top + 56 }}>
-      <T v="title">Finding cameras</T>
+      <T v="title">{s.title}</T>
       {!found && !error && (
         <View style={styles.center}>
           <ActivityIndicator size="large" />
           <T muted>{status}</T>
           <T v="caption" muted style={{ textAlign: 'center' }}>
-            If your phone asks to find devices on your local network, tap Allow.
+            {s.allowHint}
           </T>
         </View>
       )}
       {error && <T color={p.danger}>{error}</T>}
-      {found && found.length === 0 && (
-        <T muted>Nothing found. Make sure you’re on your home Wi-Fi, or choose your brand on the previous screen.</T>
-      )}
+      {found && found.length === 0 && <T muted>{s.nothingFound}</T>}
       {found?.map((f) => {
         // A brand Sightline recognizes but can't connect to yet: shown, but not tappable.
         const unsupported = !!f.kind && !describe(f.kind).available;
         const note = unsupported
-          ? 'Sightline can’t connect to this one yet.'
+          ? s.cantConnectYet
           : f.kind
             ? f.address
-            : `${f.address} · Brand unknown. Tap to try with its password.`;
+            : s.unknownBrand(f.address);
         return (
           <Pressable
             key={f.host}
@@ -87,7 +88,7 @@ export default function Discover() {
       })}
       {(found || error) && (
         <Button
-          title="Look again"
+          title={s.lookAgain}
           kind="secondary"
           onPress={() => {
             setFound(null);
@@ -96,7 +97,7 @@ export default function Discover() {
           }}
         />
       )}
-      <Button title="Choose my brand instead" kind="ghost" onPress={() => router.back()} />
+      <Button title={s.chooseBrand} kind="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }

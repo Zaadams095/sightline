@@ -16,6 +16,7 @@ import {
   type EventRecord,
 } from '@/ask/engine';
 import { cameraInfos, fetchEvents, writeAssistant } from '@/ask/sync';
+import { tr } from '@/i18n';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { getAdapter, useAllCameras } from '@/systems/registry';
@@ -45,13 +46,13 @@ export function simpleModeReason(a: ModelAvailability | 'missing'): string | nul
     case 'available':
       return null;
     case 'disabled':
-      return 'Turn on Apple Intelligence in Settings for smarter answers. Until then Sightline understands common questions.';
+      return tr().ask.simple.disabled;
     case 'notReady':
-      return 'Apple Intelligence is still getting ready on this iPhone. Until then Sightline understands common questions.';
+      return tr().ask.simple.notReady;
     case 'language':
-      return 'Apple Intelligence doesn’t support your iPhone’s language yet, so Sightline understands common English questions.';
+      return tr().ask.simple.language;
     default:
-      return 'Sightline understands common questions on this iPhone. With Apple Intelligence (iOS 26 on a newer iPhone) it understands more.';
+      return tr().ask.simple.other;
   }
 }
 

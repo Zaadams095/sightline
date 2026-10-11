@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StreamTimelapse, VodTimelapse } from '@/components/playback/timelapse-player';
 import { Chip, T } from '@/components/ui/primitives';
+import { tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useAdapter } from '@/systems/registry';
 import { space } from '@/theme/tokens';
 import { formatDay, nowSec } from '@/util/format';
@@ -27,6 +29,7 @@ function localMidnight(t: number) {
  * seconds from each step.
  */
 export default function TimelapseScreen() {
+  const t = useT();
   const params = useLocalSearchParams<{ systemId: string; cameraId: string; day?: string }>();
   const adapter = useAdapter(params.systemId);
   const cameraId = params.cameraId;
@@ -42,7 +45,7 @@ export default function TimelapseScreen() {
   // Just after midnight "today" is nearly empty, so show the last 24 hours instead.
   const dayWindow: [number, number] = pastDay ? [day, day + 86400] : now - today < 3600 ? [now - 86400, now] : [today, now];
   const [start, end] = range === '1h' ? [now - 3600, now] : range === '3h' ? [now - 3 * 3600, now] : dayWindow;
-  const dayLabel = pastDay ? formatDay(day) : now - today < 3600 ? 'Last 24 hours' : 'Today';
+  const dayLabel = pastDay ? formatDay(day) : now - today < 3600 ? t.viewing.timelapse.last24h : t.common.today;
 
   const cameras = useQuery({
     queryKey: ['cameras-of', params.systemId, !!adapter],
@@ -74,7 +77,7 @@ export default function TimelapseScreen() {
     try {
       await shareClip(adapter, cameraId, name, start, end);
     } catch (e) {
-      Alert.alert('Could not export video', e instanceof Error ? e.message : String(e));
+      Alert.alert(tr().viewing.timelapse.exportFailed, e instanceof Error ? e.message : String(e));
     } finally {
       setSharing(false);
     }
@@ -94,19 +97,19 @@ export default function TimelapseScreen() {
   return (
     <View style={styles.root}>
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.round} accessibilityLabel="Close">
+        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.round} accessibilityLabel={t.common.close}>
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <T v="label" color="#fff" numberOfLines={1}>
+          <T v="label" color="#fff" numberOfLines={2} style={{ textAlign: 'center' }}>
             {name}
           </T>
           <T v="caption" color="rgba(255,255,255,0.6)">
-            Timelapse
+            {t.viewing.camera.timelapse}
           </T>
         </View>
         {canShare ? (
-          <Pressable onPress={() => void share()} hitSlop={8} style={styles.round} disabled={sharing} accessibilityLabel="Share video">
+          <Pressable onPress={() => void share()} hitSlop={8} style={styles.round} disabled={sharing} accessibilityLabel={t.viewing.clip.shareVideo}>
             {sharing ? <ActivityIndicator color="#fff" /> : <SymbolView name="square.and.arrow.up" tintColor="#fff" size={17} />}
           </Pressable>
         ) : (
@@ -116,9 +119,9 @@ export default function TimelapseScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + space.xl, gap: space.lg }}>
         {!adapter?.playback ? (
-          <Message text="This system doesn’t have recordings Sightline can play." />
+          <Message text={t.viewing.timelapse.noPlayback} />
         ) : kind.isError ? (
-          <Message text="Couldn’t reach the recordings. Check the connection and try again." />
+          <Message text={t.viewing.timelapse.unreachable} />
         ) : !kind.data || !playerProps ? (
           <View style={{ height: videoHeight, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator color="#fff" />
@@ -131,13 +134,13 @@ export default function TimelapseScreen() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           <Chip label={dayLabel} selected={range === 'day'} onPress={() => setRange('day')} />
-          {!pastDay && <Chip label="Last 3 hours" selected={range === '3h'} onPress={() => setRange('3h')} />}
-          {!pastDay && <Chip label="Last hour" selected={range === '1h'} onPress={() => setRange('1h')} />}
+          {!pastDay && <Chip label={t.viewing.timelapse.last3h} selected={range === '3h'} onPress={() => setRange('3h')} />}
+          {!pastDay && <Chip label={t.viewing.timelapse.lastHour} selected={range === '1h'} onPress={() => setRange('1h')} />}
         </ScrollView>
 
         {canShare && (
           <T v="caption" color="rgba(255,255,255,0.5)" style={{ paddingHorizontal: 24, textAlign: 'center' }}>
-            Share sends this hour as a normal-speed video.
+            {t.viewing.timelapse.shareNote}
           </T>
         )}
       </ScrollView>

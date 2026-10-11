@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Sightline",
+    "NSLocalNetworkUsageDescription": "Melde dich mit deinem iPhone an und zeig die Kameras deines Sightline Hub in deinem Heimnetz."
+  }
+}

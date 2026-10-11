@@ -6,8 +6,10 @@ import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 
 import { SamplePill } from '@/components/demo-banner';
 import { LiveView, prefetchLiveOptions, useLive } from '@/components/live/live-view';
+import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import type { CameraSystemAdapter, Camera } from '@/systems/types';
+import { OVERLAY_MAX_SCALE } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
 interface Props {
@@ -40,6 +42,7 @@ export const CameraTile = memo(function CameraTile({
   onLongPress,
 }: Props) {
   const palette = usePalette();
+  const t = useT();
   const { radius, labelStyle } = useApp((s) => s.appearance);
   const [tick, setTick] = useState(0);
   const [shown, setShown] = useState<string | null>(null);
@@ -70,8 +73,8 @@ export const CameraTile = memo(function CameraTile({
         onPress={() => onPress?.(shown ?? undefined)}
         onLongPress={onLongPress}
         accessibilityRole="button"
-        accessibilityLabel={camera.enabled ? camera.name : `${camera.name}, camera off`}
-        accessibilityHint="Opens live view"
+        accessibilityLabel={camera.enabled ? camera.name : t.home.tile.cameraOffA11y(camera.name)}
+        accessibilityHint={t.home.tile.opensLive}
         style={({ pressed }) => [
           styles.frame,
           { borderRadius: radius, backgroundColor: palette.surface, opacity: pressed ? 0.85 : 1 },
@@ -98,14 +101,17 @@ export const CameraTile = memo(function CameraTile({
         )}
         {!camera.enabled && (
           <View style={[StyleSheet.absoluteFill, styles.center, { backgroundColor: palette.scrim }]}>
-            <Text style={styles.disabled}>Camera off</Text>
+            <Text style={styles.disabled} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+              {t.home.tile.cameraOff}
+            </Text>
           </View>
         )}
         {labelStyle === 'overlay' && (
           <View style={styles.labelWrap}>
             <View style={[styles.labelPill, { backgroundColor: palette.scrim }]}>
-              {camera.ptz && <SymbolView name="move.3d" tintColor="#fff" size={11} accessibilityLabel="Can be moved" />}
-              <Text style={styles.label} numberOfLines={1}>
+              {camera.ptz && <SymbolView name="move.3d" tintColor="#fff" size={11} accessibilityLabel={t.home.tile.canMove} />}
+              {/* Drawn over video: grows only a little with the text size, so it never covers the picture. */}
+              <Text style={styles.label} numberOfLines={1} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
                 {camera.name}
               </Text>
             </View>
@@ -113,7 +119,7 @@ export const CameraTile = memo(function CameraTile({
         )}
       </Pressable>
       {labelStyle === 'below' && (
-        <Text style={[styles.below, { color: palette.text }]} numberOfLines={1}>
+        <Text style={[styles.below, { color: palette.text }]} numberOfLines={1} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
           {camera.name}
         </Text>
       )}

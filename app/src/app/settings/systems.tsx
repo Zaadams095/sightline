@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 
 import { unregisterHubDevice } from '@/alerts/bridge';
 import { Button, Card, Field, Screen, T, ToggleRow } from '@/components/ui/primitives';
+import { useT } from '@/i18n/use-t';
 import { forgetHubToken } from '@/systems/hub';
 import { connectSystem, disconnectSystem, useLinks } from '@/net/connection';
 import { secrets, SECRET } from '@/state/secrets';
@@ -21,6 +22,8 @@ import { userMessage } from '@/util/errors';
 export default function SystemSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
+  const t = useT();
+  const sy = t.settings.system;
   const system = useApp((s) => s.systems.find((x) => x.id === id));
   const upsert = useApp((s) => s.upsertSystem);
   const removeSystem = useApp((s) => s.removeSystem);
@@ -42,7 +45,7 @@ export default function SystemSettings() {
   if (!system || !d) {
     return (
       <Screen>
-        <T muted>This recorder or camera was removed.</T>
+        <T muted>{sy.removed}</T>
       </Screen>
     );
   }
@@ -77,11 +80,11 @@ export default function SystemSettings() {
       });
       setSaved(
         res.mode === 'offline'
-          ? { ok: false, text: `Saved, but couldn’t connect. ${res.error ?? 'Check the address and that it’s turned on.'}` }
-          : { ok: true, text: 'Saved and connected.' },
+          ? { ok: false, text: sy.savedNoConnect(res.error ?? sy.checkAddress) }
+          : { ok: true, text: sy.savedConnected },
       );
     } catch (e) {
-      setSaved({ ok: false, text: `Couldn’t save. ${userMessage(e, name.trim() || system.name)}` });
+      setSaved({ ok: false, text: sy.couldntSave(userMessage(e, name.trim() || system.name)) });
     } finally {
       setBusy(false);
     }
@@ -89,12 +92,12 @@ export default function SystemSettings() {
 
   const remove = () =>
     Alert.alert(
-      `Remove ${system.name}?`,
-      'Its cameras will disappear from this app. Nothing on the recorder or cameras is changed, and you can add it again later.',
+      sy.removeTitle(system.name),
+      sy.removeBody,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Remove',
+          text: t.common.remove,
           style: 'destructive',
           onPress: async () => {
             if (system.kind === 'hub') {
@@ -118,22 +121,22 @@ export default function SystemSettings() {
       <T muted>
         {d.label} ·{' '}
         {system.kind === 'demo'
-          ? 'Built-in sample video, not a real camera'
+          ? sy.demo
           : link?.mode === 'lan'
-            ? 'Connected at home'
+            ? sy.connectedHome
             : link?.mode === 'tunnel'
-              ? 'Connected away from home'
-              : 'Not connected'}
+              ? sy.connectedAway
+              : sy.notConnected}
         {link?.error ? `\n${link.error}` : ''}
       </T>
-      <Field label="Name" value={name} onChangeText={setName} autoCapitalize="words" />
+      <Field label={sy.name} value={name} onChangeText={setName} autoCapitalize="words" />
       {d.fields.map((f) => (
         <Field
           key={f.key}
           label={f.label}
           value={values[f.key] ?? ''}
           onChangeText={(v) => setValues((s) => ({ ...s, [f.key]: v }))}
-          placeholder={f.secure ? 'Unchanged' : f.placeholder}
+          placeholder={f.secure ? sy.unchanged : f.placeholder}
           hint={f.hint}
           secureTextEntry={f.secure}
           keyboardType={f.keyboard === 'url' ? 'url' : f.keyboard === 'number-pad' ? 'number-pad' : 'default'}
@@ -142,21 +145,21 @@ export default function SystemSettings() {
       {system.kind === 'hub' ? (
         <T v="caption" muted>
           {system.extra?.remoteUrl
-            ? 'Away from home: on (through your Hub).'
-            : 'Away from home: off. Turn on remote access on the Hub’s setup page.'}
+            ? sy.hubAwayOn
+            : sy.hubAwayOff}
         </T>
       ) : (
         d.usesGateway !== false && (
           <Card>
-            <ToggleRow label="Reach it when I’m away" value={useTunnel} onChange={setUseTunnel} last />
+            <ToggleRow label={sy.reachAway} value={useTunnel} onChange={setUseTunnel} last />
           </Card>
         )
       )}
-      <Button title="Save & reconnect" onPress={save} loading={busy} />
+      <Button title={sy.saveReconnect} onPress={save} loading={busy} />
       {saved && <T color={saved.ok ? p.success : p.danger}>{saved.text}</T>}
-      <Button title="Remove from Sightline" kind="ghost" onPress={remove} />
+      <Button title={sy.removeFrom} kind="ghost" onPress={remove} />
       <T v="caption" color={p.textMuted}>
-        Removing a system only removes it from this app. Nothing on your recorder or cameras is changed.
+        {sy.removingNote}
       </T>
     </Screen>
   );

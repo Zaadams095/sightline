@@ -1,5 +1,155 @@
 import type en from '../en/exporting.ts';
+import { plural } from '../plural.ts';
 
-const exporting: typeof en = {};
+const p = plural('fr');
+
+const exporting: typeof en = {
+  window: {
+    last30: '30 dernières minutes',
+    last2h: '2 dernières heures',
+    lastNight: 'La nuit dernière (20 h – 7 h)',
+    endBeforeStart: 'L’heure de fin doit être après l’heure de début.',
+    notYet: 'Ce moment n’est pas encore arrivé.',
+    tooLong: 'Choisissez 24 heures ou moins. Pour plus longtemps, faites plusieurs exports.',
+    sizeWarning: (size) =>
+      `L’export pourrait faire environ ${size}. C’est beaucoup pour Mail ou Messages. AirDrop ou Enregistrer dans Fichiers marche mieux, ou choisissez une durée plus courte ou moins de caméras.`,
+    replayWarning: (duration) =>
+      `Certaines de vos caméras ne peuvent relire les enregistrements qu’à vitesse normale : copier leur vidéo prend donc environ ${duration}. Gardez Sightline ouverte jusqu’à la fin.`,
+  },
+  screen: {
+    title: 'Export pour la police ou l’assurance',
+    intro:
+      'Sightline rassemble la vidéo de toutes les caméras pour la période choisie, avec un résumé PDF pour la personne qui le recevra. Tout est préparé sur cet iPhone et n’en sort que lorsque vous le partagez.',
+    checking: 'Vérification…',
+    noRecordings: 'Aucun enregistrement sur cette période',
+    events: (n) => p(n, { one: `${n} événement`, other: `${n} événements` }),
+    video: 'Vidéo',
+    videoReplay: 'Vidéo, copiée à vitesse normale',
+    snapshotsOnly: 'Photos seulement : cet enregistreur ne laisse pas les apps enregistrer la vidéo',
+    gettingReady: 'Préparation…',
+    failed: 'L’export n’a pas abouti',
+    beforeYouStart: 'Avant de commencer',
+    startExport: 'Lancer l’export',
+    readyTitle: 'Export prêt',
+    readyHeading: 'Votre export est prêt',
+    signedByPhone: 'signé par cet iPhone',
+    noVideoFrom: 'Pas de vidéo de',
+    shareAgain: 'Partager ou enregistrer à nouveau',
+    when: 'Quand',
+    pickTime: 'Choisir une heure',
+    fromRecording: 'D’après l’enregistrement que vous regardiez',
+    pickDifferent: 'Touchez pour choisir une autre heure',
+    from: 'De',
+    until: 'À',
+    cameras: 'Caméras',
+    camerasFooter: 'Les caméras avec des enregistrements ou des événements sur cette période sont déjà choisies.',
+    noCameras: 'Aucune caméra avec des enregistrements',
+    noCamerasDetail: 'Un export nécessite un enregistreur (NVR, Frigate, Sightline Hub…).',
+    aboutSize: (size) => `Environ ${size} de vidéo.`,
+    snapshotsOnlyFrom: (names) =>
+      `Photos seulement pour ${names} : l’enregistreur ne laisse pas les apps enregistrer sa vidéo, donc seules les photos des événements sont incluses.`,
+    makeExport: 'Créer l’export',
+    makingTitle: 'Création de l’export',
+    soFar: (size) => `${size} pour l’instant`,
+    keepOpen: 'Gardez Sightline ouverte jusqu’à la fin. L’écran reste allumé.',
+  },
+  run: {
+    copying: (camera) => `Copie de ${camera}…`,
+    fingerprints: 'Calcul des empreintes…',
+    writingSummary: 'Rédaction du résumé…',
+    packing: 'Création du .zip…',
+    noteReplay: 'Copiée depuis la lecture de l’enregistreur, à vitesse normale',
+    noteFiles: 'Les fichiers de l’enregistreur couvrant cette période (ils peuvent commencer un peu avant ou finir un peu après)',
+    noteNone: 'Cet enregistreur ne laisse pas les apps enregistrer sa vidéo, donc seules les photos des événements sont incluses',
+    noteNoVideo: 'L’enregistreur n’a pas envoyé de vidéo pour cette période',
+    someParts: (note) => `${note} (certaines parties n’ont pas pu être copiées)`,
+    tooBig: 'Cet export est trop volumineux pour cette version de Sightline. Choisissez une durée plus courte ou moins de caméras.',
+    unreachable: 'Cet enregistreur n’est pas joignable depuis ce réseau.',
+    shareTitle: 'Export vidéo',
+  },
+  readme: {
+    intro: 'Export vidéo créé avec Sightline.',
+    summary: 'Le contenu de cet export : caméras, période couverte (avec le fuseau horaire), événements et empreintes.',
+    video: 'Fichiers vidéo, nommés d’après la caméra et l’heure locale de début.',
+    photos: 'Photos des événements.',
+    manifest: 'L’empreinte SHA-256 de chaque fichier. Si un fichier est modifié, son empreinte ne correspond plus.',
+    signature: 'Signature de manifest.json, faite avec une clé qui ne quitte jamais l’iPhone qui a créé cet export.',
+    publicKey: 'La clé publique correspondante.',
+    checkSignature: 'Pour vérifier la signature :',
+    checkFile: 'Pour vérifier un fichier : sha256sum "video/<fichier>.mp4" (Mac : shasum -a 256), puis comparez avec manifest.json.',
+  },
+  report: {
+    title: 'Export vidéo',
+    homeCameras: 'Caméras du domicile',
+    videoIncluded: 'Vidéo incluse',
+    videoPartial: 'Vidéo en partie incluse',
+    videoNone: 'Pas de vidéo : photos seulement',
+    until: (time) => `jusqu’à ${time}`,
+    signed: (q) =>
+      `La liste des empreintes (${q.manifest}) est aussi <b>signée</b> avec une clé qui ne quitte jamais l’iPhone qui a créé cet export.
+La signature se trouve dans ${q.signature} et la clé publique correspondante dans ${q.publicKey}
+(empreinte de la clé ${q.fingerprint}).
+Si la liste est modifiée, la signature n’est plus valide. Pour la vérifier :`,
+    unsigned:
+      'Cet export n’est pas signé (la version de l’app qui l’a créé ne pouvait pas signer), mais les empreintes ci-dessous montrent toujours si un fichier a été modifié.',
+    summary: 'Résumé',
+    timeCovered: 'Période couverte',
+    isoRange: (start, end) => `${start} à ${end}`,
+    cameras: 'Caméras',
+    eventsInTime: 'Événements sur cette période',
+    exported: 'Exporté le',
+    madeWith: 'Créé avec',
+    madeWithValue: (app, device) => `${app} sur ${device}`,
+    missing: (names) =>
+      `Ces caméras n’ont pas pu exporter de vidéo pour cette période ; seules les photos de leurs événements sont incluses : ${names}.`,
+    colCamera: 'Caméra',
+    colSystem: 'Système',
+    colVideo: 'Vidéo',
+    colEvents: 'Événements',
+    colNotes: 'Remarques',
+    events: 'Événements',
+    colTime: 'Heure',
+    colWhat: 'Quoi',
+    more: (n) => `…et ${n} de plus, listés dans manifest.json.`,
+    noEvents: 'Aucun événement n’a été enregistré sur cette période.',
+    howToTell: 'Comment savoir que rien n’a été modifié',
+    howToTellBody: (manifest) =>
+      `Chaque fichier de cet export a une <b>empreinte</b> (SHA-256), listée ci-dessous et dans ${manifest}.
+Une empreinte est calculée à partir de chaque octet du fichier : <b>si un fichier est modifié, ne serait-ce que d’une image, son empreinte ne correspond plus.</b>
+L’empreinte de ce rapport se trouve dans manifest.json.`,
+    files: 'Fichiers et empreintes',
+    colFile: 'Fichier',
+    colSize: 'Taille',
+    phoneZone: 'le fuseau horaire du téléphone',
+    timesShown: (zone, offset) =>
+      `Les heures sont indiquées dans ${zone} (${offset}). L’horloge des caméras peut différer de l’heure exacte de quelques secondes.`,
+  },
+  neighbors: {
+    title: 'Partager avec les voisins',
+    intro: 'Pour un groupe de quartier ou un voisin. Le floutage se fait sur cet iPhone ; rien n’est envoyé avant que vous partagiez.',
+    noneFound: 'Aucun visage ni aucune plaque d’immatriculation trouvés. Vérifiez avant de partager.',
+    faces: (n) => p(n, { one: `${n} visage`, other: `${n} visages` }),
+    plates: (n) => p(n, { one: `${n} plaque d’immatriculation`, other: `${n} plaques d’immatriculation` }),
+    blurred: (what) => `Floutés : ${what}. Le floutage automatique peut en manquer, alors vérifiez avant de partager.`,
+    gettingVideo: 'Récupération de la vidéo…',
+    gettingPhoto: 'Récupération de la photo…',
+    blurring: 'Floutage des visages et des plaques…',
+    notBlurred: 'Non flouté. Les visages et les plaques seront visibles.',
+    couldntPrepare: 'Impossible de préparer le fichier',
+    checkTitle: 'Vérifiez avant de partager',
+    startOver: 'Recommencer',
+    whatToShare: 'Quoi partager',
+    videoClip: 'Extrait vidéo',
+    photo: 'Photo',
+    noVideo: 'Cet enregistreur ne peut pas créer d’extraits vidéo à partager ; une photo sera partagée à la place.',
+    blurFooter: 'Les visages et les plaques sont détectés automatiquement et floutés dans une copie. Certains peuvent être manqués : vous verrez d’abord le résultat.',
+    updateFooter: 'Le floutage nécessite la dernière version de Sightline. Mettez l’app à jour pour l’utiliser.',
+    blurToggle: 'Flouter visages et plaques',
+    blurAndPreview: 'Flouter et aperçu',
+    preview: 'Aperçu',
+    visibleWarning: 'Les visages et les plaques seront visibles par toutes les personnes avec qui vous partagez.',
+    preparing: 'Préparation',
+  },
+};
 
 export default exporting;

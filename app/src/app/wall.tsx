@@ -9,11 +9,14 @@ import { setRingHandler, type RingParams } from '@/alerts/doorbell';
 import { isDoorbell, selectNotifications } from '@/alerts/rules';
 import { CameraTile } from '@/components/camera-tile';
 import { LiveView, useLive } from '@/components/live/live-view';
+import { fmtTime, tr } from '@/i18n';
+import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { LockScreen } from '@/security/app-lock';
 import { useApp } from '@/state/store';
 import { useWall } from '@/state/wall';
 import { getAdapter, useAllCameras, type CameraEntry } from '@/systems/registry';
+import { OVERLAY_MAX_SCALE } from '@/theme/tokens';
 import { titleFor } from '@/util/format';
 import {
   activeTakeover,
@@ -43,6 +46,7 @@ const CONTROLS_MS = 6000;
  */
 export default function WallDisplay() {
   useKeepAwake();
+  const t = useT();
   const { width, height } = useWindowDimensions();
   const { entries } = useAllCameras();
   const wall = useWall();
@@ -71,14 +75,14 @@ export default function WallDisplay() {
   // Takeovers (doorbell rings, alerts).
   const [takeovers, setTakeovers] = useState<Takeover[]>([]);
   const takeover = activeTakeover(takeovers, now);
-  const nameOf = useCallback((key: string) => byKey.get(key)?.camera.name ?? 'Camera', [byKey]);
+  const nameOf = useCallback((key: string) => byKey.get(key)?.camera.name ?? tr().wall.display.camera, [byKey]);
 
   useEffect(() => {
     if (!wall.jumpToDoorbell) return;
     setRingHandler((p: RingParams) => {
       const key = `${p.systemId}:${p.cameraId}`;
       const t = Date.now();
-      setTakeovers((list) => addTakeover(list, { kind: 'ring', cameraKey: key, at: t, title: 'Someone’s at the door' }, t));
+      setTakeovers((list) => addTakeover(list, { kind: 'ring', cameraKey: key, at: t, title: tr().wall.display.ring }, t));
       return true;
     });
     return () => setRingHandler(null);
@@ -148,13 +152,15 @@ export default function WallDisplay() {
   const dim = dimOpacity(wall.night, at);
   const offlineSystems = systems.filter((s) => links[s.id]?.mode === 'offline').map((s) => s.name);
   const disabled = keys.filter((k) => byKey.get(k)?.camera.enabled === false).length;
-  const status = statusLine(keys.length, disabled) + (offlineSystems.length ? ` · ${offlineSystems.join(', ')} not reachable` : '');
+  const status = statusLine(keys.length, disabled) + (offlineSystems.length ? ` · ${t.wall.display.notReachable(offlineSystems.join(', '))}` : '');
+  // 24-hour clock when the language/region writes 13:00 rather than 1:00 PM.
+  const h24 = fmtTime(new Date(2000, 0, 1, 13, 0)).includes('13');
   const focusEntry = takeover ? byKey.get(takeover.cameraKey) : undefined;
 
   return (
     <View style={styles.root}>
       <StatusBar hidden />
-      <Pressable style={StyleSheet.absoluteFill} onPress={() => setControls((c) => !c)} accessibilityLabel="Show wall display controls">
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => setControls((c) => !c)} accessibilityLabel={t.wall.display.showControls}>
         <View style={[StyleSheet.absoluteFill, { transform: [{ translateX: shift.x }, { translateY: shift.y }] }]} pointerEvents="none">
           {focusEntry ? (
             <Focus entry={focusEntry} />
@@ -165,7 +171,9 @@ export default function WallDisplay() {
           )}
           {!entries.length && (
             <View style={[StyleSheet.absoluteFill, styles.center]}>
-              <Text style={styles.empty}>Connecting to your cameras…</Text>
+              <Text style={styles.empty} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+                {t.wall.display.connecting}
+              </Text>
             </View>
           )}
         </View>
@@ -181,9 +189,15 @@ export default function WallDisplay() {
             if (e) router.push({ pathname: '/doorbell', params: { systemId: e.adapter.config.id, cameraId: e.camera.id } });
           }}>
           <SymbolView name={takeover.kind === 'ring' ? 'bell.fill' : 'exclamationmark.circle.fill'} tintColor="#fff" size={26} />
-          <View>
-            <Text style={styles.bannerTitle}>{takeover.title}</Text>
-            {takeover.kind === 'ring' && <Text style={styles.bannerSub}>{nameOf(takeover.cameraKey)} · tap to answer</Text>}
+          <View style={{ flexShrink: 1 }}>
+            <Text style={styles.bannerTitle} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+              {takeover.title}
+            </Text>
+            {takeover.kind === 'ring' && (
+              <Text style={styles.bannerSub} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+                {t.wall.display.tapToAnswer(nameOf(takeover.cameraKey))}
+              </Text>
+            )}
           </View>
         </Pressable>
       )}
@@ -192,9 +206,15 @@ export default function WallDisplay() {
         <View
           pointerEvents="none"
           style={[styles.clock, clockCorner(now) === 'left' ? { left: 32 + shift.x } : { right: 32 - shift.x }, { bottom: 28 + shift.y }]}>
-          <Text style={styles.time}>{clockText(at)}</Text>
-          <Text style={styles.date}>{dateLine(at)}</Text>
-          <Text style={styles.status}>{status}</Text>
+          <Text style={styles.time} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+            {clockText(at, h24)}
+          </Text>
+          <Text style={styles.date} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+            {dateLine(at)}
+          </Text>
+          <Text style={styles.status} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+            {status}
+          </Text>
         </View>
       )}
 
@@ -204,11 +224,15 @@ export default function WallDisplay() {
         <View style={styles.controls}>
           <Pressable onPress={() => setPage((p) => p + 1)} style={styles.control} accessibilityRole="button">
             <SymbolView name="forward.fill" tintColor="#fff" size={18} />
-            <Text style={styles.controlText}>Next</Text>
+            <Text style={styles.controlText} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+              {t.common.next}
+            </Text>
           </Pressable>
           <Pressable onPress={exit} style={styles.control} accessibilityRole="button">
             <SymbolView name="xmark" tintColor="#fff" size={18} />
-            <Text style={styles.controlText}>Exit wall display</Text>
+            <Text style={styles.controlText} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+              {t.wall.display.exit}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -221,7 +245,9 @@ export default function WallDisplay() {
           }}
         />
         <Pressable onPress={() => setUnlocking(false)} style={styles.cancelUnlock} accessibilityRole="button">
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+            {t.common.cancel}
+          </Text>
         </Pressable>
       </Modal>
     </View>
@@ -240,7 +266,9 @@ function Focus({ entry }: { entry: CameraEntry }) {
         </View>
       )}
       <View style={styles.focusLabel}>
-        <Text style={styles.focusName}>{entry.camera.name}</Text>
+        <Text style={styles.focusName} numberOfLines={1} maxFontSizeMultiplier={OVERLAY_MAX_SCALE}>
+          {entry.camera.name}
+        </Text>
       </View>
     </View>
   );
@@ -282,6 +310,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 28,
     alignSelf: 'center',
+    maxWidth: '90%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,

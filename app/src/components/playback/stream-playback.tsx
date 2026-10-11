@@ -63,7 +63,9 @@ export function StreamPlayback({ adapter, cameraId, start, paused, rate, onWall,
   if (source.isError) {
     return (
       <View style={[StyleSheet.absoluteFill, styles.center]}>
-        <T color="#fff">{userMessage(source.error, adapter.config.name)}</T>
+        <T color="#fff" overlay style={{ textAlign: 'center' }}>
+          {userMessage(source.error, adapter.config.name)}
+        </T>
       </View>
     );
   }
