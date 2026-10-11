@@ -15,6 +15,7 @@ import { usesGateway } from '@/systems/catalog';
 import { useAllCameras, type CameraEntry } from '@/systems/registry';
 import { space } from '@/theme/tokens';
 import { syncWidgets } from '@/widgets/sync';
+import { syncAssistant } from '@/ask/sync';
 import { syncWatch } from '@/watch/sync';
 import { usePalette } from '@/theme/use-palette';
 
@@ -43,6 +44,7 @@ export default function LiveScreen() {
   useEffect(() => {
     void syncWidgets(allEntries);
     void syncWatch(allEntries);
+    void syncAssistant(allEntries);
   }, [allEntries]);
   const { phoneColumns, density } = useApp((s) => s.appearance);
   const gridViews = useApp((s) => s.gridViews);

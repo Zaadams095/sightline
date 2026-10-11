@@ -6,6 +6,7 @@ import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DemoBanner } from '@/components/demo-banner';
+import { AskBar } from '@/components/review/ask-bar';
 import { PackagesCard } from '@/components/review/packages-card';
 import { SavedPanel } from '@/components/review/saved-panel';
 import { SearchPanel } from '@/components/review/search-panel';
@@ -132,6 +133,7 @@ export default function ReviewScreen() {
         <T v="title" style={{ paddingHorizontal: space.lg }}>
           Recordings
         </T>
+        <AskBar />
         {modeTabs}
         {mode === 'search' ? <SearchPanel /> : <SavedPanel />}
       </ScrollView>
@@ -152,6 +154,7 @@ export default function ReviewScreen() {
             Recordings
           </T>
           <DemoBanner />
+          <AskBar />
           {modeTabs}
           <PackagesCard names={names} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
