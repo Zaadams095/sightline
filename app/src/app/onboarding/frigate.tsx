@@ -13,7 +13,20 @@ import { WgTunnel } from '@modules/wg-tunnel';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { isExpoGo } from '@/util/runtime';
-import { normalizeUrl } from '@/util/url';
+import { frigateCandidates, isBareHost, normalizeUrl } from '@/util/url';
+
+/** For a bare IP/host, use the first usual Frigate port that accepts a connection. */
+async function detectFrigateUrl(host: string): Promise<string> {
+  const candidates = frigateCandidates(host);
+  if (!WgTunnel) return candidates[0];
+  for (const c of candidates) {
+    const u = new URL(c);
+    // URL drops default ports (443/80), so fill them back in.
+    const port = u.port || (u.protocol === 'https:' ? '443' : '80');
+    if (await WgTunnel.probe(`${u.hostname}:${port}`, false, 1500)) return c;
+  }
+  return candidates[0];
+}
 
 export default function FrigateSetup() {
   const p = usePalette();
@@ -34,11 +47,12 @@ export default function FrigateSetup() {
     setResult(null);
     setUnreachable(null);
     const id = `frigate-${Date.now().toString(36)}`;
+    const lanUrl = isBareHost(url) ? await detectFrigateUrl(url) : normalizeUrl(url);
     const system: SystemConfig = {
       id,
       kind: 'frigate',
       name: name.trim() || 'Frigate',
-      endpoint: { lanUrl: normalizeUrl(url), useTunnel, allowSelfSigned: true },
+      endpoint: { lanUrl, useTunnel, allowSelfSigned: true },
       username: user.trim() || undefined,
     };
     try {
@@ -48,7 +62,7 @@ export default function FrigateSetup() {
         disconnectSystem(id);
         dropAdapter(id);
         setUnreachable(system);
-        setResult({ ok: false, msg: link.error ?? 'Could not reach Frigate' });
+        setResult({ ok: false, msg: `${link.error ?? 'Could not reach Frigate'} (tried ${lanUrl})` });
         return;
       }
       if (link.port != null && user && WgTunnel) {
@@ -59,7 +73,7 @@ export default function FrigateSetup() {
       await adapter.connect();
       const cams = await adapter.listCameras();
       upsert(system);
-      setResult({ ok: true, msg: `Connected. Found ${cams.length} camera${cams.length === 1 ? '' : 's'}.` });
+      setResult({ ok: true, msg: `Connected to ${lanUrl}. Found ${cams.length} camera${cams.length === 1 ? '' : 's'}.` });
     } catch (e) {
       disconnectSystem(id);
       dropAdapter(id);
