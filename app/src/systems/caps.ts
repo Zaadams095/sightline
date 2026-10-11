@@ -15,7 +15,8 @@ export interface FeatureSupport {
   knownNames: boolean;
   groups: boolean;
   health: boolean;
-  masks: boolean;
+  /** Activity zones can work on at least one system (per camera: alerts/zones.ts zoneSupportFor). */
+  zones: boolean;
 }
 
 export function supportOf(adapters: (CameraSystemAdapter | null | undefined)[]): FeatureSupport {
@@ -28,7 +29,7 @@ export function supportOf(adapters: (CameraSystemAdapter | null | undefined)[]):
     knownNames: any((a) => a.knownNames),
     groups: any((a) => a.groups),
     health: any((a) => a.health),
-    masks: any((a) => a.detectionPoints),
+    zones: any((a) => a.detectionPoints || a.applyZones || a.zoneSupport),
   };
 }
 

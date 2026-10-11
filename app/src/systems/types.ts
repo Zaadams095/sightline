@@ -3,6 +3,7 @@
  * The UI checks `capabilities` and only renders features the system actually supports;
  * nothing outside an adapter should know which brand it is talking to.
  */
+import type { AlertZone, ZoneSupport } from '@/alerts/zones';
 
 export type SystemKind =
   | 'hub'
@@ -200,8 +201,18 @@ export interface CameraSystemAdapter {
   motionActivity?(cameraId: string, after: number, before: number, scaleSec: number): Promise<MotionPoint[]>;
   /** Local dates (YYYY-MM-DD) that have recordings, newest first. */
   recordingDays?(cameraId: string): Promise<string[]>;
-  /** Normalized foot positions (0–1) of the objects in a review item, for alert masks. */
+  /** Normalized foot positions (0–1) of the objects in a review item, for activity zones. */
   detectionPoints?(item: ReviewItem): Promise<{ x: number; y: number }[]>;
+  /**
+   * How activity zones work on this camera, when it isn't simply "precise if detectionPoints,
+   * device if applyZones" (see alerts/zones.ts zoneSupportFor).
+   */
+  zoneSupport?(camera: Camera): ZoneSupport;
+  /**
+   * Writes the zones to the camera's own motion/detection area (for systems that can't say
+   * where things happened). Resolves to a plain sentence saying what was set.
+   */
+  applyZones?(cameraId: string, zones: AlertZone[]): Promise<string>;
   /** Short preview video of a review item (for notification attachments). */
   previewClip?(item: ReviewItem): MediaSource;
   /** Smart search by description or visual similarity. Throws a readable error if unsupported. */

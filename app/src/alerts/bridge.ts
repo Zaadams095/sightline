@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 
+import { legacyMasks } from '@/alerts/zones';
 import { connectSystem } from '@/net/connection';
 import { secrets } from '@/state/secrets';
 import { WgTunnel } from '@modules/wg-tunnel';
@@ -98,11 +99,13 @@ async function deviceBody(system: SystemConfig, token: string) {
     cameraNames = Object.fromEntries((cams ?? []).map((c) => [c.id, c.name]));
     detectSizes = Object.fromEntries((cams ?? []).filter((c) => c.detectSize).map((c) => [c.id, c.detectSize!]));
   } catch {}
-  const masks = Object.fromEntries(
-    Object.entries(st.masks)
-      .filter(([k]) => k.startsWith(prefix))
-      .map(([k, polys]) => [k.slice(prefix.length), polys]),
-  );
+  // Activity zones per camera ID. Older Hubs only know "masks", so plain "ignore here" zones
+  // go there too; newer Hubs use `zones` and ignore `masks` (bridge/zones.go).
+  const zoneEntries = Object.entries(st.alertZones)
+    .filter(([k]) => k.startsWith(prefix))
+    .map(([k, zones]) => [k.slice(prefix.length), zones] as const);
+  const zones = Object.fromEntries(zoneEntries);
+  const masks = Object.fromEntries(zoneEntries.map(([id, z]) => [id, legacyMasks(z)] as const).filter(([, m]) => m.length > 0));
 
   return {
     pushToken: token,
@@ -112,6 +115,7 @@ async function deviceBody(system: SystemConfig, token: string) {
     rules,
     cameraNames,
     masks,
+    zones,
     detectSizes,
     quietHours: st.alerts.quietHours,
     cooldownSec: st.alerts.cooldownSec,
@@ -195,7 +199,7 @@ export function watchBridgeSync() {
   };
   if (useApp.getState().systems.some((s) => s.kind === 'hub')) syncHubsSoon(3000);
   const unsub = useApp.subscribe((st, prev) => {
-    if (st.alerts === prev.alerts && st.masks === prev.masks) return;
+    if (st.alerts === prev.alerts && st.alertZones === prev.alertZones) return;
     if (st.systems.some((s) => s.kind === 'hub')) syncHubsSoon(1500);
     if (st.alerts.mode !== 'instant' || !st.alerts.bridge) return;
     if (syncTimer) clearTimeout(syncTimer);

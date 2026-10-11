@@ -10,6 +10,7 @@ import type { LiveState } from '@/components/live/live-player';
 import { LiveView, useLive } from '@/components/live/live-view';
 import { useLinks } from '@/net/connection';
 import { nextTimeOfDay } from '@/alerts/rules';
+import { zoneSupportFor } from '@/alerts/zones';
 import { PtzPad } from '@/components/ptz-pad';
 import { T } from '@/components/ui/primitives';
 import { useApp } from '@/state/store';
@@ -190,6 +191,14 @@ export default function CameraScreen() {
               />
             )}
             {camera?.ptz && <Action icon="move.3d" label="Move camera" active={showPtz} onPress={() => setShowPtz((v) => !v)} />}
+            {camera && zoneSupportFor(adapter, camera) && (
+              <Action
+                icon="square.dashed"
+                label="Zones"
+                accessibilityLabel="Alert zones"
+                onPress={() => router.push({ pathname: '/settings/zones', params: { key } })}
+              />
+            )}
             <Action
               icon={isSnoozed ? 'bell.slash.fill' : 'bell'}
               label={isSnoozed ? `Muted till ${formatClock(snoozedUntil)}` : 'Snooze'}
@@ -277,17 +286,19 @@ function Action({
   label,
   onPress,
   active,
+  accessibilityLabel,
 }: {
   icon: React.ComponentProps<typeof SymbolView>['name'];
   label: string;
   onPress: () => void;
   active?: boolean;
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: !!active }}
       style={[styles.action, active && { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
       <SymbolView name={icon} tintColor="#fff" size={20} />
