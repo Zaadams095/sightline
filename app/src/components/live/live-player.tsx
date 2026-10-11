@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { msePlayerHtml } from '@/components/live/mse-player-html';
+import { useLiveStats } from '@/state/live-stats';
 import { usePalette } from '@/theme/use-palette';
 
 export type LiveState = 'connecting' | 'playing' | 'stalled' | 'error';
@@ -14,11 +15,15 @@ interface Props {
   fit?: 'contain' | 'cover';
   /** Still image shown until the first frame arrives (instant perceived load). */
   poster?: React.ReactNode;
+  /** For startup timing: camera label and when the user opened it (Date.now()). */
+  timingLabel?: string;
+  openedAt?: number;
   onState?: (s: LiveState) => void;
 }
 
 /** Low-latency live view via go2rtc MSE in a WKWebView. */
-export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onState }: Props) {
+export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onState, timingLabel, openedAt }: Props) {
+  const setStats = useLiveStats((s) => s.set);
   const palette = usePalette();
   const web = useRef<WebView>(null);
   const [state, setState] = useState<LiveState>('connecting');
@@ -63,7 +68,12 @@ export function LivePlayer({ wsUrl, muted = true, fit = 'contain', poster, onSta
         onMessage={(e) => {
           try {
             const msg = JSON.parse(e.nativeEvent.data) as { type: string; value: LiveState; detail?: string };
-            if (msg.type === 'state') {
+            if (msg.type === ('timing' as string) && openedAt && timingLabel) {
+              const m = JSON.parse(msg.value) as Record<string, number>;
+              const page = m.t0 - openedAt;
+              const at = (k: string) => (m[k] != null ? page + m[k] : undefined);
+              setStats({ camera: timingLabel, page, wsOpen: at('wsOpen'), codecs: at('codecs'), firstData: at('firstData'), playing: at('playing') });
+            } else if (msg.type === 'state') {
               setState(msg.value);
               setDetail(msg.detail);
               onState?.(msg.value);

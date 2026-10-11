@@ -25,8 +25,8 @@ export default function LiveScreen() {
   const setActive = useApp((s) => s.setActiveGridView);
   const tablet = width >= TABLET_MIN_WIDTH;
 
-  const open = useCallback((e: CameraEntry) => {
-    router.push({ pathname: '/camera/[key]', params: { key: e.camera.key } });
+  const open = useCallback((e: CameraEntry, poster?: string) => {
+    router.push({ pathname: '/camera/[key]', params: { key: e.camera.key, poster: poster ?? '' } });
   }, []);
 
   const header = (
@@ -92,7 +92,7 @@ function PhoneStack({
   columns: 1 | 2;
   gap: number;
   header: React.ReactElement;
-  onOpen: (e: CameraEntry) => void;
+  onOpen: (e: CameraEntry, poster?: string) => void;
   refreshing: boolean;
   onRefresh: () => void;
 }) {
@@ -124,7 +124,7 @@ function PhoneStack({
           active={visible.has(item.camera.key)}
           requestHeight={columns === 1 ? 540 : 300}
           style={{ width: tileW, height: tileW / item.camera.aspect }}
-          onPress={() => onOpen(item)}
+          onPress={(poster) => onOpen(item, poster)}
         />
       )}
     />

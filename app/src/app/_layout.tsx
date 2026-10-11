@@ -3,7 +3,9 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useSyncExternalStore } from 'react';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { WebView } from 'react-native-webview';
 
 import { watchBridgeSync } from '@/alerts/bridge';
 import { registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
@@ -70,6 +72,10 @@ export default function RootLayout() {
             <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />
           </Stack>
           <AppLockGate />
+          {/* Starts WebKit's web process at launch so the first live view doesn't pay for it. */}
+          <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} pointerEvents="none">
+            <WebView source={{ html: '<html><body></body></html>' }} />
+          </View>
         </ThemeProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

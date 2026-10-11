@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
@@ -18,7 +18,8 @@ interface Props {
   style?: ViewStyle;
   /** Pixel height to request; keeps bandwidth low for small tiles. */
   requestHeight?: number;
-  onPress?: () => void;
+  /** Called with the frame currently shown, so the next screen can display it instantly. */
+  onPress?: (posterUri?: string) => void;
   onLongPress?: () => void;
 }
 
@@ -40,6 +41,16 @@ export const CameraTile = memo(function CameraTile({
   const { radius, labelStyle } = useApp((s) => s.appearance);
   const [tick, setTick] = useState(0);
   const [shown, setShown] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  // Start resolving the live stream as soon as a finger lands, before the screen opens.
+  const prefetchLive = () => {
+    if (!adapter.capabilities.live) return;
+    void queryClient.prefetchQuery({
+      queryKey: ['live', camera.systemId, camera.id, true],
+      queryFn: () => adapter.liveStream(camera.id),
+      staleTime: Infinity,
+    });
+  };
 
   useEffect(() => {
     if (!active) return;
@@ -61,7 +72,8 @@ export const CameraTile = memo(function CameraTile({
   return (
     <View style={style}>
       <Pressable
-        onPress={onPress}
+        onPressIn={prefetchLive}
+        onPress={() => onPress?.(shown ?? undefined)}
         onLongPress={onLongPress}
         style={({ pressed }) => [
           styles.frame,
@@ -72,12 +84,13 @@ export const CameraTile = memo(function CameraTile({
             <LivePlayer wsUrl={live.data.uri} fit="cover" />
           </View>
         )}
-        {shown && <Image source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
+        {/* Memory cache: the visible image reuses the frame the hidden one just downloaded. */}
+        {shown && <Image source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} cachePolicy="memory" />}
         {next && next !== shown && (
           <Image
             source={{ uri: next }}
             style={[StyleSheet.absoluteFill, { opacity: 0 }]}
-            cachePolicy="none"
+            cachePolicy="memory"
             onLoad={() => setShown(next)}
           />
         )}

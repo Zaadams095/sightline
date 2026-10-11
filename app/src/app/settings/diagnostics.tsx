@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Field, Screen, T } from '@/components/ui/primitives';
 import { hasTunnelConfig, useLinks } from '@/net/connection';
+import { describeStartup, useLiveStats } from '@/state/live-stats';
 import { useApp } from '@/state/store';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
@@ -29,6 +30,7 @@ export default function Diagnostics() {
   const [address, setAddress] = useState(firstSystem?.endpoint.lanUrl ?? '');
   const [steps, setSteps] = useState<Step[]>([]);
   const [running, setRunning] = useState(false);
+  const lastLive = useLiveStats((s) => s.last);
 
   const run = async () => {
     setRunning(true);
@@ -101,7 +103,10 @@ export default function Diagnostics() {
     setRunning(false);
   };
 
-  const report = steps.map((s) => `${s.ok ? 'OK ' : 'ERR'} ${s.name}: ${s.detail}`).join('\n');
+  const report = [
+    ...steps.map((s) => `${s.ok ? 'OK ' : 'ERR'} ${s.name}: ${s.detail}`),
+    ...(lastLive ? ['', 'Last live view startup:', describeStartup(lastLive)] : []),
+  ].join('\n');
 
   return (
     <Screen>
@@ -124,7 +129,15 @@ export default function Diagnostics() {
           ))}
         </Card>
       )}
-      {steps.length > 0 && !running && (
+      {lastLive && (
+        <Card style={{ padding: space.md, gap: space.xs }}>
+          <T v="label">Last live view startup</T>
+          <Text selectable style={[styles.detail, { color: p.textMuted }]}>
+            {describeStartup(lastLive)}
+          </Text>
+        </Card>
+      )}
+      {(steps.length > 0 || lastLive) && !running && (
         <Button title="Copy results" kind="secondary" onPress={() => Clipboard.setStringAsync(report)} />
       )}
     </Screen>

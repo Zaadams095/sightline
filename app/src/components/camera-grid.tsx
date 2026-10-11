@@ -41,7 +41,7 @@ interface Props {
   entries: CameraEntry[];
   tiles: GridTile[];
   width: number;
-  onOpen: (e: CameraEntry) => void;
+  onOpen: (e: CameraEntry, poster?: string) => void;
 }
 
 /** Free-form iPad grid (tiles of any size), rendered with absolute positioning. */
@@ -67,7 +67,7 @@ export function CameraGrid({ entries, tiles, width, onOpen }: Props) {
               requestHeight={big ? 720 : 360}
               intervalMs={big ? 700 : 1200}
               style={{ position: 'absolute', ...rect }}
-              onPress={() => onOpen(e)}
+              onPress={(poster) => onOpen(e, poster)}
             />
           );
         })}

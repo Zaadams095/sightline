@@ -15,7 +15,8 @@ import { space } from '@/theme/tokens';
 import { formatRelative, labelFor, nowSec } from '@/util/format';
 
 export default function CameraScreen() {
-  const { key } = useLocalSearchParams<{ key: string }>();
+  const { key, poster: tilePoster } = useLocalSearchParams<{ key: string; poster?: string }>();
+  const [openedAt] = useState(() => Math.round(nowSec() * 1000));
   const [systemId, cameraId] = splitKey(key);
   const adapter = useAdapter(systemId);
   const insets = useSafeAreaInsets();
@@ -49,15 +50,23 @@ export default function CameraScreen() {
   if (!adapter) return <View style={styles.root} />;
 
   const videoH = landscape ? height : width / (camera?.aspect ?? 16 / 9);
+  // Show the frame the tile already had (instant, from memory), then a sharper one once loaded.
   const poster = (
-    <Image source={{ uri: adapter.snapshot(cameraId, { height: 720 }).uri }} style={StyleSheet.absoluteFill} contentFit="contain" />
+    <Image
+      source={{ uri: adapter.snapshot(cameraId, { height: 720 }).uri }}
+      placeholder={tilePoster ? { uri: tilePoster, cacheKey: tilePoster } : undefined}
+      placeholderContentFit="contain"
+      style={StyleSheet.absoluteFill}
+      contentFit="contain"
+      transition={150}
+    />
   );
 
   return (
     <View style={styles.root}>
       <View style={{ height: videoH, marginTop: landscape ? 0 : insets.top + 52 }}>
         {live.data ? (
-          <LivePlayer wsUrl={live.data.uri} muted={muted} poster={poster} />
+          <LivePlayer wsUrl={live.data.uri} muted={muted} poster={poster} timingLabel={camera?.name ?? cameraId} openedAt={openedAt} />
         ) : (
           <View style={StyleSheet.absoluteFill}>{poster}</View>
         )}

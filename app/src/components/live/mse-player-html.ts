@@ -17,6 +17,9 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
 <video id="v" playsinline autoplay ${opts.muted ? 'muted' : ''} disableremoteplayback></video>
 <script>
 (function(){
+  var t0 = Date.now(), marks = {};
+  // Startup timing (ms since the page loaded), reported once playback starts.
+  var mark = function(name){ if (marks[name] == null) marks[name] = Date.now() - t0; };
   var post = function(type, value, detail){
     try { window.ReactNativeWebView.postMessage(JSON.stringify({type:type, value:value, detail:detail})); } catch(e){}
   };
@@ -45,11 +48,12 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
       var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + ${JSON.stringify(wsPath)};
       ws = new WebSocket(url);
       ws.binaryType = 'arraybuffer';
-      ws.onopen = function(){ retry = 0; ws.send(JSON.stringify({type:'mse', value: supported()})); };
+      ws.onopen = function(){ mark('wsOpen'); retry = 0; ws.send(JSON.stringify({type:'mse', value: supported()})); };
       ws.onmessage = function(ev){
         if (typeof ev.data === 'string') {
           var msg = JSON.parse(ev.data);
           if (msg.type === 'mse') {
+            mark('codecs');
             sb = ms.addSourceBuffer(msg.value);
             sb.mode = 'segments';
             sb.addEventListener('updateend', pump);
@@ -58,6 +62,7 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
           }
           return;
         }
+        mark('firstData');
         queue.push(ev.data);
         pump();
       };
@@ -110,7 +115,12 @@ export function msePlayerHtml(wsPath: string, opts: { muted: boolean; fit: 'cont
     setTimeout(connect, delay);
   }
 
-  video.addEventListener('playing', function(){ post('state','playing'); });
+  video.addEventListener('playing', function(){
+    mark('playing');
+    marks.t0 = t0;
+    post('timing', JSON.stringify(marks));
+    post('state','playing');
+  });
   setInterval(function(){
     if (!closed && Date.now() - lastProgress > 6000) { lastProgress = Date.now(); reconnect(); }
   }, 2000);
