@@ -36,7 +36,14 @@ export function SyncedPip({ adapter, cameraId, name, winStart, winEnd, wall, pla
   });
   const segments = useMemo(() => clipSegments(segQuery.data ?? [], winStart, winEnd), [segQuery.data, winStart, winEnd]);
 
-  const source = adapter.playback?.(cameraId, winStart, winEnd).uri ?? null;
+  const playbackSource = useQuery({
+    queryKey: ['playback-source', adapter.config.id, cameraId, winStart, winEnd],
+    queryFn: () => adapter.playback!(cameraId, winStart, winEnd),
+    enabled: !!adapter.playback,
+    staleTime: Infinity,
+  });
+  // Picture-in-picture needs seekable recordings; stream-only systems skip it.
+  const source = playbackSource.data?.kind === 'vod' ? playbackSource.data.uri : null;
   const player = useVideoPlayer(source, (p) => {
     p.muted = true;
   });

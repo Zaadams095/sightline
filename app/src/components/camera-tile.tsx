@@ -1,9 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-import { LivePlayer } from '@/components/live/live-player';
+import { LiveView, prefetchLiveOptions, useLive } from '@/components/live/live-view';
 import { useApp } from '@/state/store';
 import type { CameraSystemAdapter, Camera } from '@/systems/types';
 import { usePalette } from '@/theme/use-palette';
@@ -45,11 +45,7 @@ export const CameraTile = memo(function CameraTile({
   // Start resolving the live stream as soon as a finger lands, before the screen opens.
   const prefetchLive = () => {
     if (!adapter.capabilities.live) return;
-    void queryClient.prefetchQuery({
-      queryKey: ['live', camera.systemId, camera.id, true],
-      queryFn: () => adapter.liveStream(camera.id),
-      staleTime: Infinity,
-    });
+    void queryClient.prefetchQuery(prefetchLiveOptions(adapter, camera.id));
   };
 
   useEffect(() => {
@@ -59,14 +55,9 @@ export const CameraTile = memo(function CameraTile({
   }, [active, intervalMs]);
 
   const base = adapter.snapshot(camera.id, { height: requestHeight }).uri;
-  // Cameras without a snapshot URL (plain RTSP) show a muted live stream while visible.
+  // Cameras without a snapshot URL show a muted low-res live stream while visible.
   const liveTile = !base && adapter.capabilities.live;
-  const live = useQuery({
-    queryKey: ['live', camera.systemId, camera.id],
-    queryFn: () => adapter.liveStream(camera.id, { quality: 'sub' }),
-    enabled: liveTile && active,
-    staleTime: Infinity,
-  });
+  const live = useLive(adapter, camera.id, 'sub', liveTile && active);
   const next = base ? `${base}${base.includes('?') ? '&' : '?'}t=${tick}` : null;
 
   return (
@@ -81,7 +72,7 @@ export const CameraTile = memo(function CameraTile({
         ]}>
         {liveTile && active && live.data && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <LivePlayer wsUrl={live.data.uri} fit="cover" />
+            <LiveView live={live.data} fit="cover" />
           </View>
         )}
         {/* Memory cache: the visible image reuses the frame the hidden one just downloaded. */}

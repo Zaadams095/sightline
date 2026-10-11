@@ -7,7 +7,8 @@ export interface TunnelStatus {
   tx: number;
 }
 
-export type AuthKind = '' | 'frigate' | 'basic';
+/** '' none · 'frigate' JWT login · 'basic' · 'http' auto Basic/Digest (most NVRs/cameras). */
+export type AuthKind = '' | 'frigate' | 'basic' | 'http';
 
 interface NativeWgTunnel {
   startTunnel(conf: string): Promise<void>;
@@ -19,6 +20,12 @@ interface NativeWgTunnel {
   probeError(hostport: string, viaTunnel: boolean, timeoutMs: number): Promise<string>;
   /** 'HTTP <status>' or the error (self-signed certs allowed). */
   httpCheck(url: string, viaTunnel: boolean, timeoutMs: number): Promise<string>;
+  /** JSON string[] of the phone's private /24 networks. */
+  localSubnets(): string;
+  /** JSON string[] of open "ip:port" in a /24. */
+  scanSubnet(cidr: string, ports: string, timeoutMs: number): Promise<string>;
+  /** JSON {status, server, auth, body, error} for brand fingerprinting. */
+  httpProbe(url: string, timeoutMs: number): Promise<string>;
   addRoute(
     target: string,
     viaTunnel: boolean,

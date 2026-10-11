@@ -128,7 +128,13 @@ export default function PlaybackScreen() {
     enabled: !!adapter?.listReview && neighborIds.length > 0,
   });
 
-  const source = adapter?.playback ? adapter.playback(cameraId, winStart, winEnd).uri : null;
+  const playbackSource = useQuery({
+    queryKey: ['playback-source', params.systemId, cameraId, winStart, winEnd],
+    queryFn: () => adapter!.playback!(cameraId, winStart, winEnd),
+    enabled: !!adapter?.playback,
+    staleTime: Infinity,
+  });
+  const source = playbackSource.data?.kind === 'vod' ? playbackSource.data.uri : null;
   const player = useVideoPlayer(source, (p) => {
     p.timeUpdateEventInterval = 0.25;
     p.muted = false;

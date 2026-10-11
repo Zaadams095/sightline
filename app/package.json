@@ -67,7 +67,8 @@
     "eas-build-pre-install": "bash scripts/build-tunnel-ios.sh",
     "typecheck": "tsc --noEmit",
     "preview": "expo start --go",
-    "preview:tunnel": "expo start --go --tunnel"
+    "preview:tunnel": "expo start --go --tunnel",
+    "test": "node --test --experimental-strip-types \"test/**/*.test.ts\""
   },
   "private": true
 }

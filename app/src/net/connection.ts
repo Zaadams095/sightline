@@ -50,7 +50,8 @@ function hostPort(url: string): string {
 
 function authKindFor(s: SystemConfig): AuthKind {
   if (s.kind === 'frigate') return 'frigate';
-  return s.username ? 'basic' : '';
+  // NVRs/cameras answer with Basic or Digest challenges; the gateway handles either.
+  return s.username ? 'http' : '';
 }
 
 export async function saveTunnelConfig(conf: string): Promise<string> {

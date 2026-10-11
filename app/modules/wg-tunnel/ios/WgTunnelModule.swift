@@ -38,6 +38,19 @@ public class WgTunnelModule: Module {
       WgtunnelHTTPCheck(url, viaTunnel, timeoutMs)
     }
 
+    // Local-network discovery for setup.
+    Function("localSubnets") { () -> String in
+      WgtunnelLocalSubnets()
+    }
+
+    AsyncFunction("scanSubnet") { (cidr: String, ports: String, timeoutMs: Int) -> String in
+      WgtunnelScanSubnet(cidr, ports, timeoutMs)
+    }
+
+    AsyncFunction("httpProbe") { (url: String, timeoutMs: Int) -> String in
+      WgtunnelHTTPProbe(url, timeoutMs)
+    }
+
     AsyncFunction("addRoute") {
       (target: String, viaTunnel: Bool, insecureTLS: Bool, authKind: String, user: String, pass: String) -> Int in
       var port: Int = 0

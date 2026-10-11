@@ -39,7 +39,8 @@ var (
 )
 
 // AddRoute starts a loopback proxy to target (e.g. "https://192.168.1.10:8971") and
-// returns its local port. authKind is "" (none), "frigate" (JWT login) or "basic".
+// returns its local port. authKind is "" (none), "frigate" (JWT login), "basic", or "http"
+// (answers Basic/Digest challenges automatically: Hikvision, Dahua, Amcrest, ONVIF...).
 func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, pass string) (int, error) {
 	u, err := url.Parse(target)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
@@ -59,7 +60,7 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 	}
 
 	proxy := &httputil.ReverseProxy{
-		Transport:     r.transport,
+		Transport:     proxyTransport(r.transport, authKind, user, pass),
 		FlushInterval: -1, // stream immediately (live video, websockets)
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(u)
@@ -68,7 +69,11 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 			// Frigate's CSRF / origin checks see a plain API client.
 			pr.Out.Header.Del("Origin")
 			pr.Out.Header.Del("Referer")
-			pr.Out.Header.Del("Cookie")
+			// Frigate auth is the gateway's Bearer token; other brands keep their own session
+			// cookies (UniFi, Blue Iris), which must pass through.
+			if authKind == "frigate" {
+				pr.Out.Header.Del("Cookie")
+			}
 			if pr.Out.Method != http.MethodGet && pr.Out.Method != http.MethodHead {
 				pr.Out.Header.Set("X-CSRF-TOKEN", "1")
 			}
@@ -87,7 +92,9 @@ func AddRoute(target string, viaTunnel bool, insecureTLS bool, authKind, user, p
 			if resp.StatusCode == http.StatusUnauthorized && authKind == "frigate" {
 				r.clearToken()
 			}
-			resp.Header.Del("Set-Cookie")
+			if authKind == "frigate" {
+				resp.Header.Del("Set-Cookie")
+			}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {

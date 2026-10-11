@@ -1,11 +1,14 @@
 /**
- * Every camera system (Frigate, Reolink, generic RTSP, ...) implements CameraSystemAdapter.
- * The UI checks `capabilities` and only renders features the system actually supports.
+ * Brand-neutral contract every camera system implements (see docs/PLATFORM.md).
+ * The UI checks `capabilities` and only renders features the system actually supports;
+ * nothing outside an adapter should know which brand it is talking to.
  */
 
 export type SystemKind =
+  | 'hub'
   | 'frigate'
   | 'rtsp'
+  | 'onvif'
   | 'reolink'
   | 'unifi-protect'
   | 'blue-iris'
@@ -32,7 +35,7 @@ export interface Endpoint {
   tunnelUrl?: string;
   /** Whether this system needs the WireGuard tunnel when off the home network. */
   useTunnel: boolean;
-  /** Skip TLS verification (self-signed certs on Frigate :8971). */
+  /** Skip TLS verification (most NVRs ship self-signed certificates). */
   allowSelfSigned?: boolean;
 }
 
@@ -43,8 +46,10 @@ export interface SystemConfig {
   name: string;
   endpoint: Endpoint;
   username?: string;
-  /** Generic RTSP only: manually entered cameras. */
+  /** IP cameras added by address/stream URL (no recorder). */
   manualCameras?: ManualCamera[];
+  /** Brand-specific extras from the setup form (e.g. channel count), as entered. */
+  extra?: Record<string, string>;
 }
 
 export interface ManualCamera {
@@ -58,14 +63,14 @@ export interface Camera {
   /** Globally unique: `${systemId}:${cameraName}` */
   key: string;
   systemId: string;
-  /** System-native camera identifier (Frigate camera name). */
+  /** System-native camera identifier (camera name, channel number, UUID…). */
   id: string;
   name: string;
   enabled: boolean;
   zones: string[];
   objects: string[];
   ptz: boolean;
-  /** Detection resolution (Frigate), used to normalize object boxes for masks. */
+  /** Detection resolution, used to normalize object boxes for masks (when known). */
   detectSize?: { width: number; height: number };
   /** Aspect ratio width/height, used for layout before video arrives. */
   aspect: number;
@@ -81,11 +86,11 @@ export interface ReviewItem {
   endTime: number | null; // null while in progress
   severity: Severity;
   objects: string[];
-  /** Recognized identities (Frigate face names / known plates). Empty = nobody recognized. */
+  /** Recognized identities (face names / known plates). Empty = nobody recognized. */
   subLabels: string[];
   zones: string[];
   reviewed: boolean;
-  /** Underlying object-event IDs (Frigate detections). */
+  /** Underlying object-event IDs, where the system tracks them separately. */
   detections?: string[];
   /** Absolute or proxy-relative URL for a still image. */
   thumbnailUrl?: string;
@@ -139,6 +144,22 @@ export interface MediaSource {
   headers?: Record<string, string>;
 }
 
+/** How a camera's live video is delivered. 'rtsp' is restreamed in-app (see systems/live.ts). */
+export type LiveSource =
+  | { kind: 'mse'; wsUrl: string }
+  | { kind: 'rtsp'; url: string }
+  | { kind: 'hls'; uri: string }
+  | { kind: 'mjpeg'; uri: string };
+
+/**
+ * Recorded video for a time window.
+ * - vod: seekable HLS of the whole window (gaps removed; mapped with recordingSegments()).
+ * - stream: plays forward from the window start; seeking asks for a new window.
+ */
+export type PlaybackSource =
+  | { kind: 'vod'; uri: string }
+  | { kind: 'stream'; source: LiveSource | { kind: 'file'; uri: string } };
+
 export interface CameraSystemAdapter {
   readonly config: SystemConfig;
   readonly capabilities: SystemCapabilities;
@@ -148,7 +169,7 @@ export interface CameraSystemAdapter {
   listCameras(): Promise<Camera[]>;
 
   snapshot(cameraId: string, opts?: { height?: number }): MediaSource;
-  liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<MediaSource>;
+  liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<LiveSource>;
 
   listReview?(q: {
     cameras?: string[];
@@ -159,7 +180,7 @@ export interface CameraSystemAdapter {
   }): Promise<ReviewItem[]>;
   markReviewed?(ids: string[]): Promise<void>;
   recordingSegments?(cameraId: string, after: number, before: number): Promise<RecordingSegment[]>;
-  playback?(cameraId: string, start: number, end: number): MediaSource;
+  playback?(cameraId: string, start: number, end: number): Promise<PlaybackSource>;
   /** Motion intensity (0–100) bucketed by scaleSec. */
   motionActivity?(cameraId: string, after: number, before: number, scaleSec: number): Promise<MotionPoint[]>;
   /** Local dates (YYYY-MM-DD) that have recordings, newest first. */
@@ -185,25 +206,3 @@ export interface CameraSystemAdapter {
 
   dispose(): void;
 }
-
-export interface SystemDescriptor {
-  kind: SystemKind;
-  label: string;
-  blurb: string;
-  available: boolean;
-  defaultPort?: number;
-}
-
-export const SYSTEMS: SystemDescriptor[] = [
-  { kind: 'frigate', label: 'Frigate', blurb: 'Open-source NVR with AI detection', available: true, defaultPort: 8971 },
-  { kind: 'rtsp', label: 'IP camera (RTSP)', blurb: 'Any camera by stream URL. Live view only', available: true },
-  { kind: 'reolink', label: 'Reolink', blurb: 'Reolink NVRs and cameras', available: false },
-  { kind: 'unifi-protect', label: 'UniFi Protect', blurb: 'Ubiquiti NVR, UNVR, Cloud Key', available: false },
-  { kind: 'blue-iris', label: 'Blue Iris', blurb: 'Windows VMS', available: false },
-  { kind: 'scrypted', label: 'Scrypted', blurb: 'Home video platform', available: false },
-  { kind: 'hikvision', label: 'Hikvision', blurb: 'Hikvision NVRs and cameras', available: false },
-  { kind: 'dahua', label: 'Dahua / Amcrest', blurb: 'Dahua and Amcrest NVRs', available: false },
-  { kind: 'zoneminder', label: 'ZoneMinder', blurb: 'Open-source VMS', available: false },
-  { kind: 'shinobi', label: 'Shinobi', blurb: 'Open-source VMS', available: false },
-  { kind: 'agent-dvr', label: 'Agent DVR', blurb: 'iSpy Agent DVR', available: false },
-];

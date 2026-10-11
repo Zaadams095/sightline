@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { ActionSheetIOS, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { LivePlayer } from '@/components/live/live-player';
+import { LiveView, useLive } from '@/components/live/live-view';
 import { nextTimeOfDay } from '@/alerts/rules';
 import { PtzPad } from '@/components/ptz-pad';
 import { T } from '@/components/ui/primitives';
@@ -49,12 +49,7 @@ export default function CameraScreen() {
   });
   const camera = cameras.data?.find((c) => c.id === cameraId);
 
-  const live = useQuery({
-    queryKey: ['live', systemId, cameraId, !!adapter],
-    queryFn: () => adapter!.liveStream(cameraId),
-    enabled: !!adapter?.capabilities.live,
-    staleTime: Infinity,
-  });
+  const live = useLive(adapter, cameraId);
 
   const recent = useQuery({
     queryKey: ['review', systemId, cameraId],
@@ -81,7 +76,7 @@ export default function CameraScreen() {
     <View style={styles.root}>
       <View style={{ height: videoH, marginTop: landscape ? 0 : insets.top + 52 }}>
         {live.data ? (
-          <LivePlayer wsUrl={live.data.uri} muted={muted} poster={poster} timingLabel={camera?.name ?? cameraId} openedAt={openedAt} />
+          <LiveView live={live.data} muted={muted} poster={poster} timingLabel={camera?.name ?? cameraId} openedAt={openedAt} />
         ) : (
           <View style={StyleSheet.absoluteFill}>{poster}</View>
         )}

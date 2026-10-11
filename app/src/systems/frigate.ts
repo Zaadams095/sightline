@@ -1,5 +1,7 @@
 import type {
   HealthReport,
+  LiveSource,
+  PlaybackSource,
   MotionPoint,
   SearchHit,
   Camera,
@@ -143,10 +145,10 @@ export class FrigateAdapter implements CameraSystemAdapter {
   }
 
   /** WebSocket URL for go2rtc MSE through Frigate's nginx; played by the live player. */
-  async liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<MediaSource> {
+  async liveStream(cameraId: string, opts?: { quality?: 'main' | 'sub' }): Promise<LiveSource> {
     const src = await this.streamName(cameraId, opts?.quality);
     const wsBase = this.baseUrl.replace(/^http/, 'ws');
-    return { uri: `${wsBase}/live/mse/api/ws?src=${encodeURIComponent(src)}` };
+    return { kind: 'mse', wsUrl: `${wsBase}/live/mse/api/ws?src=${encodeURIComponent(src)}` };
   }
 
   async listReview(q: {
@@ -208,10 +210,10 @@ export class FrigateAdapter implements CameraSystemAdapter {
   }
 
   /** fMP4 HLS VOD; capped by Frigate at 2 h per playlist. */
-  playback(cameraId: string, start: number, end: number): MediaSource {
+  async playback(cameraId: string, start: number, end: number): Promise<PlaybackSource> {
     const s = Math.floor(start);
     const e = Math.min(Math.ceil(end), s + 7200);
-    return { uri: `${this.baseUrl}/vod/${encodeURIComponent(cameraId)}/start/${s}/end/${e}/master.m3u8` };
+    return { kind: 'vod', uri: `${this.baseUrl}/vod/${encodeURIComponent(cameraId)}/start/${s}/end/${e}/master.m3u8` };
   }
 
   clip(cameraId: string, start: number, end: number): MediaSource {
