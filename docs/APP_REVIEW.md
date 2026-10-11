@@ -1,5 +1,10 @@
 # App Review notes
 
+> The full, submit-ready review notes (Demo mode plus WireGuard / guideline 5.4, Always
+> location, background modes and permissions) are in
+> [APP_STORE_LISTING.md → App Review information](APP_STORE_LISTING.md#13-app-review-information),
+> with the rest of the App Store listing. This file keeps the Demo mode details.
+
 Sightline shows video from security cameras and recorders that people already own and run at
 home (Frigate, Reolink, Hikvision, Dahua/Amcrest/Lorex, UniFi Protect, Blue Iris, ONVIF
 cameras and more). It has no accounts and no cloud service, so a reviewer without cameras can't
@@ -48,5 +53,5 @@ network and no setup.
   view, and its move controls slide the visible window (`systems/demo/ptz.ts`).
 - Sample cameras are excluded from background alert checks and the doorbell watcher, so they
   never notify unless the user taps "Send one".
-- Two-way talk and siren/deterrent aren't in the app yet for any brand, so Demo mode doesn't
+- Two-way talk and lights/siren need a real camera that supports them, so Demo mode doesn't
   show them (showing a feature that real cameras can't use would mislead review).

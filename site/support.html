@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sightline Support</title>
+<meta name="description" content="Help with Sightline: connecting your cameras, watching away from home, alerts, the Sightline Hub, and how to reach us.">
+<meta name="theme-color" content="#080A14">
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="" width="34" height="34">Sightline</a>
+    <nav><a href="./">Home</a><a href="support.html" aria-current="page">Support</a><a href="privacy.html">Privacy</a></nav>
+  </div>
+</header>
+
+<main class="wrap">
+<h1>Support</h1>
+<p class="lead">Answers to common questions. Still stuck? <a href="#contact">Write to us</a>, we read every message.</p>
+
+<h2 id="start">Getting started</h2>
+<details open>
+  <summary>How do I add my cameras?</summary>
+  <ol>
+    <li>Open Sightline and tap <strong>Find my cameras</strong>. Make sure your phone is on your home Wi-Fi. Sightline looks around and lists the cameras and recorders it finds.</li>
+    <li>Or tap <strong>Pick your camera brand</strong>. Sightline walks you through it, one step at a time, for that brand.</li>
+    <li>Type the username and password for the camera or recorder (the same ones you use in its own app or web page). Sightline tests the connection and shows your cameras.</li>
+  </ol>
+  <p>No cameras handy? Tap <strong>Try it with sample cameras</strong> to explore every feature with built-in samples.</p>
+</details>
+<details>
+  <summary>I don’t know what brand my camera is</summary>
+  <p>Tap <strong>Pick your camera brand → I don’t know</strong>. Sightline asks a few simple questions (what app you use, what the box looks like) and points you to the right guide. You can also tap <strong>Find cameras on my Wi-Fi</strong>.</p>
+</details>
+<details>
+  <summary>Someone shared their cameras with me</summary>
+  <p>Open the invite link they sent you on your iPhone, or in Sightline tap <strong>Someone shared cameras with me</strong> and scan the QR code. You don’t need an account.</p>
+</details>
+
+<h2 id="address">Finding your camera’s address</h2>
+<details>
+  <summary>Where do I find the address (IP address)?</summary>
+  <p>Usually you don’t need to: <strong>Find my cameras</strong> fills it in. If you do need it:</p>
+  <ul>
+    <li><strong>In your camera’s own app:</strong> open the camera’s settings and look for “Device info”, “Network” or “Local network”. The address looks like <code>192.168.1.40</code>.</li>
+    <li><strong>In your router’s app or web page:</strong> look for “Connected devices” or “Clients”. The camera or recorder is usually listed by brand name.</li>
+    <li><strong>On a recorder (NVR/DVR) with a screen:</strong> Menu → Network → TCP/IP.</li>
+  </ul>
+  <p>Tip: in your router, give the camera a “reserved” or “fixed” address so it doesn’t change.</p>
+</details>
+<details>
+  <summary>It says it couldn’t connect</summary>
+  <ul>
+    <li>Check that your phone is on the <strong>same Wi-Fi</strong> as the cameras (not a guest network).</li>
+    <li>Make sure Sightline is allowed to use the local network: iOS Settings → Privacy &amp; Security → Local Network → Sightline.</li>
+    <li>Check the username and password in the camera’s own app or web page.</li>
+    <li>Some cameras need a setting turned on first, such as a “Camera Account” (TP-Link Tapo), “RTSP” or “ONVIF”. The brand guide in the app tells you where.</li>
+    <li>Tap <strong>Check the connection step by step</strong> to see exactly which step fails.</li>
+  </ul>
+</details>
+
+<h2 id="away">Watching when you’re away from home</h2>
+<details>
+  <summary>What are my options?</summary>
+  <ul>
+    <li><strong>Sightline Hub (easiest).</strong> A free add-on for Home Assistant, or a small app for a NAS or always-on computer. One sign-in to a free Tailscale account from the Hub’s setup page gives you a private, encrypted link that works anywhere. No router changes. <a href="#hub">Set up a Hub</a>.</li>
+    <li><strong>Your own VPN.</strong> If your router (or a server at home) already runs WireGuard, add it in <strong>Settings → Away from home</strong>. Sightline has WireGuard built in and only uses it for your cameras.</li>
+    <li><strong>Your camera system’s own remote access</strong>, where it offers a private way in.</li>
+  </ul>
+  <p>We recommend never opening camera ports to the internet on your router.</p>
+</details>
+
+<h2 id="alerts">Alerts</h2>
+<details>
+  <summary>My alerts are late</summary>
+  <p>Without a Hub, Sightline checks for new events in the background, and iPhone decides when that runs. Alerts can be several minutes late, and iOS runs background checks less often when Low Power Mode is on or when you rarely open the app.</p>
+  <p>For alerts within a second, set up a <a href="#hub">Sightline Hub</a> and choose <strong>Instant Alerts</strong>.</p>
+</details>
+<details>
+  <summary>I’m not getting alerts at all</summary>
+  <ul>
+    <li>iOS Settings → Notifications → Sightline: <strong>Allow Notifications</strong> is on.</li>
+    <li>Check Focus / Do Not Disturb. Doorbell rings are “Time Sensitive” and can break through if you allow it.</li>
+    <li>In Sightline, <strong>Settings → Alerts</strong>: check which cameras and what kind of activity alert you, quiet hours and snoozes.</li>
+    <li>If you use <strong>Home &amp; Away</strong>, alerts are quieter while you’re home.</li>
+    <li>Look at <strong>Settings → What Sightline learned</strong>: if you tapped “Not important” on similar alerts, Sightline may be keeping quiet. You can undo it there.</li>
+    <li>With a Hub: make sure the Hub is running and your recorder is sending it events (the Hub’s setup page shows this).</li>
+    <li>Background App Refresh must be on for built-in alerts: iOS Settings → General → Background App Refresh.</li>
+  </ul>
+</details>
+
+<h2 id="brands">Which cameras work?</h2>
+<details open>
+  <summary>Works with</summary>
+  <p>Recorders and camera software: Frigate, Reolink (cameras, NVRs and Home Hub), Hikvision and its other brands (Annke, HiWatch, LTS), Dahua and its other brands (Amcrest, Lorex recorders, Imou), Swann recorders (most models), UniFi Protect, Blue Iris, Agent DVR, Shinobi, ZoneMinder and Scrypted.</p>
+  <p>Cameras: any ONVIF camera, and any camera with a stream link (<code>rtsp://…</code>), including TP-Link Tapo (plug-in models), Wyze Cam v3 and Pan v3 (with the RTSP firmware), eufy (with “NAS (RTSP)”) and EZVIZ.</p>
+  <p class="muted">Brand names belong to their owners. Sightline isn’t made by or affiliated with any camera maker.</p>
+</details>
+<details>
+  <summary>Why doesn’t Ring, Nest, Arlo, Blink or SimpliSafe work?</summary>
+  <p>These cameras only send video to their maker’s cloud. They don’t offer a way for other apps to watch them on your own network, so no private app can show them. That’s the maker’s choice, not something Sightline can change. Keep their app for those cameras; Sightline works alongside it.</p>
+  <p>Battery-powered cameras from other brands often can’t stream continuously for the same reason (for example Reolink battery cameras on their own, or Tapo battery models). A hub or recorder from the same brand often fixes this, such as the Reolink Home Hub.</p>
+</details>
+
+<h2 id="hub">Sightline Hub</h2>
+<details>
+  <summary>What is the Hub and do I need it?</summary>
+  <p>You don’t need it to watch your cameras. The Hub is free, optional software that runs in your home on an always-on device. It adds instant alerts, easy remote access, and sharing with family (with access you can limit or revoke). It runs on your hardware; nothing goes to us.</p>
+</details>
+<details>
+  <summary>How do I set it up?</summary>
+  <ul>
+    <li><strong>Home Assistant (easiest):</strong> Settings → Add-ons → Add-on Store → ⋮ → Repositories, add <code>https://github.com/Zaadams095/sightline</code>, then install <strong>Sightline Hub</strong>, start it and open its Web UI.</li>
+    <li><strong>Docker, Unraid, Synology:</strong> follow the <a href="https://github.com/Zaadams095/sightline/blob/main/bridge/README.md">Hub install guide</a>.</li>
+    <li>Then in Sightline tap <strong>I have a Sightline Hub</strong> (or Settings → Add a recorder or camera) and scan the QR code on the Hub’s setup page. Pairing works on your home Wi-Fi.</li>
+  </ul>
+  <!-- Update the GitHub links above if the Hub moves to its own public repository. -->
+</details>
+
+<h2 id="report">Sending us a problem report</h2>
+<details open>
+  <summary>How do I send a report?</summary>
+  <ol>
+    <li>In Sightline, go to <strong>Settings → Help → Report a problem</strong>.</li>
+    <li>Tell us what happened. You can read the whole report before it’s sent. It lists the camera brand, the feature and the kind of error, and never includes addresses, passwords, names, pictures or video.</li>
+    <li>Tap <strong>Email report</strong> (or <strong>Share as file</strong>). Nothing leaves your phone until you tap Send.</li>
+  </ol>
+  <p>If the app shows “Something went wrong”, tap <strong>Send report</strong> on that screen. To also share crash data through Apple, see Settings → Privacy → Crash data.</p>
+</details>
+
+<h2 id="privacy">Privacy</h2>
+<p>Sightline has no account and no servers of ours. Your video goes from your cameras to your phone. Read the full <a href="privacy.html">privacy policy</a>.</p>
+
+<h2 id="contact">Contact</h2>
+<!-- SUPPORT_EMAIL: replace support@REPLACE-ME with the real support address (also in privacy.html, index.html and app/src/config.ts). -->
+<p>Email <a href="mailto:support@REPLACE-ME">support@REPLACE-ME</a>. Please include your iPhone model and iOS version, your camera or recorder brand, and what you tried. We usually answer within a few days. Sightline is made by one person, Zach Adams.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Zach Adams. Sightline is not affiliated with any camera maker.</span>
+    <span><a href="./">Home</a> · <a href="support.html">Support</a> · <a href="privacy.html">Privacy</a></span>
+  </div>
+</footer>
+</body>
+</html>

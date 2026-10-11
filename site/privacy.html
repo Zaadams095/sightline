@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy – Sightline</title>
+<meta name="description" content="Sightline has no account and no servers of ours. Your video goes from your cameras to your phone. Here is exactly what leaves your phone, and when.">
+<meta name="theme-color" content="#080A14">
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="" width="34" height="34">Sightline</a>
+    <nav><a href="./">Home</a><a href="support.html">Support</a><a href="privacy.html" aria-current="page">Privacy</a></nav>
+  </div>
+</header>
+
+<main class="wrap">
+<h1>Privacy Policy</h1>
+<p class="muted">Effective date: October 11, 2026</p>
+
+<div class="callout">
+  <p><strong>Short version: Sightline has no account and no servers of ours. Your video goes from your cameras to your phone.</strong></p>
+  <ul>
+    <li>We (the developer) never receive your video, pictures, camera passwords, location or anything else about you. We have no database of users, no analytics and no ads.</li>
+    <li>Sightline talks directly to the cameras and recorders you own, at home or over your own private connection.</li>
+    <li>A few features you choose to turn on need outside help: the optional <strong>Sightline Hub</strong> (which runs on your own hardware), <strong>instant alerts</strong> (delivered through Expo, Apple and Google), <strong>remote access</strong> (through your own Tailscale account) and <strong>iCloud backup</strong> (your own iCloud). This policy says exactly what each one sends and where.</li>
+  </ul>
+</div>
+
+<p>This policy covers the Sightline app for iPhone, iPad, Apple Watch and Apple TV, and the optional Sightline Hub software. Sightline is made by Zach Adams, an individual developer in the United States (“we”, “us”).</p>
+
+<nav aria-label="Contents">
+<ol class="toc">
+  <li><a href="#what">What Sightline is</a></li>
+  <li><a href="#cameras">Your cameras and recorders</a></li>
+  <li><a href="#hub">Sightline Hub</a></li>
+  <li><a href="#alerts">Alerts</a></li>
+  <li><a href="#location">Location (Home &amp; Away)</a></li>
+  <li><a href="#ondevice">On-device intelligence</a></li>
+  <li><a href="#backup">iCloud backup and new phones</a></li>
+  <li><a href="#permissions">Permissions</a></li>
+  <li><a href="#reports">Problem reports and crash data</a></li>
+  <li><a href="#updates">App updates</a></li>
+  <li><a href="#sharing">Sharing clips and exports</a></li>
+  <li><a href="#watch">Apple Watch and Apple TV</a></li>
+  <li><a href="#others">Who else is involved</a></li>
+  <li><a href="#rights">Your rights and deleting data</a></li>
+  <li><a href="#children">Children</a></li>
+  <li><a href="#security">Security</a></li>
+  <li><a href="#changes">Changes</a></li>
+  <li><a href="#contact">Contact</a></li>
+</ol>
+</nav>
+
+<h2 id="what">1. What Sightline is</h2>
+<p>Sightline is a viewer for security cameras and recorders you already own: Frigate, Reolink, Hikvision, Dahua, Amcrest, Lorex, UniFi Protect, Blue Iris, Agent DVR, Shinobi, ZoneMinder, Scrypted, ONVIF cameras, plain stream (RTSP) cameras and more.</p>
+<p>There is no Sightline account, no sign-in and no Sightline cloud. We don’t run servers that your video, pictures or settings pass through.</p>
+
+<h2 id="cameras">2. Your cameras and recorders</h2>
+<ul>
+  <li>The app connects <strong>directly</strong> to the cameras and recorders you add, using the address, username and password you type in (or that the app finds on your home Wi-Fi when you ask it to look).</li>
+  <li>At home, this happens on your local network. Away from home, it happens over the connection you choose: your own WireGuard VPN (built into the app; you supply the settings from your own router or server) or your own Sightline Hub’s remote link (see section 3).</li>
+  <li>Live video, recordings, snapshots and events go from your equipment to your phone. They are not sent to us.</li>
+  <li>Camera passwords are kept in the iPhone’s Keychain (Apple’s encrypted password storage).</li>
+  <li>Some cameras and recorders only offer unencrypted connections (plain HTTP or RTSP) on the home network. That’s how the device itself works; on Wi-Fi you control it stays inside your home. For connections from outside your home, use the built-in WireGuard or the Hub’s encrypted remote link.</li>
+</ul>
+
+<h2 id="hub">3. Sightline Hub (optional, runs on your own hardware)</h2>
+<p>The Sightline Hub is free software you can install on your own computer, Home Assistant box, NAS or similar. It runs <strong>in your home, under your control</strong>. We can’t see it or reach it.</p>
+<p><strong>What your phone sends to your Hub</strong> when you pair it (and again when your alert settings change):</p>
+<ul>
+  <li>a push address for this phone (an “Expo push token”; see section 4) and an ID derived from it;</li>
+  <li>your alert settings: which cameras and objects to alert on, quiet hours, snoozes, cool-down, health alerts, package alerts, activity zones you drew, and camera names;</li>
+  <li>your time zone and the app’s language (so the Hub can write notifications in it);</li>
+  <li>whether you are <strong>home or away</strong> (yes/no only), if you use Home &amp; Away;</li>
+  <li>what Sightline learned from your “Not important” / “Always tell me” taps (camera, kinds of objects, zones, time of day, and similar features of those alerts) and whether the rain/wind/headlights check is on;</li>
+  <li>your <strong>family check-ins</strong> (names, cameras, times, and a phone number if you added one for “Call”);</li>
+  <li>if you set a home location for Home &amp; Away: that location <strong>rounded to about 10 km (0.1°)</strong>, used only to work out sunrise and sunset for the false-alarm check. Your exact location is never sent to the Hub;</li>
+  <li>a key the Hub uses to encrypt alert thumbnails so only your phone can open them.</li>
+</ul>
+<p><strong>What the Hub keeps:</strong> the above, the camera systems you add on its setup page (address, username, password), the people you share with (the name you gave them, what they can see, when it expires, and scrambled copies of their access keys), a short history of doorbell rings, and a technical error log. It’s all stored on your Hub’s disk.</p>
+<p><strong>Sharing.</strong> If you invite someone, the Hub creates a one-time invite code that you send yourself (Messages, email, etc.). The Hub decides what each person can see and you can revoke access at any time in <strong>Settings → Sharing</strong>.</p>
+<p><strong>Remote access (optional).</strong> If you turn on remote access, the Hub joins <strong>your own Tailscale account</strong> and gets a public web address (<code>https://&lt;name&gt;.&lt;your-tailnet&gt;.ts.net</code>, using Tailscale Funnel). Connections to it are encrypted end to end to your Hub (HTTPS that ends on the Hub). Tailscale’s servers help make the connection and may relay encrypted traffic they can’t read. Tailscale sees connection information such as IP addresses and the device names in your Tailscale account, under <a href="https://tailscale.com/privacy-policy">Tailscale’s privacy policy</a>. Because the address is public, it shows up in public certificate logs, as all HTTPS sites do; the Hub only answers people holding a valid access key.</p>
+<p><strong>Downloading the Hub.</strong> The Hub is distributed through GitHub (source code and container images). GitHub sees ordinary download information (such as IP address) when your Hub computer downloads it, under <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub’s privacy statement</a>.</p>
+
+<h2 id="alerts">4. Alerts</h2>
+<h3>Built-in alerts (no Hub)</h3>
+<p>Without a Hub, the app checks your cameras for new events <strong>from your phone</strong>, when iOS lets it run in the background, and shows a notification that is created on the phone itself (a “local notification”). Nothing is sent to anyone.</p>
+
+<h3>Instant alerts (with a Hub)</h3>
+<p>With a Hub, alerts arrive in seconds through the push systems built into phones:</p>
+<pre>Your Hub → Expo Push Service → Apple Push Notification service (iPhone)
+                             / Google Firebase Cloud Messaging (Android) → your phone</pre>
+<ul>
+  <li><strong>Registering for push.</strong> When you connect a Hub, the app asks iOS for this phone’s push token and sends it, with a random installation ID, the app’s identifier and our Expo project ID, to <strong>Expo</strong> (650 Industries, Inc.), which returns the Expo push token your Hub uses.</li>
+  <li><strong>What’s in an alert:</strong> the notification text (for example “Person at Front Door”, or a doorbell, package, camera-offline or check-in message), which includes <strong>your camera’s name, the kinds of things detected, zone names, and names of people or plates your recorder recognized</strong> (if your recorder does that), plus technical details the app needs to open the right recording (system and camera IDs, event ID and time).</li>
+  <li><strong>The picture is encrypted.</strong> Alerts can carry a tiny thumbnail. Your Hub encrypts it (AES-256-GCM) with a key only your phone has, so Expo, Apple and Google can’t see it. When your phone is at home it may load a bigger picture directly from your Hub instead.</li>
+  <li><strong>The text is not end-to-end encrypted.</strong> Like nearly every app’s notifications, the alert text passes through Expo and Apple (or Google) in readable form so they can deliver it. It’s encrypted in transit (HTTPS/TLS). Expo says it does not keep notification contents longer than needed to hand them to Apple or Google; it keeps a delivery receipt (success or error, not the content) for about a day (<a href="https://docs.expo.dev/push-notifications/faq/">Expo push FAQ</a>, <a href="https://expo.dev/privacy">Expo privacy policy</a>). Apple and Google process notifications to deliver them under their own privacy policies.</li>
+  <li><strong>Turning it off:</strong> remove the Hub in <strong>Settings → Systems</strong> (tap it, then remove; the app tells the Hub to forget this phone), or turn off notifications for Sightline in iOS Settings.</li>
+</ul>
+<h3>Learning, check-ins and packages</h3>
+<p>“Fewer false alarms that learn”, family check-ins and package alerts are worked out on your phone and, if you have one, on your Hub. Nothing goes to us.</p>
+
+<h2 id="location">5. Location (Home &amp; Away)</h2>
+<p>Home &amp; Away is <strong>off unless you turn it on</strong>. When you do:</p>
+<ul>
+  <li>The app records your current position once as “home” and asks iOS to tell it when you arrive or leave (iOS region monitoring, which needs “Always” location permission). Sightline does not track where you go; it only learns “crossed the home boundary”.</li>
+  <li>Your <strong>exact home location is stored on your phone</strong>. If iCloud backup is on, it’s also included in your Sightline settings in <strong>your own iCloud</strong> (section 7), so a new phone can set itself up.</li>
+  <li>Your <strong>Hub</strong> (if you have one) receives only <strong>home or away</strong> (yes/no), and your home location <strong>rounded to about 10 km</strong> for sunrise/sunset times (section 3).</li>
+  <li>Turn it off in <strong>Settings → Home &amp; Away → Turn off Home/Away</strong>, and revoke location access in iOS Settings → Privacy &amp; Security → Location Services → Sightline.</li>
+</ul>
+
+<h2 id="ondevice">6. On-device intelligence</h2>
+<p>These features run entirely on your iPhone. Nothing is sent to us, to Apple or anyone else for them.</p>
+<ul>
+  <li><strong>Ask</strong> (questions like “When did the package arrive?”) uses Apple Intelligence’s on-device model (Apple’s Foundation Models framework) on supported iPhones, and otherwise simple on-phone matching.</li>
+  <li><strong>Speaking a question</strong> uses Apple’s speech recognition <strong>in on-device mode only</strong>. If your phone can’t recognize your language on the device, Sightline won’t use speech rather than send your voice to a server.</li>
+  <li><strong>Siri and HomePod.</strong> If you ask Siri about your cameras, Sightline answers from a summary of recent events kept on your phone. Siri itself (your spoken request and the answer it speaks) is handled by Apple under <a href="https://www.apple.com/legal/privacy/data/en/ask-siri-dictation/">Apple’s Siri privacy terms</a>.</li>
+  <li><strong>Share with neighbors</strong> blurs faces and license plates on your phone before you share.</li>
+</ul>
+<h3>Familiar faces &amp; vehicles (optional, biometric-related)</h3>
+<p>This feature is <strong>off unless you turn it on</strong> in <strong>Settings → People &amp; vehicles</strong>. When on:</p>
+<ul>
+  <li>Sightline looks at pictures from your own cameras <strong>on your iPhone</strong> using Apple’s built-in Vision framework, and stores a numerical “feature print” of faces and vehicles plus a small cropped picture, together with the names you give them. It may also read license plates.</li>
+  <li>This data is used only to put a name on an alert or recording (“Dad at Front Door”). It is <strong>never sent to us, to your Hub, or to any other service</strong>, never used for advertising or any other purpose, and never sold or shared.</li>
+  <li>It is <strong>not</strong> included in Sightline’s iCloud settings backup or the phone-to-phone transfer. (If you back up your whole iPhone to iCloud or a computer, iOS includes app data in that device backup, which Apple stores encrypted under your Apple Account.)</li>
+  <li><strong>Delete it any time:</strong> <strong>Settings → People &amp; vehicles → Forget all faces &amp; vehicles</strong>, or remove a single person. Deleting the app deletes it too.</li>
+  <li>Your cameras may capture people who haven’t agreed to be recognized, such as visitors. Only enroll people where you are allowed to, and check the laws where you live (some places, such as Illinois, Texas and Washington in the US and the EU/UK, have rules about biometric data). Sightline keeps this data on your phone and lets you remove it at any time.</li>
+</ul>
+<p>Some recorders (for example Frigate) can recognize faces or plates themselves. That happens on your recorder, under its settings; Sightline only shows the names your recorder reports, and those names can appear in instant alert text (section 4).</p>
+
+<h2 id="backup">7. iCloud backup and moving to a new phone</h2>
+<ul>
+  <li><strong>iCloud backup</strong> (Settings → Backup &amp; new phone) saves your Sightline settings to <strong>your own iCloud</strong>: your recorders and cameras (addresses and names, <strong>not</strong> passwords), camera order, groups and layouts, alert rules and zones, Home &amp; Away settings including your home location, map layout, appearance, saved-clip bookmarks, what Sightline learned from your feedback, and family check-ins. Camera passwords, Hub access keys and VPN keys go to <strong>iCloud Keychain</strong>, Apple’s end-to-end encrypted password sync.</li>
+  <li>It never includes video, the picture behind your map, familiar faces &amp; vehicles, or the app lock PIN. We can’t read your iCloud. Apple stores it under <a href="https://www.apple.com/legal/privacy/">Apple’s privacy policy</a>.</li>
+  <li>To remove it: <strong>Settings → Backup &amp; new phone → Delete iCloud backup</strong>.</li>
+  <li><strong>Phone-to-phone transfer</strong> sends the same settings and passwords straight from your old phone to your new one on your home Wi-Fi, encrypted with a one-time key shown in a QR code. It works once and expires after 5 minutes. A <strong>backup file</strong> is the same, encrypted with a passcode you pick, and goes wherever you send it (AirDrop, Files).</li>
+</ul>
+
+<h2 id="permissions">8. Permissions</h2>
+<p>Sightline asks only when a feature needs it. You can say no and still use the rest of the app.</p>
+<div class="table"><table>
+  <thead><tr><th>Permission</th><th>Used for</th></tr></thead>
+  <tbody>
+    <tr><td>Local Network</td><td>Finding and talking to your cameras at home.</td></tr>
+    <tr><td>Camera</td><td>Scanning a QR code (Hub pairing, invites, VPN setup, Apple TV, phone transfer). Nothing is recorded or saved.</td></tr>
+    <tr><td>Microphone</td><td>Only while you hold <strong>Talk</strong> (speak through a camera or doorbell; the audio goes to that camera, directly or through your Hub) or while you speak a question to <strong>Ask</strong> (recognized on the phone).</td></tr>
+    <tr><td>Speech Recognition</td><td>Turning a spoken question into text, on the device only.</td></tr>
+    <tr><td>Photos</td><td>Choosing a floor-plan or map picture, or photos of people and vehicles to recognize. Only the pictures you pick.</td></tr>
+    <tr><td>Notifications</td><td>Alerts.</td></tr>
+    <tr><td>Location (When In Use / Always)</td><td>Home &amp; Away only (section 5).</td></tr>
+    <tr><td>Face ID / Touch ID</td><td>Unlocking the app if you turn on the app lock. Apple handles this; Sightline only gets “yes” or “no”.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="reports">9. Problem reports and crash data</h2>
+<ul>
+  <li><strong>Report a problem</strong> (Settings → Help → Report a problem) builds a report on your phone that you can read in full first. It contains your note, app and iOS versions, and a log of recent errors with <strong>brand, feature and error type only</strong>; addresses, names, usernames, passwords, tokens, pictures and video are removed. It’s sent <strong>only if you tap Send</strong>, by your own email app or the share sheet, to us at the address in section 18. We use it only to fix the problem and reply to you, and delete it when we no longer need it for that. You can turn off “Include diagnostics automatically” to send only your note.</li>
+  <li><strong>Apple’s crash reports.</strong> If you turned on “Share With App Developers” in iOS Settings → Privacy &amp; Security → Analytics &amp; Improvements, Apple sends us anonymous crash logs and usage statistics under <a href="https://www.apple.com/legal/privacy/data/en/analytics/">Apple’s analytics policy</a>. That’s Apple’s setting, not ours; Sightline adds no crash or analytics SDK.</li>
+</ul>
+
+<h2 id="updates">10. App updates (Expo / EAS Update)</h2>
+<p>Sightline can receive small fixes without a full App Store update, using Expo’s EAS Update service. When the app starts, it asks Expo’s update server (<code>u.expo.dev</code>) whether a newer version is available. That request includes technical information: the platform, the app version and update channel, the current update ID, and a <strong>random installation ID</strong> (Expo’s “EAS client ID”, not linked to you, your Apple Account or your device’s hardware). Expo uses it to deliver updates and to count how many installations are updated. Like any internet request, it reveals your IP address to Expo. It contains nothing about your cameras. See <a href="https://expo.dev/privacy">Expo’s privacy policy</a>.</p>
+
+<h2 id="sharing">11. Sharing clips and exports</h2>
+<p>When you share a clip or picture, export evidence for police or insurance, or share with neighbors, Sightline makes the file on your phone and opens the iOS share sheet. Where it goes next is your choice (Messages, Mail, AirDrop, Files…), under that service’s terms.</p>
+
+<h2 id="watch">12. Apple Watch and Apple TV</h2>
+<ul>
+  <li>The <strong>Apple Watch</strong> app gets your camera list, recent alerts and Hub access from your iPhone through Apple’s watch connection, and loads snapshots directly from your Hub.</li>
+  <li>The <strong>Apple TV</strong> app is paired on your home network by scanning a QR code with your iPhone; the iPhone hands it its own Hub invite. No cloud is involved.</li>
+</ul>
+
+<h2 id="others">13. Who else is involved</h2>
+<p>We don’t sell, rent or share personal information, and we don’t use it for advertising. Sightline contains <strong>no advertising, no analytics and no tracking</strong> SDKs, and does not track you across other companies’ apps or websites. The services below receive only what they need to do their part (delivering a notification, an update or a connection) and are bound by their own privacy terms. We use services that protect data at least as well as this policy describes, and we don’t give them anything else.</p>
+<div class="table"><table>
+  <thead><tr><th>Service</th><th>When</th><th>What they process</th><th>Their policy</th></tr></thead>
+  <tbody>
+    <tr><td>Apple</td><td>Push delivery (APNs), iCloud backup and Keychain, Siri, App Store, optional analytics</td><td>Notification text and tokens; your encrypted iCloud data; standard App Store data</td><td><a href="https://www.apple.com/legal/privacy/">apple.com/legal/privacy</a></td></tr>
+    <tr><td>Expo (650 Industries, Inc.)</td><td>Instant alerts (only with a Hub); app updates</td><td>Push tokens and notification text in transit; update checks with a random installation ID</td><td><a href="https://expo.dev/privacy">expo.dev/privacy</a></td></tr>
+    <tr><td>Google</td><td>Instant alerts on Android (FCM)</td><td>Notification text and tokens in transit</td><td><a href="https://policies.google.com/privacy">policies.google.com/privacy</a></td></tr>
+    <tr><td>Tailscale</td><td>Hub remote access, only if you turn it on, with your own account</td><td>Connection data, encrypted traffic</td><td><a href="https://tailscale.com/privacy-policy">tailscale.com/privacy-policy</a></td></tr>
+    <tr><td>GitHub</td><td>Downloading the Hub; opening setup guides</td><td>Ordinary web request data</td><td><a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub privacy statement</a></td></tr>
+    <tr><td>Your camera maker</td><td>Always (you connect to their device)</td><td>Whatever their device does; Sightline doesn’t change it</td><td>Your camera maker’s policy</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="rights">14. Your rights, retention and deleting your data</h2>
+<ul>
+  <li><strong>We don’t hold your data.</strong> Because there’s no account and no Sightline server, we have no copy of your video, settings, location or face data to look up, correct, export or delete. The only personal information we may receive is a problem report or email you choose to send us.</li>
+  <li><strong>Where your data lives and how to delete it:</strong>
+    <ul>
+      <li><em>On your phone:</em> delete the app (or remove individual cameras, faces and settings in the app).</li>
+      <li><em>In your iCloud:</em> Settings → Backup &amp; new phone → Delete iCloud backup (or manage it in iOS Settings → [your name] → iCloud).</li>
+      <li><em>On your Hub:</em> remove the Hub from the app (the Hub forgets this phone), revoke guests in Settings → Sharing, or uninstall the Hub and delete its data folder.</li>
+      <li><em>Problem reports you emailed us:</em> ask us to delete them (section 18).</li>
+    </ul>
+  </li>
+  <li><strong>Retention.</strong> We keep problem reports and support emails only as long as needed to help you and then delete them. We keep nothing else, because we receive nothing else.</li>
+  <li><strong>Your rights.</strong> Depending on where you live (for example under the EU/UK GDPR, the California CCPA/CPRA, or other US state privacy laws), you may have rights to access, correct, delete or port your personal information, and to object to or limit its use. Contact us to use them; we’ll answer within the time the law requires. We don’t sell or “share” personal information for cross-context behavioral advertising, and we don’t use sensitive personal information to infer characteristics about you. We won’t treat you differently for using your rights. If you’re in the EU/UK, our legal basis for handling a problem report is your consent and our legitimate interest in fixing the app, and you may complain to your data protection authority.</li>
+</ul>
+
+<h2 id="children">15. Children</h2>
+<p>Sightline is not directed to children under 13 (or the minimum age in your country), and we don’t knowingly collect personal information from children. If you believe a child has sent us information, contact us and we’ll delete it.</p>
+
+<h2 id="security">16. Security</h2>
+<p>Passwords and keys are kept in the iOS Keychain. Remote connections use WireGuard or HTTPS. Alert pictures are end-to-end encrypted. Hub access uses random per-phone keys stored only as scrambled copies (hashes), and pairing works only on your home network. The app can be locked with Face ID, Touch ID or a PIN. No system is perfectly secure: keep your cameras, recorder, Hub and phone updated and use strong passwords.</p>
+
+<h2 id="changes">17. Changes to this policy</h2>
+<p>If we change this policy, we’ll update the effective date above and post the new version at the same address. If a change affects what leaves your phone, we’ll also say so in the app’s release notes.</p>
+
+<h2 id="contact">18. Contact</h2>
+<p>Zach Adams, developer of Sightline (United States)<br>
+<!-- SUPPORT_EMAIL: replace support@REPLACE-ME below (and in support.html, index.html) with the real support address. Also set SUPPORT_EMAIL in app/src/config.ts. -->
+Email: <a href="mailto:support@REPLACE-ME">support@REPLACE-ME</a></p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Zach Adams. Sightline is not affiliated with any camera maker.</span>
+    <span><a href="./">Home</a> · <a href="support.html">Support</a> · <a href="privacy.html">Privacy</a></span>
+  </div>
+</footer>
+</body>
+</html>
