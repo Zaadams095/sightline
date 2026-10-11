@@ -81,6 +81,7 @@ export default function RootLayout() {
             <Stack.Screen name="clip" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="doorbell" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
             <Stack.Screen name="timelapse" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="ask" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
             <Stack.Screen name="settings/alerts" options={{ title: 'Alerts' }} />
             <Stack.Screen name="settings/vpn" options={{ title: 'Away from home' }} />
