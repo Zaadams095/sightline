@@ -54,6 +54,11 @@ export interface AlertSettings {
    * unless everyone recognized in it is on this list; unrecognized = always alerts.
    */
   quietFor: string[];
+  /**
+   * Recognized names that always alert ("alert me when the dog walker arrives"), even when
+   * the camera's object/zone filters wouldn't. Optional: settings from older versions lack it.
+   */
+  alwaysFor?: string[];
   /** Camera key -> unix seconds until which that camera is muted. */
   snoozed: Record<string, number>;
   health: { enabled: boolean; storagePct: number };

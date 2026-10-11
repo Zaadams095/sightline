@@ -8,9 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PackagesCard } from '@/components/review/packages-card';
 import { SavedPanel } from '@/components/review/saved-panel';
 import { SearchPanel } from '@/components/review/search-panel';
+import { StoryRow } from '@/components/stories/story-row';
 import { Button, Chip, T } from '@/components/ui/primitives';
+import { useFamiliarItems } from '@/familiar/use-familiar';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';
+import { groupStories, storyOf, type Story } from '@/stories/group';
 import { useFeatureSupport } from '@/systems/caps';
 import { getAdapter, useAllCameras } from '@/systems/registry';
 import type { ReviewItem, Severity } from '@/systems/types';
@@ -20,6 +23,8 @@ import { formatClock, formatDay, titleFor } from '@/util/format';
 
 type Filter = 'all' | Severity;
 type Mode = 'events' | 'search' | 'saved';
+/** A list row: one event, or a story across cameras (the "Stories" filter). */
+type ListRow = { kind: 'event'; item: ReviewItem } | { kind: 'story'; story: Story<ReviewItem> };
 
 export default function ReviewScreen() {
   const p = usePalette();
@@ -35,6 +40,8 @@ export default function ReviewScreen() {
   const [filter, setFilter] = useState<Filter>('alert');
   const [unreviewedOnly, setUnreviewedOnly] = useState(false);
   const [camera, setCamera] = useState<string | null>(null);
+  const [storiesOnly, setStoriesOnly] = useState(false);
+  const cameraMap = useApp((s) => s.cameraMap);
 
   const reviewable = systems.filter((s) => {
     const a = getAdapter(s, links[s.id]);
@@ -61,17 +68,26 @@ export default function ReviewScreen() {
 
   const names = useMemo(() => new Map(entries.map((e) => [e.camera.key, e.camera.name])), [entries]);
 
+  // On-device familiar names merged in (and a few new events looked at while this is open).
+  const allItems = useFamiliarItems(query.data?.items, { scan: true });
+  const stories = useMemo(() => groupStories(allItems, cameraMap), [allItems, cameraMap]);
+
   const sections = useMemo(() => {
-    const items = (query.data?.items ?? []).filter(
-      (r) => (!unreviewedOnly || !r.reviewed) && (!camera || `${r.systemId}:${r.cameraId}` === camera),
-    );
-    const byDay = new Map<string, ReviewItem[]>();
-    for (const r of items) {
-      const day = formatDay(r.startTime);
-      byDay.set(day, [...(byDay.get(day) ?? []), r]);
+    const byDay = new Map<string, ListRow[]>();
+    const add = (t: number, row: ListRow) => {
+      const day = formatDay(t);
+      byDay.set(day, [...(byDay.get(day) ?? []), row]);
+    };
+    if (storiesOnly) {
+      for (const s of stories) if (!camera || s.cameras.includes(camera)) add(s.start, { kind: 'story', story: s });
+    } else {
+      const items = allItems.filter(
+        (r) => (!unreviewedOnly || !r.reviewed) && (!camera || `${r.systemId}:${r.cameraId}` === camera),
+      );
+      for (const r of items) add(r.startTime, { kind: 'event', item: r });
     }
     return [...byDay].map(([title, data]) => ({ title, data }));
-  }, [query.data, unreviewedOnly, camera]);
+  }, [allItems, stories, storiesOnly, unreviewedOnly, camera]);
 
   const open = (r: ReviewItem) => {
     const s = systems.find((x) => x.id === r.systemId);
@@ -125,7 +141,7 @@ export default function ReviewScreen() {
     <SectionList
       style={{ backgroundColor: p.bg }}
       sections={sections}
-      keyExtractor={(r) => `${r.systemId}:${r.id}`}
+      keyExtractor={(r) => (r.kind === 'story' ? `story:${r.story.id}` : `${r.item.systemId}:${r.item.id}`)}
       stickySectionHeadersEnabled
       contentContainerStyle={{ paddingBottom: 120 }}
       refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />}
@@ -141,6 +157,12 @@ export default function ReviewScreen() {
             <Chip label="Other motion" selected={filter === 'detection'} onPress={() => setFilter('detection')} />
             <Chip label="Everything" selected={filter === 'all'} onPress={() => setFilter('all')} />
             <Chip label="Not seen yet" selected={unreviewedOnly} onPress={() => setUnreviewedOnly((v) => !v)} />
+            <Chip
+              label={stories.length ? `Stories (${stories.length})` : 'Stories'}
+              selected={storiesOnly}
+              onPress={() => setStoriesOnly((v) => !v)}
+              accessibilityLabel="Stories: activity that moved across several cameras"
+            />
           </ScrollView>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             <Chip label="All cameras" selected={!camera} onPress={() => setCamera(null)} />
@@ -152,6 +174,7 @@ export default function ReviewScreen() {
       }
       ListEmptyComponent={
         <ReviewEmpty
+          storiesOnly={storiesOnly}
           loading={query.isLoading}
           failed={query.data?.failed ?? []}
           hasReviewable={reviewable.length > 0}
@@ -166,7 +189,13 @@ export default function ReviewScreen() {
           </T>
         </View>
       )}
-      renderItem={({ item }) => (
+      renderItem={({ item: row }) => {
+        if (row.kind === 'story') {
+          return <StoryRow story={row.story} nameOf={(k) => names.get(k) ?? k.slice(k.indexOf(':') + 1)} />;
+        }
+        const item = row.item;
+        const story = storyOf(stories, item.systemId, item.id);
+        return (
         <Pressable onPress={() => open(item)} style={({ pressed }) => [styles.item, pressed && { backgroundColor: p.surface }]}>
           <View style={[styles.thumbWrap, { borderRadius: Math.min(radius, 12), backgroundColor: p.surface }]}>
             {item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
@@ -186,22 +215,30 @@ export default function ReviewScreen() {
                 {item.zones.join(', ')}
               </T>
             )}
+            {story && (
+              <T v="caption" color={p.accent} numberOfLines={1}>
+                Part of a story across {story.cameras.length} cameras
+              </T>
+            )}
           </View>
           {item.severity === 'alert' && <View style={[styles.sev, { backgroundColor: p.danger }]} />}
         </Pressable>
-      )}
+        );
+      }}
     />
   );
 }
 
 /** Explains why there's nothing to show, and what to do about it. */
 function ReviewEmpty({
+  storiesOnly,
   loading,
   failed,
   hasReviewable,
   hasSystems,
   anyConnected,
 }: {
+  storiesOnly?: boolean;
   loading: boolean;
   failed: string[];
   hasReviewable: boolean;
@@ -228,6 +265,9 @@ function ReviewEmpty({
     title = 'Live view only';
     body = 'Your cameras are connected for live view. To look back at what happened, add the recorder or software that records them.';
     action = { label: 'Add a recorder', onPress: () => router.push('/onboarding') };
+  } else if (storiesOnly) {
+    title = 'No stories yet';
+    body = 'When someone moves past several cameras, it shows up here as one story. Placing your cameras on the Map tab makes stories more accurate.';
   }
   return (
     <View style={styles.empty}>

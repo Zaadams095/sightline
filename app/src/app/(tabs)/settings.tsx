@@ -110,6 +110,10 @@ export default function SettingsScreen() {
         )}
       </Section>
 
+      <Section title="Recognition">
+        <Row label="People & vehicles" detail="Familiar faces and cars, recognized on this iPhone" onPress={() => router.push('/people')} last />
+      </Section>
+
       <Section title="Privacy">
         <Row label="App lock" detail="Face ID or a PIN to open the app" onPress={() => router.push('/settings/security')} last />
       </Section>

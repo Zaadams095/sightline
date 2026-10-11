@@ -3,7 +3,8 @@ module.exports = (config) => ({
   type: 'notification-service',
   name: 'NotificationService',
   deploymentTarget: '17.1',
-  frameworks: ['CryptoKit'],
+  // Vision: on-device familiar-face / plate recognition on the attached picture (FamiliarMatcher.swift).
+  frameworks: ['CryptoKit', 'Vision'],
   entitlements: {
     // Same App Group as the app, used to share the bridge secret through the keychain.
     'com.apple.security.application-groups': [...new Set(config.ios.entitlements['com.apple.security.application-groups'])],
