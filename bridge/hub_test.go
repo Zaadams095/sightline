@@ -445,6 +445,9 @@ func TestRedeemIsOneTime(t *testing.T) {
 	if !strings.HasPrefix(created.Invite.Link, "sightline://invite?") || !strings.Contains(created.Invite.Link, "code="+created.Invite.Code) {
 		t.Errorf("invite link = %s", created.Invite.Link)
 	}
+	if !strings.HasPrefix(created.Invite.QR, "data:image/png;base64,") {
+		t.Error("invite QR missing")
+	}
 	if strings.Contains(created.Invite.Link, "slh_") {
 		t.Error("invite link must not carry a long-lived token")
 	}

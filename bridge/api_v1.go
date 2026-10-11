@@ -203,6 +203,8 @@ type inviteView struct {
 	Link      string `json:"link"`
 	WebLink   string `json:"webLink,omitempty"`
 	ExpiresAt int64  `json:"expiresAt"`
+	// QR is a data:image/png URL of Link, so the app can show it without a QR library.
+	QR string `json:"qr"`
 }
 
 func (h *hub) invite(r *http.Request, code string, g *grant) inviteView {
@@ -214,6 +216,7 @@ func (h *hub) invite(r *http.Request, code string, g *grant) inviteView {
 	if len(g.Invites) > 0 {
 		inv.ExpiresAt = g.Invites[len(g.Invites)-1].ExpiresAt
 	}
+	inv.QR = string(qrDataURL(inv.Link))
 	return inv
 }
 

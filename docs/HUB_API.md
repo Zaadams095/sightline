@@ -176,8 +176,9 @@ These require an owner or full grant.
 ← 201 {"grant": {…}, "invite": {"code": "ABCDE-FGHJK",
         "link": "sightline://invite?code=ABCDE-FGHJK&lan=…&name=Home&url=https%3A%2F%2F…",
         "webLink": "https://sightline-hub.tail1234.ts.net/invite?code=ABCDE-FGHJK",
-        "expiresAt": 1760604800}}
+        "expiresAt": 1760604800, "qr": "data:image/png;base64,…"}}
 ```
+`qr` is a PNG of `link`, so the app can show it without bundling a QR library.
 - If omitted, `cameras` defaults to `"all"`. `recordings` defaults by role: full `all`, household `all`, temporary `{now, expiresAt}`, live `none`.
 - The invite never contains a token.
 - `webLink` (only when remote access is on) is a landing page with an "Open in Sightline" button, for people who don't have the app yet.
