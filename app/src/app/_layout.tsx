@@ -9,6 +9,7 @@ import { WebView } from 'react-native-webview';
 
 import { watchBridgeSync } from '@/alerts/bridge';
 import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
+import { startDoorbellWatch } from '@/alerts/doorbell';
 import { startLifecycle } from '@/net/connection';
 import { resumeHomeAway } from '@/presence/geofence';
 import { AppLockGate } from '@/security/app-lock';
@@ -40,10 +41,12 @@ export default function RootLayout() {
     const launchTimer = setTimeout(() => void handleLaunchNotification(), 300);
     const stopBridge = watchBridgeSync();
     const stopLifecycle = startLifecycle(() => useApp.getState().systems);
+    const stopDoorbell = startDoorbellWatch();
     return () => {
       clearTimeout(launchTimer);
       stopBridge();
       stopLifecycle();
+      stopDoorbell();
     };
   }, [hydrated]);
 
@@ -66,6 +69,8 @@ export default function RootLayout() {
             <Stack.Screen name="camera/[key]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="playback" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="clip" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="doorbell" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
+            <Stack.Screen name="timelapse" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
             <Stack.Screen name="settings/alerts" options={{ title: 'Notifications' }} />
             <Stack.Screen name="settings/vpn" options={{ title: 'VPN' }} />

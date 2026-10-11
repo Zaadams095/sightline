@@ -16,14 +16,15 @@ import { space } from '@/theme/tokens';
 import { formatClock, formatRelative, nowSec, titleFor } from '@/util/format';
 
 export default function CameraScreen() {
-  const { key, poster: tilePoster } = useLocalSearchParams<{ key: string; poster?: string }>();
+  const { key, poster: tilePoster, unmuted } = useLocalSearchParams<{ key: string; poster?: string; unmuted?: string }>();
   const [openedAt] = useState(() => Math.round(nowSec() * 1000));
   const [systemId, cameraId] = splitKey(key);
   const adapter = useAdapter(systemId);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
-  const [muted, setMuted] = useState(true);
+  // Answering a doorbell opens with sound on.
+  const [muted, setMuted] = useState(unmuted !== '1');
   const [showPtz, setShowPtz] = useState(false);
   const radius = useApp((s) => s.appearance.radius);
   const snoozedUntil = useApp((s) => s.alerts.snoozed[key] ?? 0);
@@ -103,6 +104,13 @@ export default function CameraScreen() {
                     params: { systemId, cameraId, start: String(Math.floor(nowSec() - 600)) },
                   })
                 }
+              />
+            )}
+            {adapter.playback && (
+              <Action
+                icon="timelapse"
+                label="Timelapse"
+                onPress={() => router.push({ pathname: '/timelapse', params: { systemId, cameraId } })}
               />
             )}
             {camera?.ptz && <Action icon="move.3d" label="PTZ" active={showPtz} onPress={() => setShowPtz((v) => !v)} />}

@@ -420,12 +420,26 @@ export default function PlaybackScreen() {
           <Ctl icon="plus.magnifyingglass" small onPress={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} />
         </View>
         <View style={styles.footerRow}>
-{!streamMode && (
-          <Pressable onPress={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])} style={styles.pill}>
-            <T v="label" color="#fff">
-              {speed}×
-            </T>
-          </Pressable>
+          {!streamMode && (
+            <Pressable onPress={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])} style={styles.pill}>
+              <T v="label" color="#fff">
+                {speed}×
+              </T>
+            </Pressable>
+          )}
+          {adapter?.playback && (
+            <Pressable
+              onPress={() => {
+                player.pause();
+                setStreamStopped(true);
+                router.push({ pathname: '/timelapse', params: { systemId: params.systemId, cameraId, day: String(dayStart) } });
+              }}
+              style={[styles.pill, styles.pillRow]}>
+              <SymbolView name="timelapse" tintColor="#fff" size={13} />
+              <T v="label" color="#fff">
+                Timelapse
+              </T>
+            </Pressable>
           )}
           {neighborIds.length > 0 && (
             <Pressable onPress={() => setShowPip((v) => !v)} style={styles.pill}>
@@ -488,4 +502,5 @@ const styles = StyleSheet.create({
   ctlBig: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.16)' },
   footerRow: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
   pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.12)' },
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });
