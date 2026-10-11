@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { formatClock, formatDay } from '@/util/format';

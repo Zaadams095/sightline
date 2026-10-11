@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +9,7 @@ import { SyncedPip } from '@/components/playback/synced-pip';
 import { StepPlayer } from '@/components/stories/step-player';
 import { placedSteps, StoryMap } from '@/components/stories/story-map';
 import { T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { withFamiliarNames } from '@/familiar/recognize';
 import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';

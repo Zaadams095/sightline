@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WelcomeBack } from '@/components/backup/welcome-back';
 import { offerSampleAlert } from '@/components/demo-banner';
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { CATALOG, type Category, type SystemDescriptor } from '@/systems/catalog';

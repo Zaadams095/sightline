@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View, type ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +8,7 @@ import { CameraTile } from '@/components/camera-tile';
 import { ConnectionBadge } from '@/components/connection-badge';
 import { DemoBanner } from '@/components/demo-banner';
 import { Button, IconButton, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { useLinks } from '@/net/connection';
 import { useApp } from '@/state/store';

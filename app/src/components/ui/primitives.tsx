@@ -1,5 +1,4 @@
 import * as Haptics from 'expo-haptics';
-import { SymbolView } from 'expo-symbols';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SymbolView } from '@/components/ui/symbol';
 import { fmtTime } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import { useLargeText, useTextBoost } from '@/theme/text-scale';

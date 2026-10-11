@@ -1,0 +1,91 @@
+import { SymbolView as ExpoSymbolView, type AndroidSymbol, type SFSymbol, type SymbolViewProps } from 'expo-symbols';
+
+/**
+ * expo-symbols draws SF Symbols on iOS and Material Symbols on Android, but only when given a
+ * Material name too; an SF name alone draws nothing on Android. The app names icons the iOS
+ * way, so this maps each SF Symbol it uses to the closest Material Symbol. Use this
+ * `SymbolView` instead of expo-symbols' (same props). An unmapped name falls back to a
+ * neutral dot rather than an empty space; add new icons here when you use them.
+ */
+export const MATERIAL: Partial<Record<SFSymbol, AndroidSymbol>> = {
+  'arrow.counterclockwise': 'replay',
+  'arrow.up.forward.square': 'open_in_new',
+  'backward.end.fill': 'skip_previous',
+  bell: 'notifications',
+  'bell.fill': 'notifications_active',
+  'bell.slash.fill': 'notifications_off',
+  camera: 'photo_camera',
+  'checkmark.circle.fill': 'check_circle',
+  'checkmark.seal.fill': 'verified',
+  'chevron.down': 'expand_more',
+  'chevron.left': 'chevron_left',
+  'chevron.right': 'chevron_right',
+  'chevron.up': 'expand_less',
+  'clock.arrow.circlepath': 'history',
+  cloud: 'cloud',
+  'exclamationmark.circle.fill': 'error',
+  'externaldrive.connected.to.line.below': 'dns',
+  faceid: 'face',
+  'figure.walk': 'directions_walk',
+  'forward.end.fill': 'skip_next',
+  'forward.fill': 'fast_forward',
+  'gearshape': 'settings',
+  'gearshape.fill': 'settings',
+  'gobackward.10': 'replay_10',
+  'goforward.10': 'forward_10',
+  grid: 'grid_view',
+  'hand.thumbsdown': 'thumb_down',
+  'hand.thumbsdown.fill': 'thumb_down',
+  'hand.thumbsup': 'thumb_up',
+  'hand.thumbsup.fill': 'thumb_up',
+  'heart.text.square': 'monitor_heart',
+  'icloud.and.arrow.down': 'cloud_download',
+  'iphone.and.arrow.forward': 'phone_android',
+  'light.beacon.max.fill': 'emergency',
+  lightbulb: 'lightbulb',
+  'lightbulb.max.fill': 'lightbulb',
+  'lock.fill': 'lock',
+  'lock.shield': 'security',
+  map: 'map',
+  'map.fill': 'map',
+  'mic.fill': 'mic',
+  'minus.circle': 'do_not_disturb_on',
+  'minus.magnifyingglass': 'zoom_out',
+  'move.3d': 'open_with',
+  'pause.fill': 'pause',
+  'play.circle.fill': 'play_circle',
+  'play.fill': 'play_arrow',
+  plus: 'add',
+  'plus.circle': 'add_circle',
+  'plus.magnifyingglass': 'zoom_in',
+  'qrcode.viewfinder': 'qr_code_scanner',
+  'questionmark.circle': 'help',
+  'rectangle.on.rectangle': 'filter_none',
+  ring: 'doorbell',
+  'server.rack': 'dns',
+  'shippingbox.fill': 'package_2',
+  sparkles: 'auto_awesome',
+  'speaker.slash.fill': 'volume_off',
+  'speaker.wave.2.fill': 'volume_up',
+  'square.and.arrow.up': 'share',
+  'square.dashed': 'crop_free',
+  star: 'star',
+  'star.fill': 'star',
+  stop: 'stop',
+  'stop.circle.fill': 'stop_circle',
+  timelapse: 'timelapse',
+  touchid: 'fingerprint',
+  video: 'videocam',
+  'video.badge.plus': 'video_call',
+  'video.fill': 'videocam',
+  'video.slash': 'videocam_off',
+  waveform: 'graphic_eq',
+  xmark: 'close',
+  'xmark.circle.fill': 'cancel',
+};
+
+export type { SFSymbol };
+
+export function SymbolView({ name, ...props }: Omit<SymbolViewProps, 'name'> & { name: SFSymbol }) {
+  return <ExpoSymbolView name={{ ios: name, android: MATERIAL[name] ?? 'circle', web: MATERIAL[name] ?? 'circle' }} {...props} />;
+}

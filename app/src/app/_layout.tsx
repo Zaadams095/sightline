@@ -17,6 +17,7 @@ import { installCrashHandlers } from '@/diagnostics/log';
 import '@/i18n/device';
 import { useT } from '@/i18n/use-t';
 import { BrandIntro } from '@/components/brand-intro';
+import { DialogHost } from '@/components/ui/action-sheet';
 import { startLiveActivities } from '@/alerts/live-activity';
 import { startLifecycle } from '@/net/connection';
 import { resumeHomeAway } from '@/presence/geofence';
@@ -133,6 +134,8 @@ export default function RootLayout() {
             {/* sightline://tv?… (the QR code on the Apple TV app) connects the TV to a Hub. */}
             <Stack.Screen name="tv" options={{ title: t.home.nav.connectTv }} />
           </Stack>
+          {/* Android's action sheets and text prompts (iOS uses its own). */}
+          <DialogHost />
           <BrandIntro ready={hydrated} />
           <AppLockGate />
           {/* Starts WebKit's web process at launch so the first live view doesn't pay for it. */}

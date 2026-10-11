@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChoiceRow } from '@/components/guide/parts';
 import { Field, Screen, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { GROUP_TITLES, GUIDES, searchGuides, type BrandGuide, type GuideGroup } from '@/systems/guides';
 import { useLargeText } from '@/theme/text-scale';

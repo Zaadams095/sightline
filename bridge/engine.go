@@ -44,7 +44,10 @@ type device struct {
 	Timezone  string `json:"timezone"`
 	// Lang is the app's language for push text ("en", "es", "fr", "de", "pt-BR"; i18n.go).
 	// Older apps don't send it: English.
-	Lang        string            `json:"lang,omitempty"`
+	Lang string `json:"lang,omitempty"`
+	// Platform is "ios" or "android": it decides the push's shape (push.go forDevice).
+	// Older apps don't send it: they're all iPhones.
+	Platform    string            `json:"platform,omitempty"`
 	DefaultRule rule              `json:"defaultRule"`
 	Rules       map[string]rule   `json:"rules"` // keyed by camera ID
 	CameraNames map[string]string `json:"cameraNames"`
@@ -366,18 +369,21 @@ func buildMessage(d device, r backend.Event) pushMessage {
 	m.MutableContent = true
 	m.CategoryID = "camera-alert" // long-press snooze actions, registered by the app
 	// Same titles as the app's built-in alerts (rules.ts notificationTitle, packages-notify.ts).
+	channel := channelAlerts
 	switch {
 	case isDoorbell(r):
 		m.Title = tr(lang, "alert.doorbell", name)
 		m.CategoryID = "doorbell-ring" // "Watch" action; tapping opens the full-screen call
 		m.InterruptionLevel = "time-sensitive"
 		m.Data["kind"] = "doorbell"
+		channel = channelDoorbell
 	case isPackage(r):
 		m.Title = tr(lang, "alert.package", name)
 		m.Data["kind"] = "package"
+		channel = channelPackages
 	}
 	addAlertFeatures(m.Data, r)
-	return m
+	return forDevice(d, m, channel)
 }
 
 func contains(list []string, v string) bool {

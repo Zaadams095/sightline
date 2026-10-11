@@ -46,7 +46,7 @@ func TestSealedAlertRoundTrip(t *testing.T) {
 	if out.Title != "Activity on your cameras" || out.Body != "Open Sightline to see more." {
 		t.Errorf("visible text = %q / %q", out.Title, out.Body)
 	}
-	if !out.MutableContent || out.CategoryID != "camera-alert" || out.To != d.PushToken {
+	if !out.MutableContent || out.CategoryID != "camera-alert" || out.To != d.PushToken || out.ChannelID != channelAlerts {
 		t.Errorf("routing fields changed: %+v", out)
 	}
 	if len(out.Data) != 2 || out.Data["thumb"] != "c2VhbGVkLXRodW1i" || out.Data["enc"] == "" {
@@ -61,15 +61,15 @@ func TestSealedAlertRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.V != 1 || got.Title != plain.Title || got.Body != plain.Body || got.ThreadID != "hub:front_door" {
-		t.Errorf("opened = %+v, want %q / %q", got, plain.Title, plain.Body)
+	if got["v"] != "1" || got["title"] != plain.Title || got["body"] != plain.Body || got["threadId"] != "hub:front_door" {
+		t.Errorf("opened = %v, want %q / %q", got, plain.Title, plain.Body)
 	}
 	for k, v := range plain.Data {
-		if k != "thumb" && got.Data[k] != v {
-			t.Errorf("data[%s] = %q, want %q", k, got.Data[k], v)
+		if k != "thumb" && got[k] != v {
+			t.Errorf("data[%s] = %q, want %q", k, got[k], v)
 		}
 	}
-	if _, ok := got.Data["thumb"]; ok {
+	if _, ok := got["thumb"]; ok {
 		t.Error("thumbnail sealed twice")
 	}
 	// The thumbnail key can't open it, nor can another phone's.
@@ -94,6 +94,14 @@ func TestSealedKeepsOlderAppsPlaintext(t *testing.T) {
 	if out := sealPush(buildMessage(d, personAtFrontDoor()), ""); out.Data["enc"] != "" {
 		t.Error("sealed without the cap")
 	}
+	// Registrations from older apps (no "caps") decode with none.
+	var dd device
+	if err := json.Unmarshal([]byte(`{"pushToken":"ExponentPushToken[a]"}`), &dd); err != nil || wantsSealed(dd) {
+		t.Errorf("decoded %+v %v", dd, err)
+	}
+	if err := json.Unmarshal([]byte(`{"pushToken":"ExponentPushToken[a]","caps":["enc-msg-v1"]}`), &dd); err != nil || !wantsSealed(dd) {
+		t.Errorf("decoded %+v %v", dd, err)
+	}
 }
 
 func TestSealedWithoutKeyIsGenericOnly(t *testing.T) {
@@ -111,8 +119,8 @@ func TestSealedLegacyPairingUsesBridgeSecret(t *testing.T) {
 	d.ThumbKey, d.GrantID = "", ""
 	out := sealPush(buildMessage(d, personAtFrontDoor()), "legacy-bridge-secret-1234")
 	got, err := openSealed("legacy-bridge-secret-1234", out.Data["enc"])
-	if err != nil || got.Data["cameraId"] != "front_door" {
-		t.Errorf("legacy open = %+v, %v", got, err)
+	if err != nil || got["cameraId"] != "front_door" {
+		t.Errorf("legacy open = %v, %v", got, err)
 	}
 }
 
@@ -126,8 +134,52 @@ func TestSealedGenericTextLocalized(t *testing.T) {
 		t.Errorf("es doorbell = %+v", out)
 	}
 	assertNoDetails(t, out)
-	if got, _ := openSealed(testDeviceSecret, out.Data["enc"]); got.Data["kind"] != "doorbell" || !strings.Contains(got.Title, "Front Door") {
-		t.Errorf("opened ring = %+v", got)
+	if got, _ := openSealed(testDeviceSecret, out.Data["enc"]); got["kind"] != "doorbell" || !strings.Contains(got["title"], "Front Door") {
+		t.Errorf("opened ring = %v", got)
+	}
+}
+
+// Android data-only messages: the words in data are sealed too, and what
+// app/modules/android-notify does with data.enc (SightlinePush.openSealedMessage: merge every
+// key, then title/body onto slTitle/slBody) gives back the message the phone would have got.
+func TestSealedAndroidDataOnly(t *testing.T) {
+	d := sealedDevice()
+	d.Platform = "android"
+	plain := buildMessage(d, personAtFrontDoor())
+	plain.Data["thumb"] = "c2VhbGVkLXRodW1i"
+	out := sealPush(plain, "")
+	if out.Title != "" || out.Body != "" || out.MutableContent || out.ChannelID != channelAlerts {
+		t.Errorf("Android sealed must stay data-only: %+v", out)
+	}
+	if out.Data[androidMarker] != "1" || out.Data[androidChannel] != channelAlerts || out.Data[androidCategory] != "camera-alert" ||
+		out.Data[androidTitle] != "Activity on your cameras" || out.Data["thumb"] == "" || out.Data["enc"] == "" ||
+		out.Data[androidGroup] == "" || out.Data[androidGroup] == plain.Data[androidGroup] {
+		t.Errorf("Android visible data = %v", out.Data)
+	}
+	assertNoDetails(t, out)
+
+	opened, err := openSealed(testDeviceSecret, out.Data["enc"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged := map[string]string{}
+	for k, v := range out.Data {
+		merged[k] = v
+	}
+	for k, v := range opened {
+		merged[k] = v
+	}
+	if _, ok := opened[androidTitle]; !ok {
+		merged[androidTitle] = opened["title"]
+	}
+	if _, ok := opened[androidBody]; !ok {
+		merged[androidBody] = opened["body"]
+	}
+	delete(merged, "enc")
+	for _, k := range []string{androidTitle, androidBody, androidChannel, androidCategory, "cameraId", "systemId", "start", "reviewId", "thumb"} {
+		if merged[k] != plain.Data[k] {
+			t.Errorf("merged[%s] = %q, want %q", k, merged[k], plain.Data[k])
+		}
 	}
 }
 
@@ -147,16 +199,24 @@ func TestSealingPusherCoversEveryPush(t *testing.T) {
 		buildMessage(d, personAtFrontDoor()),
 		checkinMessage(d, c, checkinState{}, checkinNotice{Kind: "by-time", Title: "No activity at Alice’s", Body: "Front Door"}),
 	}
-	h := pushTo(d)
-	h.Title, h.Body, h.gist = "Front Door is offline", "", "sealed.hub"
-	msgs = append(msgs, h)
 	if err := sp.send(context.Background(), msgs); err != nil {
 		t.Fatal(err)
 	}
-	if len(fp.sent) != 4 {
-		t.Fatalf("sent %d", len(fp.sent))
+	// Health notices, through the monitor itself.
+	st, err := openStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
 	}
+	if err := st.put(d); err != nil {
+		t.Fatal(err)
+	}
+	hm := &healthMonitor{label: "Frigate", store: st, pusher: sp, active: map[string]bool{}}
+	hm.evaluateHealth(backend.Health{Offline: []string{"front_door"}}, nil)
+
 	wantTitles := []string{"Les Alertes instantanées fonctionnent", "Activité sur vos caméras", "Nouvelles de la veille familiale", "Votre Sightline Hub a besoin d’un coup d’œil"}
+	if len(fp.sent) != len(wantTitles) {
+		t.Fatalf("sent %d: %+v", len(fp.sent), fp.sent)
+	}
 	for i, m := range fp.sent {
 		if m.Title != wantTitles[i] || m.Data["enc"] == "" || !m.MutableContent {
 			t.Errorf("push %d = %+v", i, m)
@@ -182,10 +242,10 @@ func TestSealedDropsThumbWhenTooBig(t *testing.T) {
 	}
 }
 
-// A fixed vector shared with app/src/alerts/sealed.test.ts (the app opens what the Hub seals).
+// A fixed vector shared with app/test/sealed.test.ts (the app opens what the Hub seals).
 const (
 	vectorSecret = "0123456789abcdef-vector"
-	vectorEnc    = "irGto2pyJpC5PGFWCxCIc6Suq5Ue0nuHk+iEGnYyGNwYX2mUws8UsPpufb/qIY2EhGgGPJLjaVqZ3A4gIzQhYqcQVmTJ1QV8g+UcSrWzdWpLCDKDWwFhOniKAa9LsqiVxefoBJSu3N1BuZvMqZR+qRc512N1+8d15L1LnjUpCMI1RK03dNtpQ5P1KhmIKfFV/hOLnm+rRCYs8J7hap/W6qaBF/933NhHHcpzvoNOMSZHaMbINkhJDxpGlyLQmpxw/emA/14uNHOG0V2F2A=="
+	vectorEnc    = "YPxCa8hdoROqmIYV8AiWTvQOnB5krvKXKC/QAbKfLb6cDNk1GXtwna++EMq0oEAhfubKDAo3btr7vfUAUMKeDarY05jkwOqLKIKeAqBISzveg5IZ6Zc84BN0Jmo9j/dQvY5vfrC/NDKjic87u3XSCAH2xpsyVU/p2S4D5H0FfqV1RIB324zZz9WRu//S1k0Os4Pbjsm7vIk850ayg8FtA4UHCkrrex9yXOkpRDIp/4YahS66b23Rhcdln1E/hwarhmEk5P2g"
 )
 
 func TestSealedVectorForApp(t *testing.T) {
@@ -193,7 +253,7 @@ func TestSealedVectorForApp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Title != "Person · Front Door" || got.Data["cameraId"] != "front_door" || got.ThreadID != "hub:front_door" {
-		t.Errorf("vector = %+v", got)
+	if got["title"] != "Person · Front Door" || got["cameraId"] != "front_door" || got["threadId"] != "hub:front_door" {
+		t.Errorf("vector = %v", got)
 	}
 }

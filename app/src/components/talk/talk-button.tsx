@@ -1,10 +1,10 @@
 import * as Haptics from 'expo-haptics';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { tr } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import { closeTalk, openTalk, type TalkRoute } from '@/talk/talk';

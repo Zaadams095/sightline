@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEventListener } from 'expo';
-import { SymbolView } from 'expo-symbols';
 import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
@@ -8,6 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { LiveView } from '@/components/live/live-view';
 import { TimelapseScrubber } from '@/components/playback/timelapse-scrubber';
 import { T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { tr } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import { releaseLiveUrl, resolveLive, type ResolvedLive } from '@/systems/live';

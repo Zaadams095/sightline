@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
 type pushMessage struct {
 	To             string            `json:"to"`
-	Title          string            `json:"title"`
+	Title          string            `json:"title,omitempty"` // empty only on Android data-only messages
 	Body           string            `json:"body,omitempty"`
 	Sound          string            `json:"sound,omitempty"`
 	Priority       string            `json:"priority,omitempty"`
@@ -22,11 +23,75 @@ type pushMessage struct {
 	CategoryID     string            `json:"categoryId,omitempty"`
 	// iOS: "time-sensitive" breaks through Focus (doorbell rings); needs the app's entitlement.
 	InterruptionLevel string `json:"interruptionLevel,omitempty"`
+	// Android: the notification channel (created by the app, app/src/alerts/channels.ts).
+	ChannelID string `json:"channelId,omitempty"`
 
 	// Not sent: the recipient, for end-to-end sealing (seal.go), and the i18n key of the
 	// generic title sealed pushes show ("" = picked from data.kind).
 	dev  *device
 	gist string
+}
+
+// Android notification channels. Keep in sync with app/src/alerts/channels.ts.
+const (
+	channelAlerts   = "alerts"
+	channelDoorbell = "doorbell"
+	channelPackages = "packages"
+	channelCheckins = "checkins"
+	channelHealth   = "health"
+)
+
+// normPlatform: "android", or "ios" (older apps don't say; they're all iPhones).
+func normPlatform(p string) string {
+	if strings.EqualFold(strings.TrimSpace(p), "android") {
+		return "android"
+	}
+	return "ios"
+}
+
+// Data keys of an Android message (read by app/modules/android-notify, SightlinePush.kt).
+const (
+	androidMarker   = "slPush"
+	androidTitle    = "slTitle"
+	androidBody     = "slBody"
+	androidChannel  = "slChannel"
+	androidCategory = "slCategory"
+	androidGroup    = "slGroup"
+)
+
+// forDevice shapes a message for the phone that gets it.
+//
+// iPhones get it as built (the notification service extension adds the picture).
+//
+// Android phones get a data-only message carrying the title, text, channel and actions in
+// `data`. A message with a title is shown by Android itself while the app is in the
+// background, which drops the action buttons and can't decrypt the picture; a data-only one
+// always reaches the app's own push service (app/modules/android-notify), which builds the
+// notification with the buttons, the channel and the decrypted snapshot, or plain text if
+// anything about the picture fails.
+func forDevice(d device, m pushMessage, channel string) pushMessage {
+	m.ChannelID = channel
+	if m.dev == nil {
+		m.dev = &d // for sealing on the way out (seal.go)
+	}
+	if normPlatform(d.Platform) != "android" {
+		return m
+	}
+	data := make(map[string]string, len(m.Data)+6)
+	for k, v := range m.Data {
+		data[k] = v
+	}
+	data[androidMarker] = "1"
+	data[androidTitle] = m.Title
+	data[androidBody] = m.Body
+	data[androidChannel] = channel
+	if m.CategoryID != "" {
+		data[androidCategory] = m.CategoryID
+	}
+	if m.ThreadID != "" {
+		data[androidGroup] = m.ThreadID
+	}
+	return pushMessage{To: m.To, Priority: "high", Data: data, ChannelID: channel, dev: m.dev, gist: m.gist}
 }
 
 type pusher interface {

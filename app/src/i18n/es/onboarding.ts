@@ -86,6 +86,8 @@ const onboarding: typeof en = {
     unknownBrand: (address) => `${address} · Marca desconocida. Toca para probar con su contraseña.`,
     lookAgain: 'Buscar de nuevo',
     chooseBrand: 'Elegir mi marca',
+    localNetworkDenied: 'Sightline todavía no puede llegar a los dispositivos de tu Wi-Fi. En Ajustes, abre Permisos › Dispositivos cercanos y elige Permitir.',
+    openSettings: 'Abrir Ajustes',
   },
   discovery: {
     checking: (n) => p(n, { one: `Revisando ${n} dispositivo…`, other: `Revisando ${n} dispositivos…` }),

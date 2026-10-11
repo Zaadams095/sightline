@@ -15,6 +15,19 @@ const alerts = {
   snoozeHour: 'Snooze this camera for 1 hour',
   snoozeMorning: 'Snooze this camera until 7 AM',
   watch: 'Watch',
+  // Android notification channels: names in Settings › Apps › Sightline › Notifications (channels.ts)
+  channels: {
+    alerts: 'Camera alerts',
+    alertsAbout: 'People, cars, animals and motion your cameras see.',
+    doorbell: 'Doorbell',
+    doorbellAbout: 'Someone is at the door.',
+    packages: 'Packages',
+    packagesAbout: 'Deliveries, and packages still waiting outside.',
+    checkins: 'Family check-ins',
+    checkinsAbout: 'When someone you look out for hasn’t been seen yet.',
+    health: 'Camera problems',
+    healthAbout: 'A camera is offline or a recorder is almost full.',
+  },
   // Health alerts (background.ts)
   health: {
     offline: (camera: string) => `${camera} is offline`,

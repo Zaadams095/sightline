@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { VpnSetup } from '@/components/vpn-setup';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';

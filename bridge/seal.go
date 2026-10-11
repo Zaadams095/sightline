@@ -14,23 +14,26 @@ import (
 // advertise caps ["enc-msg-v1"] at registration, everything that says what happened is sealed
 // so only the phone can read it:
 //
-//   - The visible title/body become generic, in the phone's language ("Activity on your
+//   - The visible title/text become generic, in the phone's language ("Activity on your
 //     cameras" / "Open Sightline to see more."; "Doorbell" for a ring). See i18n.go sealed.*.
-//   - The real title, body, thread and every data field go into data.enc:
-//     base64(nonce[12] || AES-256-GCM ciphertext || tag[16]) of the JSON
-//     {"v":1,"title":"Person · Front Door","body":"In driveway","threadId":"hub:front","data":{...}}
-//     with key = SHA256("sightline-msg-v1:" + device secret). The device secret is the same one
-//     the inline thumbnail uses (deviceSecret; thumb.go derives a different key from it).
-//   - Beside data.enc only data.thumb stays (already sealed with the thumbnail key). The
-//     thread id is replaced by an opaque hash; category and interruption level stay as they are
-//     (they only pick buttons and Focus behavior).
+//   - The real title, text, thread and every data field go into data.enc:
+//     base64(nonce[12] || AES-256-GCM ciphertext || tag[16]), no additional data, of one flat
+//     JSON object of strings:
+//     {"v":"1","title":"Person · Front Door","body":"In Driveway","threadId":"hub:front_door",
+//     "systemId":"hub","cameraId":"front_door","start":"…","reviewId":"…","kind":"…",…}
+//     with key = SHA256("sightline-msg-v1:" + device secret). The device secret is the same
+//     one the inline thumbnail uses (deviceSecret); thumb.go derives a different key from it.
+//     Data keys never collide with v/title/body/threadId.
+//   - Left visible: data.thumb (sealed with the thumbnail key), the category (picks the
+//     buttons), the interruption level, and on Android the channel and the slPush marker. The
+//     thread/group id is replaced by an opaque hash.
 //
-// iOS: the Notification Service Extension (app/targets/notification-service) opens data.enc
-// and puts the real title, body, thread and data back before the notification is shown, so
-// the app's tap handling sees the same data as before. JS opens it too when a notification
-// arrives unopened (app/src/alerts/sealed.ts). Android: a native FCM handler must do the
-// same (docs/ANDROID.md, "Sealed Instant Alerts"); until then Android shows the generic text and
-// the app opens data.enc when the notification is tapped.
+// Opening it, all of which merge the object back over the visible data and drop "enc":
+//   - iOS: the Notification Service Extension (app/targets/notification-service) before the
+//     notification is shown, so the app's tap handling sees the same data as before.
+//   - Android: app/modules/android-notify (SightlinePush.openSealedMessage) on data-only
+//     messages; it maps title/body onto slTitle/slBody.
+//   - The app's JS, when a notification still arrives sealed (app/src/alerts/sealed.ts).
 //
 // Phones that don't advertise the cap (older app versions) keep getting today's plaintext.
 // A phone that advertises it but has no secret here gets the generic text only, never details.
@@ -38,18 +41,17 @@ import (
 const (
 	capEncMsg     = "enc-msg-v1"
 	msgKeyContext = "sightline-msg-v1:"
-	// APNs allows 4 KB per push; leave room for Expo's and Apple's envelope.
+	// APNs and FCM allow 4 KB per push; leave room for Expo's and Apple's envelope.
 	maxPushBytes = 3600
 )
 
-// sealedMsg is the plaintext inside data.enc.
-type sealedMsg struct {
-	V        int               `json:"v"`
-	Title    string            `json:"title"`
-	Body     string            `json:"body,omitempty"`
-	ThreadID string            `json:"threadId,omitempty"`
-	Data     map[string]string `json:"data,omitempty"`
-}
+// Keys of the sealed object besides the data fields.
+const (
+	sealedVersion = "v"
+	sealedTitle   = "title"
+	sealedBody    = "body"
+	sealedThread  = "threadId"
+)
 
 func msgKey(secret string) []byte {
 	k := sha256.Sum256([]byte(msgKeyContext + secret))
@@ -70,10 +72,14 @@ func deviceSecret(d device, legacySecret string) string {
 
 func wantsSealed(d device) bool { return contains(d.Caps, capEncMsg) }
 
-// to starts a push for one phone; the device rides along (unserialized) for sealing.
+// pushTo starts a push for one phone; the device rides along (unserialized) for sealing.
 func pushTo(d device) pushMessage {
 	return pushMessage{To: d.PushToken, dev: &d}
 }
+
+// visibleAndroid are the data keys of an Android data-only message that stay readable: what
+// the app's push service needs before it has opened anything.
+var visibleAndroid = map[string]bool{androidMarker: true, androidChannel: true, androidCategory: true}
 
 // sealPush returns m as it should leave the Hub for its device: unchanged for phones without
 // the cap (and messages without a device), otherwise generic text + data.enc.
@@ -83,24 +89,39 @@ func sealPush(m pushMessage, legacySecret string) pushMessage {
 	}
 	d := *m.dev
 	lang := normLang(d.Lang)
+	android := m.Data[androidMarker] == "1"
+	gTitle, gBody := tr(lang, sealedGist(m)), tr(lang, "sealed.body")
+
+	inner := map[string]string{sealedVersion: "1"}
 	out := m
-	out.Title = tr(lang, sealedGist(m))
-	out.Body = tr(lang, "sealed.body")
-	out.ThreadID = ""
 	out.Data = map[string]string{}
-	// The phone rewrites the text before it's shown (iOS Notification Service Extension).
-	out.MutableContent = true
+	if android {
+		// Data-only (push.go forDevice): the words live in data.
+		inner[sealedTitle], inner[sealedBody], inner[sealedThread] = m.Data[androidTitle], m.Data[androidBody], m.Data[androidGroup]
+		for k := range visibleAndroid {
+			if v, ok := m.Data[k]; ok {
+				out.Data[k] = v
+			}
+		}
+		out.Data[androidTitle], out.Data[androidBody] = gTitle, gBody
+	} else {
+		inner[sealedTitle], inner[sealedBody], inner[sealedThread] = m.Title, m.Body, m.ThreadID
+		out.Title, out.Body, out.ThreadID = gTitle, gBody, ""
+		// The phone rewrites the text before it's shown (iOS Notification Service Extension).
+		out.MutableContent = true
+	}
+	for k, v := range m.Data {
+		if k == "thumb" || (android && (visibleAndroid[k] || k == androidTitle || k == androidBody || k == androidGroup)) {
+			continue
+		}
+		if _, meta := inner[k]; !meta {
+			inner[k] = v
+		}
+	}
 
 	secret := deviceSecret(d, legacySecret)
 	if secret == "" {
 		return out // nothing the phone could open: generic text only, never details
-	}
-	inner := sealedMsg{V: 1, Title: m.Title, Body: m.Body, ThreadID: m.ThreadID, Data: map[string]string{}}
-	for k, v := range m.Data {
-		if k == "thumb" {
-			continue
-		}
-		inner.Data[k] = v
 	}
 	raw, err := json.Marshal(inner)
 	if err != nil {
@@ -112,8 +133,12 @@ func sealPush(m pushMessage, legacySecret string) pushMessage {
 		return out
 	}
 	out.Data["enc"] = enc
-	if m.ThreadID != "" {
-		out.ThreadID = opaqueThread(secret, m.ThreadID)
+	if t := inner[sealedThread]; t != "" {
+		if android {
+			out.Data[androidGroup] = opaqueThread(secret, t)
+		} else {
+			out.ThreadID = opaqueThread(secret, t)
+		}
 	}
 	if t := m.Data["thumb"]; t != "" {
 		out.Data["thumb"] = t
@@ -146,12 +171,12 @@ func opaqueThread(secret, thread string) string {
 }
 
 // openSealed is the phone's side, for tests and tools.
-func openSealed(secret, enc string) (sealedMsg, error) {
-	var m sealedMsg
+func openSealed(secret, enc string) (map[string]string, error) {
 	raw, err := openGCM(msgKey(secret), enc)
 	if err != nil {
-		return m, err
+		return nil, err
 	}
+	var m map[string]string
 	err = json.Unmarshal(raw, &m)
 	return m, err
 }

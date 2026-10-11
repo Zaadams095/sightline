@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 
@@ -7,6 +6,7 @@ import { cloudBackupSupported, findCloudBackup, restoreFromCloud, type CloudBack
 import { needsPasswordText } from '@/backup/restore';
 import { useBackup } from '@/backup/settings';
 import { Button, Card, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { formatRelative } from '@/util/format';
 import { space } from '@/theme/tokens';

@@ -1,0 +1,28 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!--
+      Replaces Expo's push service (registered with priority -1 so an app can do this). It
+      shows Sightline Hub pushes itself and hands every other message to Expo unchanged.
+    -->
+    <service
+      android:name="expo.modules.sightlinenotify.SightlineMessagingService"
+      android:exported="false">
+      <intent-filter android:priority="10">
+        <action android:name="com.google.firebase.MESSAGING_EVENT" />
+      </intent-filter>
+    </service>
+
+    <!--
+      expo-notifications sends its work to the highest-priority receiver of this action (its
+      own is -1). Ours is Expo's with a presenter that adds the snapshot picture.
+    -->
+    <receiver
+      android:name="expo.modules.sightlinenotify.SightlineNotificationsService"
+      android:enabled="true"
+      android:exported="false">
+      <intent-filter android:priority="10">
+        <action android:name="expo.modules.notifications.NOTIFICATION_EVENT" />
+      </intent-filter>
+    </receiver>
+  </application>
+</manifest>

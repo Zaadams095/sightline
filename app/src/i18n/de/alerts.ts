@@ -41,6 +41,18 @@ const alerts: typeof en = {
   snoozeHour: 'Diese Kamera 1 Stunde stummschalten',
   snoozeMorning: 'Diese Kamera bis 7 Uhr stummschalten',
   watch: 'Ansehen',
+  channels: {
+    alerts: 'Kamera-Meldungen',
+    alertsAbout: 'Personen, Autos, Tiere und Bewegung, die deine Kameras sehen.',
+    doorbell: 'Türklingel',
+    doorbellAbout: 'Jemand ist an der Tür.',
+    packages: 'Pakete',
+    packagesAbout: 'Lieferungen und Pakete, die noch draußen liegen.',
+    checkins: 'Familien-Check-ins',
+    checkinsAbout: 'Wenn jemand, auf den du achtest, noch nicht gesehen wurde.',
+    health: 'Kamera-Probleme',
+    healthAbout: 'Eine Kamera ist offline oder ein Rekorder ist fast voll.',
+  },
   health: {
     offline: (camera: string) => `${camera} ist offline`,
     offlineBody: (system: string) => `Kein Video von dieser Kamera auf ${system}.`,

@@ -483,7 +483,7 @@ func checkinMessage(d device, c checkin, st checkinState, n checkinNotice) pushM
 	if n.Kind != "summary" && c.DuringQuietHours {
 		m.InterruptionLevel = "time-sensitive"
 	}
-	return m
+	return forDevice(d, m, channelCheckins)
 }
 
 // markOK is "Mom's fine" from the notification.

@@ -1,6 +1,5 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { askQuestion, modelAvailability, simpleModeReason, useEventIndex, type AskResult } from '@/ask/ask';
 import { eventSubject, type EventRecord } from '@/ask/engine';
 import { Card, Chip, IconButton, T, useScaledFont } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';
 import { useLargeText } from '@/theme/text-scale';

@@ -136,7 +136,7 @@ func (h *healthMonitor) evaluateHealth(report backend.Health, pollErr error) {
 			}
 			m := pushTo(d)
 			m.Title, m.Body, m.Sound, m.gist = title, body, "default", "sealed.hub"
-			msgs = append(msgs, m)
+			msgs = append(msgs, forDevice(d, m, channelHealth))
 		}
 	}
 	h.active = now

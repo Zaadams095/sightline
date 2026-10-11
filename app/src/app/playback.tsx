@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEvent, useEventListener } from 'expo';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SamplePill } from '@/components/demo-banner';
@@ -12,7 +11,9 @@ import { DayOverview } from '@/components/playback/day-overview';
 import { StreamPlayback } from '@/components/playback/stream-playback';
 import { SyncedPip } from '@/components/playback/synced-pip';
 import { Timeline } from '@/components/timeline';
+import { showActionSheet } from '@/components/ui/action-sheet';
 import { Chip, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { tr } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import { neighborsOf, tracePath } from '@/map/graph';
@@ -272,7 +273,7 @@ export default function PlaybackScreen() {
     // Also: a blurred copy for neighbors, or everything around this time for police/insurance.
     const neighborRange = options[0].range;
     const extras = [t.viewing.playback.shareNeighbors, t.viewing.playback.exportPolice];
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       { options: [...options.map((o) => o.label), ...extras, t.common.cancel], cancelButtonIndex: options.length + extras.length, title: t.viewing.playback.shareClip },
       async (i) => {
         if (i === options.length) {

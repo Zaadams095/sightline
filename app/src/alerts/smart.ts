@@ -13,6 +13,7 @@ import {
   type LearnedRule,
   type Verdict,
 } from '@/alerts/learning';
+import { showNow } from '@/alerts/channels';
 import { splitAlertTitle } from '@/alerts/live-activity-format';
 import { tr } from '@/i18n';
 import { useApp } from '@/state/store';
@@ -153,7 +154,7 @@ export async function announceLearned(rule: LearnedRule, cameraName: string) {
       categoryIdentifier: rule.needsConfirm ? `${LEARNED_CATEGORY}-confirm` : LEARNED_CATEGORY,
       sound: false,
     },
-    trigger: null,
+    trigger: showNow('alerts'),
   }).catch(() => {});
 }
 

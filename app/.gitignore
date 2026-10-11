@@ -8,3 +8,5 @@ node_modules/
 
 expo-env.d.ts
 # @end expo-cli
+# Firebase config for Android push (docs/ANDROID.md); EAS gets it from the GOOGLE_SERVICES_JSON file variable
+google-services.json

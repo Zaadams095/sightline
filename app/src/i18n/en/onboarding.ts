@@ -92,6 +92,9 @@ const onboarding = {
     unknownBrand: (address: string) => `${address} · Brand unknown. Tap to try with its password.`,
     lookAgain: 'Look again',
     chooseBrand: 'Choose my brand instead',
+    /** Android 17+: local network access was turned off for Sightline. */
+    localNetworkDenied: 'Sightline can’t reach devices on your Wi-Fi yet. In Settings, open Permissions › Nearby devices and choose Allow.',
+    openSettings: 'Open Settings',
   },
   // systems/discovery.ts
   discovery: {

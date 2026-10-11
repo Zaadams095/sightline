@@ -1,11 +1,11 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Screen, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { tr } from '@/i18n';
 import { useT } from '@/i18n/use-t';
 import { useApp } from '@/state/store';

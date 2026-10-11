@@ -36,13 +36,11 @@ class NotificationService: UNNotificationServiceExtension {
     let secret = SharedKeychain.get("bridge.secret")
     var sealedThread: String?
     if let enc = data["enc"] as? String, let secret, let opened = Self.openMessage(enc, secret: secret) {
-      if let title = opened["title"] as? String { content.title = title }
-      content.body = (opened["body"] as? String) ?? ""
-      if let extra = opened["data"] as? [String: Any] {
-        for (key, value) in extra { data[key] = value }
-      }
+      content.title = opened["title"] ?? content.title
+      content.body = opened["body"] ?? ""
+      for (key, value) in opened where !Self.sealedMeta.contains(key) { data[key] = value }
       data.removeValue(forKey: "enc")
-      sealedThread = opened["threadId"] as? String
+      sealedThread = opened["threadId"]
       // expo-notifications reads a remote notification's data from userInfo["body"].
       var info = content.userInfo
       info["body"] = data
@@ -98,13 +96,19 @@ class NotificationService: UNNotificationServiceExtension {
   }
 
   /// The sealed title/body/thread/data of a push (bridge/seal.go), or nil.
-  static func openMessage(_ b64: String, secret: String) -> [String: Any]? {
+  /// Keys of the sealed object that aren't data fields.
+  static let sealedMeta: Set<String> = ["v", "title", "body", "threadId"]
+
+  /// The sealed title/body/threadId and data fields of a push, one flat object of strings
+  /// (bridge/seal.go), or nil.
+  static func openMessage(_ b64: String, secret: String) -> [String: String]? {
     guard let raw = Data(base64Encoded: b64) else { return nil }
     let key = SymmetricKey(data: SHA256.hash(data: Data("sightline-msg-v1:\(secret)".utf8)))
     guard let box = try? AES.GCM.SealedBox(combined: raw),
           let plain = try? AES.GCM.open(box, using: key),
-          let object = try? JSONSerialization.jsonObject(with: plain) as? [String: Any],
-          (object["v"] as? Int) == 1 else { return nil }
+          let json = try? JSONSerialization.jsonObject(with: plain),
+          let object = json as? [String: String],
+          object["v"] == "1" else { return nil }
     return object
   }
 

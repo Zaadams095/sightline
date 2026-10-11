@@ -1,8 +1,8 @@
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button, T } from '@/components/ui/primitives';
+import { SymbolView } from '@/components/ui/symbol';
 import { useT } from '@/i18n/use-t';
 import { discoverFor, type Found } from '@/systems/discovery';
 import type { StreamTarget, SystemTarget } from '@/systems/guides';

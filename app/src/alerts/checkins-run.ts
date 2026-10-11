@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Linking } from 'react-native';
 
 import { checkinOkOnHub } from '@/alerts/bridge';
+import { channelOf, showNow } from '@/alerts/channels';
 import { clockText, parseHHMM } from '@/alerts/clock';
 import { dueCheckIn, nextByTime, newState, observe, okLabel, placeName, markOk, type CheckIn } from '@/alerts/checkins';
 import { inQuietHours } from '@/alerts/rules';
@@ -135,7 +136,7 @@ export async function checkCheckinsBuiltIn(): Promise<number> {
           categoryIdentifier: `${CHECKIN_CATEGORY_PREFIX}${c.id}`,
           ...(n.kind !== 'summary' && c.duringQuietHours ? { interruptionLevel: 'timeSensitive' as const } : {}),
         },
-        trigger: null,
+        trigger: showNow('checkins'),
       }).catch(() => {});
       posted++;
     }
@@ -164,7 +165,7 @@ async function rearm(c: CheckIn) {
       data: { kind: 'checkin', checkinId: c.id, systemId: c.systemId, cameraId: c.cameras[0] ?? '', notice: 'unconfirmed' },
       categoryIdentifier: `${CHECKIN_CATEGORY_PREFIX}${c.id}`,
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at * 1000) },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at * 1000), ...channelOf('checkins') },
   }).catch(() => {});
 }
 
