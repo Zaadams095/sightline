@@ -6,6 +6,7 @@ import { connectSystem } from '@/net/connection';
 import { secrets } from '@/state/secrets';
 import { WgTunnel } from '@modules/wg-tunnel';
 import { useApp } from '@/state/store';
+import { HubAdapter } from '@/systems/hub';
 import { getAdapter } from '@/systems/registry';
 import type { SystemConfig } from '@/systems/types';
 
@@ -77,15 +78,10 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
   return res;
 }
 
-/** Register this phone and upload current rules. Call after pairing and whenever rules change. */
-export async function syncBridge(): Promise<void> {
+/** This phone's alert settings for one system, in the bridge/Hub device format. */
+async function deviceBody(system: SystemConfig, token: string) {
   const st = useApp.getState();
-  const frigate = st.systems.find((s) => s.kind === 'frigate');
-  if (!frigate) throw new Error('Add a Frigate system first.');
-
-  const token = await pushToken();
-  const id = await deviceId(token);
-  const prefix = `${frigate.id}:`;
+  const prefix = `${system.id}:`;
   const rules = Object.fromEntries(
     Object.entries(st.alerts.rules)
       .filter(([k]) => k.startsWith(prefix))
@@ -95,7 +91,7 @@ export async function syncBridge(): Promise<void> {
   let cameraNames: Record<string, string> = {};
   let detectSizes: Record<string, { width: number; height: number }> = {};
   try {
-    const cams = await getAdapter(frigate, await connectSystem(frigate))?.listCameras();
+    const cams = await getAdapter(system, await connectSystem(system))?.listCameras();
     cameraNames = Object.fromEntries((cams ?? []).map((c) => [c.id, c.name]));
     detectSizes = Object.fromEntries((cams ?? []).filter((c) => c.detectSize).map((c) => [c.id, c.detectSize!]));
   } catch {}
@@ -105,9 +101,9 @@ export async function syncBridge(): Promise<void> {
       .map(([k, polys]) => [k.slice(prefix.length), polys]),
   );
 
-  await request('PUT', `/devices/${id}`, {
+  return {
     pushToken: token,
-    systemId: frigate.id,
+    systemId: system.id,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     defaultRule: st.alerts.defaultRule,
     rules,
@@ -125,10 +121,56 @@ export async function syncBridge(): Promise<void> {
     health: st.alerts.health,
     packageAlerts: st.alerts.packages.enabled,
     atHome: st.alerts.presence.enabled && st.alerts.presence.atHome,
-    alertWhenHome: st.alerts.presence.alertWhenHome
-      .filter((k) => k.startsWith(prefix))
-      .map((k) => k.slice(prefix.length)),
-  });
+    alertWhenHome: st.alerts.presence.alertWhenHome.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)),
+  };
+}
+
+/**
+ * Registers this phone for instant push with every Sightline Hub it's connected to (the Hub
+ * limits alerts to the cameras this phone's access covers). Hubs that accepted the phone are
+ * marked `extra.push`, so built-in background checks skip them and nothing arrives twice.
+ */
+export async function syncHubDevices(): Promise<void> {
+  const hubs = useApp.getState().systems.filter((s) => s.kind === 'hub');
+  if (hubs.length === 0) return;
+  const token = await pushToken();
+  const id = await deviceId(token);
+  const thumbKey = await bridgeSecret();
+  for (const hub of hubs) {
+    try {
+      const adapter = getAdapter(hub, await connectSystem(hub));
+      if (!(adapter instanceof HubAdapter)) continue;
+      if (!adapter.info) await adapter.connect();
+      if (!adapter.info?.capabilities?.push) continue;
+      await adapter.request('PUT', `/v1/devices/${id}`, { ...(await deviceBody(hub, token)), thumbKey });
+      // The notification extension fetches a full frame from here on the home network.
+      if (!useApp.getState().alerts.bridge) WgTunnel?.setShared('bridge.url', hub.endpoint.lanUrl);
+      const cur = useApp.getState().systems.find((s) => s.id === hub.id);
+      if (cur && cur.extra?.push !== '1') useApp.getState().upsertSystem({ ...cur, extra: { ...cur.extra, push: '1' } });
+    } catch {
+      // Unreachable now; the next settings change or app start retries.
+    }
+  }
+}
+
+/** Unregisters this phone from a Hub's push (before removing the system). */
+export async function unregisterHubDevice(system: SystemConfig): Promise<void> {
+  try {
+    const adapter = getAdapter(system, await connectSystem(system));
+    if (!(adapter instanceof HubAdapter)) return;
+    await adapter.request('DELETE', `/v1/devices/${await deviceId(await pushToken())}`);
+  } catch {}
+}
+
+/** Register this phone and upload current rules. Call after pairing and whenever rules change. */
+export async function syncBridge(): Promise<void> {
+  const st = useApp.getState();
+  const frigate = st.systems.find((s) => s.kind === 'frigate');
+  if (!frigate) throw new Error('Add a Frigate system first.');
+
+  const token = await pushToken();
+  const id = await deviceId(token);
+  await request('PUT', `/devices/${id}`, await deviceBody(frigate, token));
 }
 
 export async function sendBridgeTest(): Promise<void> {
@@ -137,12 +179,27 @@ export async function sendBridgeTest(): Promise<void> {
 }
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let hubTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Debounced re-sync whenever alert settings change while Instant Alerts are on. */
+/**
+ * Debounced re-sync whenever alert settings change: to the bridge while Instant Alerts are on,
+ * and to every Sightline Hub (whose push needs no setup). Also syncs Hubs once at start.
+ */
 export function watchBridgeSync() {
-  return useApp.subscribe((st, prev) => {
-    if ((st.alerts === prev.alerts && st.masks === prev.masks) || st.alerts.mode !== 'instant' || !st.alerts.bridge) return;
+  const syncHubsSoon = (ms: number) => {
+    if (hubTimer) clearTimeout(hubTimer);
+    hubTimer = setTimeout(() => void syncHubDevices().catch(() => {}), ms);
+  };
+  if (useApp.getState().systems.some((s) => s.kind === 'hub')) syncHubsSoon(3000);
+  const unsub = useApp.subscribe((st, prev) => {
+    if (st.alerts === prev.alerts && st.masks === prev.masks) return;
+    if (st.systems.some((s) => s.kind === 'hub')) syncHubsSoon(1500);
+    if (st.alerts.mode !== 'instant' || !st.alerts.bridge) return;
     if (syncTimer) clearTimeout(syncTimer);
     syncTimer = setTimeout(() => void syncBridge().catch(() => {}), 1500);
   });
+  return () => {
+    unsub();
+    if (hubTimer) clearTimeout(hubTimer);
+  };
 }

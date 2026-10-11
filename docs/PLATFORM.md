@@ -57,6 +57,8 @@ Onboarding is one generic screen built from the descriptor. "Find my cameras" sc
 
 ### API (v1), all routes under `/v1`, `Authorization: Bearer <token>`
 
+Exact JSON shapes, roles and enforcement rules: [HUB_API.md](HUB_API.md).
+
 | Route | Purpose |
 |---|---|
 | `GET /info` | Hub name, version, systems, remote URL, the caller's grant |

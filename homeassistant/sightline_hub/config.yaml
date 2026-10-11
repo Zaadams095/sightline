@@ -1,0 +1,37 @@
+# Home Assistant add-on: Sightline Hub.
+# Add this repository in Settings → Add-ons → Add-on Store → ⋮ → Repositories:
+#   https://github.com/zaadams095/sightline
+name: Sightline Hub
+version: "0.3.0"
+slug: sightline_hub
+description: Instant alerts, sharing and remote access for your cameras in the Sightline app
+url: https://github.com/zaadams095/sightline/tree/main/homeassistant/sightline_hub
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: services
+boot: auto
+# The setup page opens inside Home Assistant (already behind your HA login).
+ingress: true
+ingress_port: 8086
+ingress_stream: true
+panel_icon: mdi:cctv
+panel_title: Sightline
+# Host networking so phones on your Wi-Fi reach the Hub directly on port 8086 and the
+# pairing QR code shows the right address.
+host_network: true
+# Finds the Mosquitto add-on's address and login by itself.
+services:
+  - mqtt:want
+options:
+  frigate_url: "http://ccab4aaf-frigate:5000"
+  hub_name: "Home"
+  remote_access: true
+schema:
+  frigate_url: str?
+  mqtt_url: str?
+  mqtt_user: str?
+  mqtt_password: password?
+  hub_name: str?
+  remote_access: bool?

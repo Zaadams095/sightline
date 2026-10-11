@@ -71,11 +71,14 @@ export const CATALOG: SystemDescriptor[] = [
     label: 'Sightline Hub',
     blurb: 'Instant alerts, sharing and remote access for any system',
     category: 'hub',
-    available: false,
+    available: true,
     defaultPorts: [{ port: 8086, https: false }],
     addressHint: 'Shown on the Hub’s setup page. Easiest: scan its QR code.',
-    fields: [ADDRESS('192.168.1.20:8086', 'Or scan the QR code on the Hub setup page.'), { key: 'code', label: 'Pairing code', placeholder: '6 digits' }],
-    fingerprints: [{ port: 8086, https: false, path: '/v1/info', match: (r) => has(r.body, 'sightline') || has(r.server, 'sightline') }],
+    fields: [
+      ADDRESS('192.168.1.20:8086', 'Or scan the QR code on the Hub setup page.'),
+      { key: 'code', label: 'Pairing code', placeholder: '6 digits', keyboard: 'number-pad', hint: 'Shown on the Hub’s setup page.' },
+    ],
+    fingerprints: [{ port: 8086, https: false, path: '/v1/info', match: (r) => has(r.body, '"sightline":"hub"') || has(r.server, 'sightline') }],
   },
   {
     kind: 'frigate',

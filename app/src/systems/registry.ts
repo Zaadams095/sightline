@@ -10,6 +10,7 @@ import { usesGateway } from '@/systems/catalog';
 import { OnvifAdapter } from '@/systems/onvif';
 import { HikvisionAdapter } from '@/systems/hikvision';
 import { ReolinkAdapter } from '@/systems/reolink';
+import { HubAdapter } from '@/systems/hub';
 import { RtspAdapter } from '@/systems/rtsp';
 import { ScryptedAdapter } from '@/systems/scrypted';
 import { ShinobiAdapter } from '@/systems/shinobi';
@@ -19,6 +20,8 @@ import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types'
 
 const adapters = new Map<string, CameraSystemAdapter>();
 
+/** Systems whose adapter talks HTTP to a base URL chosen by connectSystem (LAN/tunnel/remote). */
+
 function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
   switch (s.kind) {
     case 'frigate':
@@ -27,6 +30,8 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
       return new DahuaAdapter(s, baseUrl);
     case 'unifi-protect':
       return new UnifiProtectAdapter(s, baseUrl);
+    case 'hub':
+      return new HubAdapter(s, baseUrl);
     case 'rtsp':
       return new RtspAdapter(s);
     case 'onvif':

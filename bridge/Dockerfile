@@ -1,14 +1,16 @@
-FROM golang:1.24-alpine AS build
+FROM golang:1.27-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-COPY *.go ./
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /sightline-bridge .
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /sightline-hub .
 
-FROM alpine:3.20
+FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 bridge && mkdir /data && chown bridge /data
+COPY --from=build /sightline-hub /usr/local/bin/sightline-hub
+# The image was called sightline-bridge before it became the Hub; keep the old command name.
+RUN ln -s sightline-hub /usr/local/bin/sightline-bridge
 USER bridge
-COPY --from=build /sightline-bridge /usr/local/bin/sightline-bridge
 VOLUME /data
 EXPOSE 8086
-ENTRYPOINT ["sightline-bridge"]
+ENTRYPOINT ["sightline-hub"]
