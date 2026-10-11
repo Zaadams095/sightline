@@ -27,13 +27,15 @@ export function ConnectionBadge() {
         ? 'tunnel'
         : 'lan';
   const color = { lan: p.success, tunnel: p.accent, connecting: p.warning, offline: p.danger }[mode];
+  // Away from home through a Sightline Hub's own link (no VPN involved).
+  const label = mode === 'tunnel' && links.every((l) => l.mode !== 'tunnel' || l.remote) ? 'Away (Hub)' : LABEL[mode];
 
   return (
     <Pressable
       onPress={() => router.push('/settings/vpn')}
       style={[styles.pill, { backgroundColor: p.surfaceRaised, borderColor: p.border }]}>
       <StatusDot color={color} />
-      <T v="caption">{LABEL[mode]}</T>
+      <T v="caption">{label}</T>
     </Pressable>
   );
 }

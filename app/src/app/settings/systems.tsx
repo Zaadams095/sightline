@@ -1,7 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
+import { unregisterHubDevice } from '@/alerts/bridge';
 import { Button, Card, Field, Screen, T, ToggleRow } from '@/components/ui/primitives';
+import { forgetHubToken } from '@/systems/hub';
 import { connectSystem, disconnectSystem, useLinks } from '@/net/connection';
 import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
@@ -66,14 +68,27 @@ export default function SystemSettings() {
           <Field label="Password" value={pass} onChangeText={setPass} secureTextEntry placeholder="Unchanged" />
         </>
       )}
-      <Card>
-        <ToggleRow label="Use VPN when away" value={useTunnel} onChange={setUseTunnel} last />
-      </Card>
+      {system.kind === 'hub' ? (
+        <T v="caption" muted>
+          {system.extra?.remoteUrl
+            ? `Away from home: ${system.extra.remoteUrl}`
+            : 'Away from home: off. Turn on remote access on the Hub’s setup page.'}
+        </T>
+      ) : (
+        <Card>
+          <ToggleRow label="Use VPN when away" value={useTunnel} onChange={setUseTunnel} last />
+        </Card>
+      )}
       <Button title="Save & reconnect" onPress={save} loading={busy} />
       <Button
         title="Remove system"
         kind="ghost"
         onPress={async () => {
+          if (system.kind === 'hub') {
+            // Stop this phone's push from the Hub before forgetting its token.
+            await unregisterHubDevice(system);
+            await forgetHubToken(system.id);
+          }
           disconnectSystem(system.id);
           dropAdapter(system.id);
           await secrets.remove(system.id, SECRET.password);

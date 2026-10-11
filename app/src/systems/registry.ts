@@ -3,15 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import { useLinks, type SystemLink } from '@/net/connection';
 import { useApp } from '@/state/store';
 import { FrigateAdapter } from '@/systems/frigate';
+import { HubAdapter } from '@/systems/hub';
 import { RtspAdapter } from '@/systems/rtsp';
 import type { Camera, CameraSystemAdapter, SystemConfig } from '@/systems/types';
 
 const adapters = new Map<string, CameraSystemAdapter>();
 
+/** Systems whose adapter talks HTTP to a base URL chosen by connectSystem (LAN/tunnel/remote). */
+const needsLink = (s: SystemConfig) => s.kind === 'frigate' || s.kind === 'hub';
+
 function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
   switch (s.kind) {
     case 'frigate':
       return new FrigateAdapter(s, baseUrl);
+    case 'hub':
+      return new HubAdapter(s, baseUrl);
     case 'rtsp':
       return new RtspAdapter(s);
     default:
@@ -21,7 +27,7 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
 
 /** Adapter for a system, kept in sync with its current route (LAN vs tunnel port). */
 export function getAdapter(s: SystemConfig, link: SystemLink | undefined): CameraSystemAdapter | null {
-  if (s.kind === 'frigate' && !link?.baseUrl) return null;
+  if (needsLink(s) && !link?.baseUrl) return null;
   let a = adapters.get(s.id);
   if (a && a.config !== s) {
     a.dispose();
@@ -30,7 +36,7 @@ export function getAdapter(s: SystemConfig, link: SystemLink | undefined): Camer
   if (!a) {
     a = create(s, link?.baseUrl ?? '');
     adapters.set(s.id, a);
-  } else if (a instanceof FrigateAdapter && link?.baseUrl) {
+  } else if ((a instanceof FrigateAdapter || a instanceof HubAdapter) && link?.baseUrl) {
     a.setBaseUrl(link.baseUrl);
   }
   return a;
@@ -60,7 +66,7 @@ export function useAllCameras(opts: { includeHidden?: boolean } = {}) {
   const order = useApp((st) => st.phoneOrder);
   const hidden = useApp((st) => st.hidden);
 
-  const ready = systems.filter((s) => s.kind !== 'frigate' || links[s.id]?.mode === 'lan' || links[s.id]?.mode === 'tunnel');
+  const ready = systems.filter((s) => !needsLink(s) || links[s.id]?.mode === 'lan' || links[s.id]?.mode === 'tunnel');
   const key = ready.map((s) => `${s.id}@${links[s.id]?.baseUrl ?? ''}`).join('|');
 
   const query = useQuery({

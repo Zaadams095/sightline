@@ -129,6 +129,8 @@ export async function checkForAlerts(): Promise<number> {
   let posted = 0;
 
   for (const system of state.systems) {
+    // Hubs that push to this phone already alert instantly; don't post them twice.
+    if (system.kind === 'hub' && system.extra?.push === '1') continue;
     const link = await connectSystem(system);
     if (link.mode !== 'lan' && link.mode !== 'tunnel') continue;
     const adapter = getAdapter(system, link);

@@ -9,6 +9,8 @@ import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
 import { describe } from '@/systems/catalog';
 import { resolveAddress } from '@/systems/discovery';
+import { finishHubJoin, joinAndSaveHub } from '@/systems/hub-join';
+import { normalizeHubAddress } from '@/systems/hub-links';
 import { dropAdapter, getAdapter } from '@/systems/registry';
 import type { SystemConfig, SystemKind } from '@/systems/types';
 import { space } from '@/theme/tokens';
@@ -29,7 +31,8 @@ export default function ConnectSystem() {
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(d.fields.map((f) => [f.key, f.key === 'address' ? (params.address ?? '') : (f.defaultValue ?? '')])),
   );
-  const [name, setName] = useState(d.category === 'hub' ? 'Home' : 'Home');
+  // A Hub names itself (its setup page); leave blank to use that name.
+  const [name, setName] = useState(d.category === 'hub' ? '' : 'Home');
   const [useTunnel, setUseTunnel] = useState(true);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -38,7 +41,23 @@ export default function ConnectSystem() {
   const set = (k: string, v: string) => setValues((s) => ({ ...s, [k]: v }));
   const missing = d.fields.some((f) => !f.optional && !values[f.key]?.trim());
 
+  // Sightline Hub: pair with the 6-digit code from its setup page (no VPN, no password).
+  const pairHub = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const url = normalizeHubAddress(values.address ?? '');
+      const r = await joinAndSaveHub({ kind: 'pair', url, code: values.code ?? '' }, name);
+      setResult({ ok: true, msg: `Connected to ${r.hubName}. Found ${r.cameras} camera${r.cameras === 1 ? '' : 's'}.` });
+    } catch (e) {
+      setResult({ ok: false, msg: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const test = async () => {
+    if (d.kind === 'hub') return pairHub();
     setBusy(true);
     setResult(null);
     setUnreachable(null);
@@ -89,7 +108,13 @@ export default function ConnectSystem() {
         <T muted>{d.addressHint}</T>
       </View>
 
-      <Field label="Name" value={name} onChangeText={setName} placeholder="Home" autoCapitalize="words" />
+      <Field
+        label={d.category === 'hub' ? 'Name (optional)' : 'Name'}
+        value={name}
+        onChangeText={setName}
+        placeholder={d.category === 'hub' ? 'Uses the Hub’s name' : 'Home'}
+        autoCapitalize="words"
+      />
       {d.fields.map((f) => (
         <Field
           key={f.key}
@@ -132,8 +157,15 @@ export default function ConnectSystem() {
         </>
       )}
 
+      {d.kind === 'hub' && !result?.ok && (
+        <Button title="Scan the Hub’s QR code instead" kind="secondary" onPress={() => router.push('/onboarding/invite')} />
+      )}
+
       {result?.ok ? (
-        <Button title="Continue" onPress={() => router.push('/onboarding/vpn')} />
+        <Button
+          title="Continue"
+          onPress={() => (d.kind === 'hub' ? void finishHubJoin() : router.push('/onboarding/vpn'))}
+        />
       ) : (
         <Button title="Connect" onPress={test} loading={busy} disabled={missing} />
       )}

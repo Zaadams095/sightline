@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 import { parseStatus, WgTunnel, type AuthKind } from '@modules/wg-tunnel';
 import { secrets, SECRET } from '@/state/secrets';
+import { probeHub } from '@/systems/hub';
 import type { SystemConfig } from '@/systems/types';
 import { useApp } from '@/state/store';
 import { fetchWithTimeout } from '@/util/fetch';
@@ -17,6 +18,8 @@ export interface SystemLink {
   error?: string;
   /** Present when routed through the native gateway. */
   port?: number;
+  /** Reached through a system's own public link (Sightline Hub), not the VPN. */
+  remote?: boolean;
 }
 
 interface LinkState {
@@ -89,6 +92,15 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
   const store = {
     set: (id: string, link: SystemLink) => (publish ? links.set(id, link) : (privateLinks[id] = link)),
   };
+
+  // A Sightline Hub is reached directly: its home address, else its own public HTTPS link.
+  // It never needs the gateway or the VPN.
+  if (s.kind === 'hub') {
+    store.set(s.id, { ...(prev ?? { baseUrl: s.endpoint.lanUrl }), mode: 'connecting', error: undefined });
+    const link = await probeHub(s);
+    store.set(s.id, link);
+    return link;
+  }
 
   // Expo Go / web: no native gateway, so talk to the server directly (preview only: home
   // network, no VPN, and no self-signed certificates).

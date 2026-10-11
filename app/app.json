@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "requireFullScreen": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "Scan a WireGuard QR code to connect to your home network.",
+        "NSCameraUsageDescription": "Scan a QR code to connect to your Sightline Hub, a shared invite, or your home VPN.",
         "NSLocalNetworkUsageDescription": "Connect to cameras and recorders on your home network.",
         "NSBonjourServices": [
           "_http._tcp",
@@ -94,7 +94,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Scan a WireGuard QR code to connect to your home network.",
+          "cameraPermission": "Scan a QR code to connect to your Sightline Hub, a shared invite, or your home VPN.",
           "recordAudioAndroid": false
         }
       ],

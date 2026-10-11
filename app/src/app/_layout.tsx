@@ -78,6 +78,10 @@ export default function RootLayout() {
             <Stack.Screen name="settings/diagnostics" options={{ title: 'Diagnostics' }} />
             <Stack.Screen name="settings/home-away" options={{ title: 'Home & Away' }} />
             <Stack.Screen name="settings/security" options={{ title: 'Privacy & lock' }} />
+            <Stack.Screen name="settings/sharing" options={{ title: 'Sharing' }} />
+            {/* Deep links sightline://invite?… and sightline://hub?… redirect to the join screen. */}
+            <Stack.Screen name="invite" options={{ headerShown: false }} />
+            <Stack.Screen name="hub" options={{ headerShown: false }} />
           </Stack>
           <AppLockGate />
           {/* Starts WebKit's web process at launch so the first live view doesn't pay for it. */}
