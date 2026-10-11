@@ -6,15 +6,26 @@ import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { LivePlayer, type LiveState } from '@/components/live/live-player';
+import { noteProblem } from '@/diagnostics/log';
 import { resolveLive, type ResolvedLive } from '@/systems/live';
 import type { CameraSystemAdapter } from '@/systems/types';
 import { setPlayerMuted } from '@/util/player';
+
+/** Resolves a live source, recording a failure (by brand) for diagnostics. */
+async function resolveFor(adapter: CameraSystemAdapter, cameraId: string, quality: 'main' | 'sub'): Promise<ResolvedLive> {
+  try {
+    return { ...(await resolveLive(await adapter.liveStream(cameraId, { quality }), adapter.config)), brand: adapter.config.kind };
+  } catch (e) {
+    noteProblem('player', e, { brand: adapter.config.kind, feature: 'live-start' });
+    throw e;
+  }
+}
 
 /** Resolves a camera's live source (any brand) into something playable. Shared cache key. */
 export function useLive(adapter: CameraSystemAdapter | null, cameraId: string, quality: 'main' | 'sub' = 'main', enabled = true) {
   return useQuery({
     queryKey: ['live', adapter?.config.id, cameraId, quality],
-    queryFn: async () => resolveLive(await adapter!.liveStream(cameraId, { quality }), adapter!.config),
+    queryFn: () => resolveFor(adapter!, cameraId, quality),
     enabled: enabled && !!adapter?.capabilities.live,
     staleTime: Infinity,
     retry: 1,
@@ -24,7 +35,7 @@ export function useLive(adapter: CameraSystemAdapter | null, cameraId: string, q
 export function prefetchLiveOptions(adapter: CameraSystemAdapter, cameraId: string) {
   return {
     queryKey: ['live', adapter.config.id, cameraId, 'main'],
-    queryFn: async () => resolveLive(await adapter.liveStream(cameraId, { quality: 'main' }), adapter.config),
+    queryFn: () => resolveFor(adapter, cameraId, 'main'),
     staleTime: Infinity,
   };
 }
@@ -41,9 +52,14 @@ interface Props {
 
 /** Plays any resolved live source: go2rtc MSE, HLS, or MJPEG. All report `onState`. */
 export function LiveView({ live, muted = true, fit = 'contain', onState, ...rest }: Props) {
-  if (live.kind === 'mse') return <LivePlayer wsUrl={live.wsUrl} muted={muted} fit={fit} onState={onState} {...rest} />;
-  if (live.kind === 'hls') return <HlsLive uri={live.uri} muted={muted} fit={fit} onState={onState} />;
-  return <MjpegLive uri={live.uri} fit={fit} onState={onState} />;
+  if (live.kind === 'mse') return <LivePlayer wsUrl={live.wsUrl} muted={muted} fit={fit} onState={onState} brand={live.brand} {...rest} />;
+  // HLS and MJPEG report no reason, only that playback failed.
+  const report = (s: LiveState) => {
+    if (s === 'error') noteProblem('player', 'playback failed', { brand: live.brand, feature: `live-${live.kind}`, category: 'player-error' });
+    onState?.(s);
+  };
+  if (live.kind === 'hls') return <HlsLive uri={live.uri} muted={muted} fit={fit} onState={report} />;
+  return <MjpegLive uri={live.uri} fit={fit} onState={report} />;
 }
 
 /** Reports a state only when it changes (callers often pass a fresh callback each render). */

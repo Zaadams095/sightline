@@ -10,6 +10,7 @@ import { WebView } from 'react-native-webview';
 import { watchBridgeSync } from '@/alerts/bridge';
 import { handleLaunchNotification, registerBackgroundAlerts, setupNotificationHandling } from '@/alerts/background';
 import { startDoorbellWatch } from '@/alerts/doorbell';
+import { installCrashHandlers } from '@/diagnostics/log';
 import { startLiveActivities } from '@/alerts/live-activity';
 import { startLifecycle } from '@/net/connection';
 import { resumeHomeAway } from '@/presence/geofence';
@@ -20,6 +21,10 @@ import { startWatchSync } from '@/watch/sync';
 
 SplashScreen.preventAutoHideAsync();
 setupNotificationHandling();
+installCrashHandlers();
+
+/** "Something went wrong — Try again / Send report" instead of a crashed screen. */
+export { ErrorScreen as ErrorBoundary } from '@/diagnostics/error-screen';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },

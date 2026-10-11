@@ -2,6 +2,7 @@ import { AppState } from 'react-native';
 import { create } from 'zustand';
 
 import { parseStatus, WgTunnel, type AuthKind } from '@modules/wg-tunnel';
+import { noteProblem } from '@/diagnostics/log';
 import { secrets, SECRET } from '@/state/secrets';
 import { probeHub } from '@/systems/hub';
 import type { SystemConfig } from '@/systems/types';
@@ -79,7 +80,12 @@ export async function ensureTunnel(): Promise<void> {
   tunnelStarting ??= (async () => {
     const conf = await secrets.get(TUNNEL_SCOPE, SECRET.wireguardConf);
     if (!conf) throw new Error('No VPN configuration. Add one in Settings → VPN.');
-    await WgTunnel!.startTunnel(conf);
+    try {
+      await WgTunnel!.startTunnel(conf);
+    } catch (e) {
+      noteProblem('tunnel', e, { feature: 'start' });
+      throw e;
+    }
     useLinks.setState({ tunnelUp: true });
   })().finally(() => {
     tunnelStarting = null;
@@ -160,6 +166,7 @@ async function connectOnce(s: SystemConfig, opts: ConnectOpts, attempt: Attempt)
   if (s.kind === 'hub') {
     store.set(s.id, { ...(prev ?? { baseUrl: s.endpoint.lanUrl }), mode: 'connecting', error: undefined });
     const link = await probeHub(s);
+    if (link.mode === 'offline') noteProblem('connect', link.error ?? 'offline', { brand: s.kind, feature: link.remote ? 'remote' : 'home-network' });
     store.set(s.id, link);
     return link;
   }
@@ -171,7 +178,10 @@ async function connectOnce(s: SystemConfig, opts: ConnectOpts, attempt: Attempt)
     let link: SystemLink = { baseUrl, mode: 'lan' };
     if (describe(s.kind)?.gatewayAuth === 'frigate') {
       const err = await directFrigateLogin(s, baseUrl);
-      if (err) link = { baseUrl, mode: 'offline', error: err };
+      if (err) {
+        link = { baseUrl, mode: 'offline', error: err };
+        noteProblem('connect', err, { brand: s.kind, feature: 'direct' });
+      }
     }
     store.set(s.id, link);
     return link;
@@ -221,6 +231,7 @@ async function connectOnce(s: SystemConfig, opts: ConnectOpts, attempt: Attempt)
     }
 
     if (!s.endpoint.useTunnel || !(await hasTunnelConfig())) {
+      noteProblem('connect', dialError, { brand: s.kind, feature: 'home-network' });
       const link: SystemLink = {
         baseUrl,
         port,
@@ -235,6 +246,7 @@ async function connectOnce(s: SystemConfig, opts: ConnectOpts, attempt: Attempt)
     await ensureTunnel();
     WgTunnel.setRouteViaTunnel(port, true);
     const reachable = await WgTunnel.probe(hostPort(target), true, 5000);
+    if (!reachable) noteProblem('connect', 'no response', { brand: s.kind, feature: 'vpn' });
     const link: SystemLink = reachable
       ? { baseUrl, port, mode: 'tunnel' }
       : { baseUrl, port, mode: 'offline', error: `Connected to home, but ${s.name} didn’t answer. Make sure it’s turned on.` };
@@ -243,6 +255,7 @@ async function connectOnce(s: SystemConfig, opts: ConnectOpts, attempt: Attempt)
   } catch (e) {
     // Don't leave a half-made route (and its listener) behind in the native gateway.
     if (addedPort != null) WgTunnel.removeRoute(addedPort);
+    noteProblem('connect', e, { brand: s.kind, feature: 'route' });
     const link: SystemLink = {
       baseUrl: prev?.baseUrl ?? '',
       port: prev?.port,

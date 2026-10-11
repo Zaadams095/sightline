@@ -1,5 +1,6 @@
 import type { ZoneSupport } from '@/alerts/zones';
 import type { SystemLink } from '@/net/connection';
+import { noteRequestProblem } from '@/diagnostics/log';
 import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
 import {
@@ -203,8 +204,14 @@ export class HubAdapter implements CameraSystemAdapter {
         body: body !== undefined ? JSON.stringify(body) : undefined,
       },
       timeoutMs,
-    );
-    if (!res.ok) throw await hubError(res, this.hubName);
+    ).catch((e: unknown) => {
+      noteRequestProblem('hub', path, e);
+      throw e;
+    });
+    if (!res.ok) {
+      noteRequestProblem('hub', path, `HTTP ${res.status}`);
+      throw await hubError(res, this.hubName);
+    }
     return res;
   }
 

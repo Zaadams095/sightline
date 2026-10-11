@@ -55,6 +55,8 @@ func (h *hub) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/grants", h.authed(needManager, h.handleGrantCreate))
 	mux.HandleFunc("DELETE /v1/grants/{id}", h.authed(needManager, h.handleGrantRevoke))
 	mux.HandleFunc("POST /v1/grants/{id}/invite", h.authed(needManager, h.handleGrantReinvite))
+
+	mux.HandleFunc("GET /v1/diagnostics", h.authed(needOwner, h.handleDiagnostics))
 }
 
 // ---- info ----
@@ -441,6 +443,7 @@ func (h *hub) allCameras(ctx context.Context) []cameraView {
 			cams, err := s.b.Cameras(cctx)
 			s.setStatus(err, len(cams))
 			if err != nil {
+				h.noteErr(s, "cameras", err)
 				return
 			}
 			for _, c := range cams {
@@ -517,7 +520,7 @@ func (h *hub) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 	img, ct, err := s.b.Snapshot(r.Context(), native, height)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "snapshot", err)
 		return
 	}
 	w.Header().Set("Content-Type", ct)
@@ -532,7 +535,7 @@ func (h *hub) handlePTZInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	info, err := s.b.PTZInfo(r.Context(), native)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "ptz", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, info)
@@ -550,7 +553,7 @@ func (h *hub) handlePTZ(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.b.PTZ(r.Context(), native, body.Action); err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "ptz", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -628,6 +631,7 @@ func (h *hub) handleEvents(w http.ResponseWriter, r *http.Request) {
 			evs, err := s.b.Events(r.Context(), backend.EventQuery{Cameras: cams, After: after, Before: before, Severity: q.Get("severity"), Limit: limit})
 			if err != nil {
 				log.Printf("%s events: %v", s.cfg.ID, err)
+				h.noteErr(s, "events", err)
 				return
 			}
 			mu.Lock()
@@ -669,7 +673,7 @@ func (h *hub) handleEventThumb(w http.ResponseWriter, r *http.Request) {
 	}
 	ev, err := s.b.Event(r.Context(), native)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "events", err)
 		return
 	}
 	// Events on cameras outside the grant don't exist for this caller; outside the window
@@ -684,7 +688,7 @@ func (h *hub) handleEventThumb(w http.ResponseWriter, r *http.Request) {
 	}
 	img, ct, err := s.b.EventThumbnail(r.Context(), native)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "events", err)
 		return
 	}
 	w.Header().Set("Content-Type", ct)
@@ -713,7 +717,7 @@ func (h *hub) handleSegments(w http.ResponseWriter, r *http.Request) {
 	}
 	segs, err := s.b.Segments(r.Context(), native, after, before)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "recordings", err)
 		return
 	}
 	for _, sg := range segs {
@@ -764,7 +768,7 @@ func (h *hub) handleVODMaster(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := s.b.VOD(r.Context(), native, start, end, "", r.Header)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "recordings", err)
 		return
 	}
 	h.proxyMedia(w, resp, "vod/"+strconv.FormatInt(start, 10)+"/"+strconv.FormatInt(end, 10)+"/", tokenQuery(r))
@@ -791,7 +795,7 @@ func (h *hub) handleVODFile(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := s.b.VOD(r.Context(), native, start, end, file, r.Header)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "recordings", err)
 		return
 	}
 	h.proxyMedia(w, resp, "", tokenQuery(r))
@@ -809,7 +813,7 @@ func (h *hub) handleClip(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := s.b.Clip(r.Context(), native, start, end, r.Header)
 	if err != nil {
-		backendError(w, err)
+		h.upstream(w, s, "clips", err)
 		return
 	}
 	h.proxyMedia(w, resp, "", "")

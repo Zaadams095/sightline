@@ -111,7 +111,12 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Privacy">
-        <Row label="App lock" detail="Face ID or a PIN to open the app" onPress={() => router.push('/settings/security')} last />
+        <Row label="App lock" detail="Face ID or a PIN to open the app" onPress={() => router.push('/settings/security')} />
+        <Row label="Share crash data with the developer" detail="An iOS setting; here’s where to find it" onPress={() => router.push('/settings/crash-data')} last />
+      </Section>
+
+      <Section title="Help">
+        <Row label="Report a problem" detail="See exactly what’s sent before you send it" onPress={() => router.push('/settings/report')} last />
       </Section>
 
       <Section title="Look & layout">
