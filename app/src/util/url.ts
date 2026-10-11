@@ -20,3 +20,14 @@ export function frigateCandidates(host: string): string[] {
   const h = host.trim().replace(/\/+$/, '');
   return [`https://${h}:8971`, `http://${h}:5000`, `https://${h}:443`, `http://${h}:80`];
 }
+
+/**
+ * Port 8971 is normally HTTPS, but Frigate can run it as plain HTTP (tls.enabled: false), and
+ * any port could be either. Ask the server: if an HTTPS request is answered in plain HTTP,
+ * switch the URL to http://. `check` returns "HTTP <status>" or the error text.
+ */
+export async function resolveScheme(url: string, check: (url: string) => Promise<string>): Promise<string> {
+  if (!url.startsWith('https://')) return url;
+  const res = await check(`${url}/api/version`);
+  return /HTTP response to HTTPS client/i.test(res) ? url.replace(/^https:/, 'http:') : url;
+}

@@ -13,7 +13,7 @@ import { WgTunnel } from '@modules/wg-tunnel';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 import { isExpoGo } from '@/util/runtime';
-import { frigateCandidates, isBareHost, normalizeUrl } from '@/util/url';
+import { frigateCandidates, isBareHost, normalizeUrl, resolveScheme } from '@/util/url';
 
 /** For a bare IP/host, use the first usual Frigate port that accepts a connection. */
 async function detectFrigateUrl(host: string): Promise<string> {
@@ -47,7 +47,8 @@ export default function FrigateSetup() {
     setResult(null);
     setUnreachable(null);
     const id = `frigate-${Date.now().toString(36)}`;
-    const lanUrl = isBareHost(url) ? await detectFrigateUrl(url) : normalizeUrl(url);
+    const guessed = isBareHost(url) ? await detectFrigateUrl(url) : normalizeUrl(url);
+    const lanUrl = WgTunnel ? await resolveScheme(guessed, (u) => WgTunnel!.httpCheck(u, false, 4000)) : guessed;
     const system: SystemConfig = {
       id,
       kind: 'frigate',

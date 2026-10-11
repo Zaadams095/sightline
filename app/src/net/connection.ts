@@ -4,7 +4,9 @@ import { create } from 'zustand';
 import { parseStatus, WgTunnel, type AuthKind } from '@modules/wg-tunnel';
 import { secrets, SECRET } from '@/state/secrets';
 import type { SystemConfig } from '@/systems/types';
+import { useApp } from '@/state/store';
 import { fetchWithTimeout } from '@/util/fetch';
+import { resolveScheme } from '@/util/url';
 
 export type LinkMode = 'connecting' | 'lan' | 'tunnel' | 'offline';
 
@@ -101,7 +103,17 @@ export async function connectSystem(s: SystemConfig, opts: { publish?: boolean }
   }
 
   store.set(s.id, { ...(prev ?? { baseUrl: '' }), mode: 'connecting', error: undefined });
-  const target = s.endpoint.lanUrl;
+  let target = s.endpoint.lanUrl;
+
+  // A saved https:// address whose server actually speaks plain HTTP (e.g. Frigate 8971 with
+  // TLS off) is corrected once and persisted.
+  if (publish && prev?.port == null && target.startsWith('https://')) {
+    const fixed = await resolveScheme(target, (u) => WgTunnel!.httpCheck(u, false, 4000));
+    if (fixed !== target) {
+      target = fixed;
+      useApp.getState().upsertSystem({ ...s, endpoint: { ...s.endpoint, lanUrl: fixed } });
+    }
+  }
 
   try {
     let port = prev?.port;

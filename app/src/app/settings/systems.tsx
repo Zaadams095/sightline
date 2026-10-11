@@ -7,7 +7,8 @@ import { secrets, SECRET } from '@/state/secrets';
 import { useApp } from '@/state/store';
 import { dropAdapter } from '@/systems/registry';
 import { usePalette } from '@/theme/use-palette';
-import { normalizeUrl } from '@/util/url';
+import { normalizeUrl, resolveScheme } from '@/util/url';
+import { WgTunnel } from '@modules/wg-tunnel';
 
 export default function SystemSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,7 +33,16 @@ export default function SystemSettings() {
       ...system,
       name: name.trim() || system.name,
       username: user.trim() || undefined,
-      endpoint: { ...system.endpoint, lanUrl: system.kind === 'frigate' ? normalizeUrl(url) : url, useTunnel },
+      endpoint: {
+        ...system.endpoint,
+        lanUrl:
+          system.kind === 'frigate' && WgTunnel
+            ? await resolveScheme(normalizeUrl(url), (u) => WgTunnel!.httpCheck(u, false, 4000))
+            : system.kind === 'frigate'
+              ? normalizeUrl(url)
+              : url,
+        useTunnel,
+      },
     };
     // Credentials live in the native route, so rebuild it.
     disconnectSystem(system.id);
