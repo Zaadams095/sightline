@@ -32,7 +32,8 @@
         "com.apple.security.application-groups": [
           "group.com.zachadams.sightline"
         ]
-      }
+      },
+      "appleTeamId": "D36CEMNM8Q"
     },
     "android": {
       "package": "com.zachadams.sightline",
