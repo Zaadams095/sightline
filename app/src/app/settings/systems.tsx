@@ -116,7 +116,14 @@ export default function SystemSettings() {
   return (
     <Screen>
       <T muted>
-        {d.label} · {link?.mode === 'lan' ? 'Connected at home' : link?.mode === 'tunnel' ? 'Connected away from home' : 'Not connected'}
+        {d.label} ·{' '}
+        {system.kind === 'demo'
+          ? 'Built-in sample video, not a real camera'
+          : link?.mode === 'lan'
+            ? 'Connected at home'
+            : link?.mode === 'tunnel'
+              ? 'Connected away from home'
+              : 'Not connected'}
         {link?.error ? `\n${link.error}` : ''}
       </T>
       <Field label="Name" value={name} onChangeText={setName} autoCapitalize="words" />

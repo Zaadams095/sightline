@@ -5,6 +5,7 @@ import { useApp } from '@/state/store';
 import { AgentDvrAdapter } from '@/systems/agent-dvr';
 import { BlueIrisAdapter } from '@/systems/blue-iris';
 import { DahuaAdapter } from '@/systems/dahua';
+import { DemoAdapter } from '@/systems/demo/adapter';
 import { FrigateAdapter } from '@/systems/frigate';
 import { usesGateway } from '@/systems/catalog';
 import { OnvifAdapter } from '@/systems/onvif';
@@ -53,6 +54,8 @@ function create(s: SystemConfig, baseUrl: string): CameraSystemAdapter {
       return new ReolinkAdapter(s, baseUrl);
     case 'hikvision':
       return new HikvisionAdapter(s, baseUrl);
+    case 'demo':
+      return new DemoAdapter(s);
     default:
       throw new Error(`${s.kind} is not supported yet`);
   }

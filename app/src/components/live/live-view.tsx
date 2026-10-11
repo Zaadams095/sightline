@@ -8,6 +8,7 @@ import { WebView } from 'react-native-webview';
 import { LivePlayer, type LiveState } from '@/components/live/live-player';
 import { noteProblem } from '@/diagnostics/log';
 import { useLinks, type LinkMode } from '@/net/connection';
+import { LoopLive } from '@/components/live/loop-live';
 import { resolveLive, type ResolvedLive } from '@/systems/live';
 import type { CameraSystemAdapter } from '@/systems/types';
 import { setPlayerMuted } from '@/util/player';
@@ -58,9 +59,10 @@ interface Props {
   openedAt?: number;
 }
 
-/** Plays any resolved live source: go2rtc MSE, HLS, or MJPEG. All report `onState`. */
+/** Plays any resolved live source: go2rtc MSE, HLS, MJPEG, or a sample loop. All report `onState`. */
 export function LiveView({ live, muted = true, fit = 'contain', onState, ...rest }: Props) {
   if (live.kind === 'mse') return <LivePlayer wsUrl={live.wsUrl} muted={muted} fit={fit} onState={onState} brand={live.brand} {...rest} />;
+  if (live.kind === 'loop') return <LoopLive uri={live.uri} pan={live.pan} fit={fit} poster={rest.poster} onState={onState} />;
   // HLS and MJPEG report no reason, only that playback failed.
   const report = (s: LiveState) => {
     if (s === 'error') noteProblem('player', 'playback failed', { brand: live.brand, feature: `live-${live.kind}`, category: 'player-error' });

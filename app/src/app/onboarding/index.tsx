@@ -1,12 +1,15 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { WelcomeBack } from '@/components/backup/welcome-back';
+import { offerSampleAlert } from '@/components/demo-banner';
 import { Button, Screen, T } from '@/components/ui/primitives';
 import { useApp } from '@/state/store';
 import { CATALOG, type Category, type SystemDescriptor } from '@/systems/catalog';
+import { startDemo, useDemoActive } from '@/systems/demo/session';
 import { space } from '@/theme/tokens';
 import { usePalette } from '@/theme/use-palette';
 
@@ -21,6 +24,20 @@ export default function Welcome() {
   const insets = useSafeAreaInsets();
   // Opened from Settings → "Add a recorder or camera": offer a way back out.
   const adding = useApp((s) => s.onboarded);
+
+  const demoActive = useDemoActive();
+  const [startingDemo, setStartingDemo] = useState(false);
+  const tryDemo = async () => {
+    setStartingDemo(true);
+    try {
+      await startDemo();
+      router.replace('/');
+      // Only on this explicit tap: offer one sample notification so alerts can be seen too.
+      setTimeout(offerSampleAlert, 1200);
+    } finally {
+      setStartingDemo(false);
+    }
+  };
 
   const pick = (d: SystemDescriptor) => {
     if (d.kind === 'rtsp') router.push('/onboarding/rtsp');
@@ -55,6 +72,16 @@ export default function Welcome() {
         Sightline looks around your home Wi-Fi and finds cameras and recorders for you.
       </T>
       <Button title="Pick your camera brand" kind="secondary" onPress={() => router.push('/onboarding/brands')} />
+
+      {!demoActive && (
+        <View style={[styles.demo, { backgroundColor: p.surface, borderColor: p.border }]}>
+          <T v="label">No cameras handy?</T>
+          <T v="caption" muted>
+            Explore every feature with built-in sample cameras. Nothing to set up, and you can connect your own any time.
+          </T>
+          <Button title="Try it with sample cameras" kind="secondary" loading={startingDemo} onPress={() => void tryDemo()} />
+        </View>
+      )}
 
       <View style={styles.row}>
         <BigOption icon="qrcode.viewfinder" title="Someone shared cameras with me" onPress={() => router.push('/onboarding/invite')} />
@@ -110,6 +137,7 @@ function BigOption({ icon, title, onPress }: { icon: React.ComponentProps<typeof
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: space.sm },
+  demo: { gap: space.sm, padding: space.lg, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
   big: { flex: 1, alignItems: 'center', gap: space.sm, padding: space.lg, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
   sectionTitle: { textTransform: 'uppercase', letterSpacing: 0.6, marginLeft: space.xs },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

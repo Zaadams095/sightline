@@ -4,6 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
+import { SamplePill } from '@/components/demo-banner';
 import { LiveView, prefetchLiveOptions, useLive } from '@/components/live/live-view';
 import { useApp } from '@/state/store';
 import type { CameraSystemAdapter, Camera } from '@/systems/types';
@@ -90,6 +91,11 @@ export const CameraTile = memo(function CameraTile({
             onLoad={() => setShown(next)}
           />
         )}
+        {adapter.config.kind === 'demo' && (
+          <View style={styles.sample} pointerEvents="none">
+            <SamplePill />
+          </View>
+        )}
         {!camera.enabled && (
           <View style={[StyleSheet.absoluteFill, styles.center, { backgroundColor: palette.scrim }]}>
             <Text style={styles.disabled}>Camera off</Text>
@@ -120,6 +126,7 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   disabled: { color: '#fff', fontWeight: '600' },
   labelWrap: { position: 'absolute', left: 8, bottom: 8, right: 8, flexDirection: 'row' },
+  sample: { position: 'absolute', top: 8, right: 8 },
   labelPill: {
     flexDirection: 'row',
     alignItems: 'center',

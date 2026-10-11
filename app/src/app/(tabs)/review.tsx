@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DemoBanner } from '@/components/demo-banner';
 import { PackagesCard } from '@/components/review/packages-card';
 import { SavedPanel } from '@/components/review/saved-panel';
 import { SearchPanel } from '@/components/review/search-panel';
@@ -134,6 +135,7 @@ export default function ReviewScreen() {
           <T v="title" style={{ paddingHorizontal: space.lg }}>
             Recordings
           </T>
+          <DemoBanner />
           {modeTabs}
           <PackagesCard names={names} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>

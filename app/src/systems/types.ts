@@ -18,7 +18,9 @@ export type SystemKind =
   | 'scrypted'
   | 'zoneminder'
   | 'shinobi'
-  | 'agent-dvr';
+  | 'agent-dvr'
+  /** Built-in sample cameras (Demo mode): bundled footage, no network. */
+  | 'demo';
 
 export interface SystemCapabilities {
   live: boolean;
@@ -176,7 +178,12 @@ export type LiveSource =
   | { kind: 'mse'; wsUrl: string }
   | { kind: 'rtsp'; url: string }
   | { kind: 'hls'; uri: string }
-  | { kind: 'mjpeg'; uri: string };
+  | { kind: 'mjpeg'; uri: string }
+  /**
+   * A short video file played on repeat (Demo mode's sample cameras). `pan` makes it a wide
+   * view that the camera's move controls pan and zoom across (`aspect` = the file's width/height).
+   */
+  | { kind: 'loop'; uri: string; pan?: { key: string; aspect: number } };
 
 /**
  * Recorded video for a time window.

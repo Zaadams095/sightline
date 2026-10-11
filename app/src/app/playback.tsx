@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SamplePill } from '@/components/demo-banner';
 import { DayOverview } from '@/components/playback/day-overview';
 import { StreamPlayback } from '@/components/playback/stream-playback';
 import { SyncedPip } from '@/components/playback/synced-pip';
@@ -350,9 +351,12 @@ export default function PlaybackScreen() {
           <SymbolView name="xmark" tintColor="#fff" size={18} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <T v="label" color="#fff" numberOfLines={1}>
-            {nameOf(cameraId)} · {formatClock(shown, true)}
-          </T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <T v="label" color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {nameOf(cameraId)} · {formatClock(shown, true)}
+            </T>
+            {adapter?.config.kind === 'demo' && <SamplePill dark />}
+          </View>
           {current && (
             <T v="caption" color="rgba(255,255,255,0.7)" numberOfLines={1}>
               {titleFor(current)}
